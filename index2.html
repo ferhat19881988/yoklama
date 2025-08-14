@@ -1,0 +1,2310 @@
+<!-- /index.html -->
+
+<!DOCTYPE html>
+<html lang="tr" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes" />
+  <meta name="theme-color" content="#f97316" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Fenomen — Yoklama</title>
+
+  <!-- Fonts & Libs -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/utc.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/timezone.js" defer></script>
+
+  <style>
+    :root{
+      --brand:#f97316; --brand-2:#fb923c;
+      --bg:#0c0e12; --panel:#0f131a; --card:#11161f;
+      --ink:#e7e9ee; --muted:#9aa3b2;
+      --ok:#22c55e; --bad:#ef4444; --warn:#f59e0b;
+      --shadow:0 10px 30px rgba(0,0,0,.45);
+      --radius:16px; --radius-sm:12px; --maxw:1120px; --gap:18px;
+      --stroke:1px solid rgba(255,255,255,.06);
+      --glass:rgba(255,255,255,.03);
+      --ring:0 0 0 3px rgba(249,115,22,.35);
+    }
+    @media (prefers-color-scheme: light){
+      :root{ --bg:#f7f7fb; --panel:#fff; --card:#fff; --ink:#0f172a; --muted:#667085;
+        --shadow:0 12px 28px rgba(2,6,23,.08);
+        --stroke:1px solid rgba(2,6,23,.06);
+        --glass:rgba(255,255,255,.85);
+      }
+    }
+    *,*::before,*::after{ box-sizing:border-box }
+    html,body{ height:100% }
+    body{
+      margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,"Noto Sans",sans-serif;
+      color:var(--ink);
+      background:
+        radial-gradient(1400px 700px at -10% -10%, rgba(249,115,22,.18), transparent 60%),
+        radial-gradient(1200px 600px at 120% 0%, rgba(251,146,60,.18), transparent 60%),
+        var(--bg);
+      line-height:1.45;
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;
+    }
+    img{ max-width:100%; display:block }
+    a{ color:inherit; text-decoration:none }
+    button,input,select{ font:inherit; color:inherit }
+    :focus-visible{ outline:none; box-shadow:var(--ring) }
+
+    header{
+      position:sticky; top:0; z-index:10;
+      background:linear-gradient(90deg, rgba(249,115,22,.95), rgba(251,146,60,.95));
+      backdrop-filter:saturate(150%) blur(8px);
+      border-bottom:var(--stroke); color:#fff;
+    }
+    .head-inner{ max-width:var(--maxw); margin:0 auto; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px }
+    .logo{ display:flex; align-items:center; gap:8px }
+    .logo-img{ height:40px; width:auto; border-radius:6px }
+    .logo-text{ font-weight:600; font-size:1.1rem; white-space:nowrap }
+    #userChip{ color:#fff }
+    .badge{ width:36px; height:36px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(135deg,#fef3c7,#fdba74); color:#7c2d12; font-size:18px; box-shadow:0 10px 25px rgba(251,146,60,.35) }
+    /* YENİ — header öğeleri kaymasın */
+.head-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:nowrap;   /* kritik: sarma yok */
+  min-width:0;        /* ellipsis çalışsın */
+}
+.logo{ min-width:0 }
+.logo-text{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+#userChip{ max-width:48vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
+/* Çok dar ekranlarda uzun “Online/Offline” metnini gizle */
+@media (max-width:420px){
+  #netText{ display:none }
+}
+/* Öğrenci satırı: uzun isim butonları aşağı itmesin */
+.student{ align-items:center; gap:12px }         /* mevcut yapı ile uyumlu */
+.student .stack{ flex:1 1 auto; min-width:0 }    /* sol blok esnesin */
+.student .name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis } /* uzun adlar */
+.student .row{ flex:0 0 auto; white-space:nowrap } /* sağdaki buton grubu tek satır */
+.student .late,.student .switch{ flex:0 0 auto }    /* daralmayı engelle */
+
+    .mono{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.9rem }
+
+    .container{ max-width:var(--maxw); margin:22px auto; padding:0 18px }
+    main#app{ display:grid; gap:var(--gap) }
+    .row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+    .stack{ display:grid; gap:10px }
+    .spread{ display:flex; justify-content:space-between; align-items:center; gap:10px }
+    .right{ margin-left:auto }
+    .center{ justify-content:center }
+
+    .card{ background:var(--glass); border:var(--stroke); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden }
+    .card h3{ margin:0; padding:14px 16px; border-bottom:var(--stroke); font-size:1.05rem; font-weight:800; background:linear-gradient(90deg, rgba(249,115,22,.10), transparent 70%) }
+    .card .body{ padding:16px }
+
+    .kpi{ background:var(--glass); border:var(--stroke); border-radius:14px; padding:14px }
+    .grid{ display:grid; gap:14px }
+    .cols-2{ grid-template-columns:repeat(2,1fr) }
+    .cols-3{ grid-template-columns:repeat(3,1fr) }
+    @media (max-width:900px){ .cols-2,.cols-3{ grid-template-columns:1fr } }
+
+    .btn{
+      background:linear-gradient(135deg,var(--brand),var(--brand-2));
+      color:#1b1007; border:none; padding:10px 14px; border-radius:12px;
+      font-weight:800; letter-spacing:.2px; transition:transform .06s ease, box-shadow .2s ease, opacity .2s ease;
+      box-shadow:0 10px 26px rgba(249,115,22,.25);
+    }
+    .btn:hover{ transform:translateY(-1px) }
+    .btn:active{ transform:translateY(0) }
+    .btn.ghost{ background:transparent; color:var(--ink); border:var(--stroke); box-shadow:none }
+    .btn:disabled{ opacity:.55; cursor:not-allowed }
+    .btn.danger{ border-color:rgba(239,68,68,.35); box-shadow:none }
+    .btn.danger:hover{ box-shadow:0 8px 24px rgba(239,68,68,.18) }
+
+    .pill{ display:inline-block; padding:4px 10px; border-radius:999px; border:var(--stroke); background:var(--glass); font-size:.9rem }
+    .muted{ color:var(--muted) }
+
+    #statusBar{ background:var(--glass); border:var(--stroke); border-radius:12px; padding:8px 12px; display:flex; align-items:center; gap:10px }
+    .dot{ width:10px; height:10px; border-radius:50% }
+    .dot.ok{ background:var(--ok) }
+    .dot.bad{ background:var(--bad) }
+
+    .lesson{ border:var(--stroke); background:var(--glass); border-radius:14px; padding:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer; transition:transform .06s ease, background .25s ease, border-color .2s ease }
+    .lesson:hover{ transform:translateY(-1px) }
+    .lesson .title{ font-weight:800 }
+    .lesson .sub{ font-size:.9rem; color:var(--muted) }
+    .chip{ display:inline-block; padding:4px 10px; border-radius:999px; border:var(--stroke); background:var(--glass); font-size:.9rem; white-space:nowrap }
+    .chip.ok{ color:#065f46; background:rgba(34,197,94,.16) }
+    .chip.bad{ color:#7f1d1d; background:rgba(239,68,68,.16) }
+    .chip.due{ color:#7c2d12; background:rgba(245,158,11,.16) }
+    .chip.purple{ color:#3f1d7a; background:rgba(168,85,247,.16) }
+    .chip.future{ color:#1f2937; background:rgba(148,163,184,.16) }
+
+    .list{ list-style:none; padding:0; margin:0 }
+    .student{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:var(--stroke); transition:background .15s ease, transform .03s ease }
+    .student:hover{ background:rgba(255,255,255,.04) }
+    @media (prefers-color-scheme: light){ .student:hover{ background:rgba(2,6,23,.035) } }
+
+    .switch{ position:relative; width:56px; height:32px; border-radius:999px; background:rgba(148,163,184,.35); border:var(--stroke); transition:.2s }
+    .switch::after{ content:""; position:absolute; top:3px; left:3px; width:26px; height:26px; border-radius:999px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.25); transition:.2s }
+    .switch.on{ background:rgba(34,197,94,.7) }
+    .switch.on::after{ left:27px }
+    .late{ margin-left:6px; border:var(--stroke); border-radius:999px; padding:6px 10px; font-size:.85rem; background:var(--glass); cursor:pointer; user-select:none; opacity:.95 }
+    .late.on{ background:rgba(245,158,11,.22) }
+
+    .field{ display:grid; gap:6px; width:100% }
+    .input{ width:100%; padding:10px 12px; border-radius:12px; background:var(--glass); border:var(--stroke); color:inherit; outline:none }
+    #loginCard{ max-width:520px; margin:32px auto }
+    .hidden{ display:none !important }
+
+    .table{ width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border:var(--stroke); border-radius:12px }
+    .table th,.table td{ padding:10px 12px; border-bottom:var(--stroke); text-align:left }
+    .table thead th{ background:linear-gradient(90deg, rgba(249,115,22,.10), transparent 70%) ; font-weight:800 }
+    .table tbody tr:hover{ background:rgba(255,255,255,.04) }
+    @media (prefers-color-scheme: light){ .table tbody tr:hover{ background:rgba(2,6,23,.035) } }
+
+    @media print{
+      header,#statusBar,#loginCard,#teacherView,#parentView,.no-print{ display:none !important }
+      body{ background:#fff; color:#000 }
+      .card{ box-shadow:none; border:none }
+      .table th,.table td{ border-bottom:1px solid #000 !important; color:#000 }
+    }
+    @media (max-width:600px){ .head-inner{ padding:12px 14px } .card h3{ padding:12px 14px } .card .body{ padding:14px } }
+    @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important } }
+
+    /* KPI satırlarını tek satırda tut */
+    #kpiGrid,#admMiniDash{ display:flex !important; gap:14px; flex-wrap:nowrap }
+    #kpiGrid .kpi,#admMiniDash .kpi{ flex:1 1 0; min-width:0; display:flex; align-items:center; justify-content:space-between; white-space:nowrap }
+    #kpiGrid .kpi .muted,#admMiniDash .kpi .muted{ font-size:clamp(.80rem,2.5vw,1rem)!important }
+    #kpiTop,#kpiVar,#kpiYok,#dashVar,#dashYok,#dashGec{ font-weight:800!important; font-size:clamp(1rem,4.5vw,1.2rem)!important; overflow:hidden; text-overflow:ellipsis }
+
+    .teacher-kpis{ display:flex; flex-wrap:wrap; gap:12px; margin:10px 16px 0 16px }
+    .kpi-card{ flex:1 1 160px; min-width:160px; background:var(--glass); border:var(--stroke);
+      border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between }
+    .kpi-label{ color:var(--muted); font-weight:600 } .kpi-value{ font-weight:800; font-size:1.2rem }
+    .kpi-green{ border-top:4px solid var(--ok) } .kpi-red{ border-top:4px solid var(--bad) } .kpi-orange{ border-top:4px solid var(--warn) }
+
+    /* === Responsive & legacy mobile improvements === */
+    /* Reduce heavy effects on low-end devices */
+    @media (max-width:480px){
+      .head-inner{ padding:10px 12px }
+      .logo-text{ font-size:1rem }
+      .badge{ width:32px; height:32px; font-size:16px }
+      .btn{ padding:12px 14px; border-radius:14px }
+      .lesson{ padding:12px }
+      .switch{ width:64px; height:36px } /* larger tap target */
+      .switch::after{ width:30px; height:30px; top:3px }
+      .late{ padding:8px 12px } /* larger tap */
+      .table th,.table td{ padding:8px 10px }
+      .teacher-kpis{ margin:8px 12px 0 12px }
+      .kpi-card{ min-width:140px }
+    }
+    /* Fallback when backdrop-filter is not supported */
+    @supports not ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))){
+      header{ background:linear-gradient(90deg, rgba(249,115,22,.98), rgba(251,146,60,.98)) }
+    }
+
+    /* Tables: make horizontally scrollable on small screens without breaking print */
+    .table-wrap{ width:100%; overflow:auto; -webkit-overflow-scrolling:touch }
+    .table{ min-width:640px } /* prevent cramped cells on very small screens */
+
+    /* Avoid layout shifts inside SweetAlert content on mobile */
+    .swal2-html-container{ max-height:70vh; overflow:auto }
+
+    /* Print optimizations */
+    @media print{
+      html,body{ height:auto }
+      *{ box-shadow:none !important; text-shadow:none !important }
+      header,.no-print,.btn, .head-right{ display:none !important }
+      .container{ margin:0; padding:0 }
+      .print-area{ overflow:visible }
+      .table{ width:100% !important; min-width:0 !important }
+      .table th,.table td{ padding:6px 8px !important }
+      .chip{ border:1px solid #000 !important }
+      /* Pagination */
+      thead{ display:table-header-group }
+      tr{ break-inside:avoid; page-break-inside:avoid }
+      @page{ size:auto; margin:12mm }
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+
+    /* Mobile touch polish */
+    button, .switch, .late { touch-action: manipulation; -webkit-tap-highlight-color: transparent }
+    /* Typography scale for tiny screens */
+    body{ font-size:clamp(14px, 2.8vw, 16px) }
+    .teacher-report-container {
+  overflow-x: auto;
+}
+.teacher-report-table {
+  border-collapse: collapse;
+  min-width: 100%;
+  table-layout: auto;
+}
+.teacher-report-table th,
+.teacher-report-table td {
+  padding: 8px;
+  white-space: nowrap;
+}
+.tr-scroll{
+  max-height:60vh; 
+  overflow:auto;
+  padding-bottom:6px;
+}
+.tr-sec{ padding:4px 0 12px 0 }
+.tr-head{ margin:0 0 8px 0 }
+.tr-subhead{
+  position: sticky;
+  top: 0;               /* modal içinde üstte yapış */
+  margin: 12px 0 8px 0;
+  padding: 8px 0;
+  background: var(--panel);
+  border-top: var(--stroke);
+  z-index: 1;
+}
+/* Admin filtre yerleşimi — mevcut stilleri zorla ez */
+div.admin-filters {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+div.admin-filters .filter-row {
+  display: flex !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+}
+
+div.admin-filters .button-row {
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+}
+
+/* Küçük ekranlar için minik rötuş */
+@media (max-width: 720px){
+  div.admin-filters .button-row { gap: 6px !important; }
+  div.admin-filters .filter-row label { min-width: 220px; }
+}
+/* ---------- Print Summary ---------- */
+.print-sheet { display:none; }
+.ps-head { text-align:center; margin: 0 0 12px; }
+.ps-head h2 { margin:0 0 4px; font-size:22px; font-weight:700; }
+.ps-date { font-size:14px; color:#555; }
+
+.ps-table { width:100%; border-collapse:collapse; }
+.ps-table th, .ps-table td { border:1px solid #e6e6e6; padding:8px 10px; font-size:13px; }
+.ps-table thead th { background:#fafafa; text-align:left; }
+.ps-table tbody tr:nth-child(odd){ background:#fcfcfc; }
+
+/* Yazdır düzeni */
+@media print {
+  /* ekrandaki diğer her şeyi sakla */
+  body * { visibility: hidden; }
+  /* sadece özet sayfayı ve içini göster */
+  #admPrintSheet, #admPrintSheet * { visibility: visible; }
+  #admPrintSheet { display:block !important; position:absolute; inset:10mm; }
+
+  /* Admin başlık ve gridler görünmesin */
+  .no-print, .print-area, #adminTitle, #admMiniDash { display:none !important; }
+}
+@media print {
+  #admPrintSheet, #admPrintSheet * { visibility: visible !important; } /* zaten var ama güçlendirelim */
+  #admPrintSheet { display:block !important; position:absolute; inset:10mm; } /* zaten var */
+
+  /* Eski 'header{display:none}' kuralını geçersiz kıl */
+  #admPrintSheet header.ps-head { 
+    display: block !important; 
+    visibility: visible !important;
+  }
+}
+/* ===== UI Polish Pack — Hover + Elevate + Net Ayrımlar ===== */
+/* Not: Admin yazdırma stillerine DOKUNMUYOR; .ps-table ve @media print yok. */
+
+/* Genel hover yükseltme */
+.hover-raise { transition: transform .18s ease, box-shadow .25s ease, border-color .2s ease; }
+.hover-raise:hover,
+.hover-raise:focus-within { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(0,0,0,.30); }
+
+/* --- Login & Veli kartlarını öne çıkar --- */
+#loginCard,
+#parentView .card {
+  border: 1px solid rgba(249,115,22,.18);
+  transition: transform .18s ease, box-shadow .25s ease, border-color .2s ease, background .25s ease;
+}
+#loginCard:hover,
+#loginCard:focus-within,
+#parentView .card:hover,
+#parentView .card:focus-within {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 44px rgba(0,0,0,.45);
+  border-color: rgba(249,115,22,.45);
+  background: linear-gradient(180deg, rgba(251,146,60,.06), transparent 30%), var(--glass);
+}
+
+/* Login input: yazması rahat & net odak */
+#loginCard .input{
+  padding: 14px 16px;
+  font-size: 1.05rem;
+  background: rgba(255,255,255,.05);
+}
+@media (prefers-color-scheme: light){
+  #loginCard .input{ background:#fff; }
+}
+#loginCard .field:focus-within > span { color: var(--brand-2); font-weight: 600; }
+#loginCard .input:focus-visible{
+  border-color: rgba(249,115,22,.45);
+  box-shadow: var(--ring);
+}
+
+/* Butonları belirginleştir */
+.btn{
+  box-shadow: 0 12px 30px rgba(249,115,22,.28);
+}
+.btn:hover{ transform: translateY(-2px); box-shadow: 0 18px 44px rgba(249,115,22,.32); }
+.btn:active{ transform: translateY(0); }
+.btn.ghost{
+  background: rgba(148,163,184,.08);
+  border: 1px solid rgba(148,163,184,.22);
+}
+.btn.ghost:hover{ background: rgba(148,163,184,.14); }
+
+/* Tablo başlıklarını düzelt + sticky başlık + zebra satırlar */
+.table-wrap{ position: relative; }
+.table thead th{
+  position: sticky; top: 0; z-index: 2;
+  background: rgba(249,115,22,.14); /* koyu tema için düz arka plan */
+  backdrop-filter: blur(4px) saturate(120%);
+  font-weight: 800;
+}
+@media (prefers-color-scheme: light){
+  .table thead th{ background:#fff7ed; } /* açık temada daha temiz */
+}
+.table tbody tr:nth-child(even){ background: rgba(255,255,255,.02); }
+@media (prefers-color-scheme: light){
+  .table tbody tr:nth-child(even){ background: rgba(2,6,23,.02); }
+}
+/* Hücre sınırlarını biraz belirgin yap */
+.table th,.table td{ border-bottom: 1px solid rgba(148,163,184,.22); }
+
+/* Öğretmen: ders kartları — hover & aktifken öne gelsin */
+.lesson{
+  position: relative; /* z-index için gerekli */
+  border: 1px solid rgba(148,163,184,.25);
+  transition: transform .18s ease, box-shadow .25s ease, border-color .2s ease, background .25s ease;
+}
+.lesson:hover{
+  transform: translateY(-2px);
+  border-color: rgba(249,115,22,.45);
+  box-shadow: 0 16px 40px rgba(0,0,0,.35);
+}
+.lesson.is-active{
+  transform: translateY(-2px) scale(1.01);
+  border-color: rgba(249,115,22,.75);
+  background: linear-gradient(180deg, rgba(251,146,60,.08), transparent 35%), var(--glass);
+  box-shadow: 0 22px 56px rgba(0,0,0,.5);
+  z-index: 999; /* JS ile ayrıca artırıyoruz */
+}
+
+/* Öğrenci satırlarını belirginleştir (hafif vurgular) */
+.student:hover{
+  transform: translateY(-1px);
+  border-bottom-color: rgba(148,163,184,.35);
+}
+
+/* KPI kartları (veli görünümü dahil) hafif hover */
+.kpi, .kpi-card{
+  transition: transform .18s ease, box-shadow .25s ease;
+}
+.kpi:hover, .kpi-card:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(0,0,0,.18);
+}
+
+/* Küçük ekranlarda hover yoksa sorun çıkmasın */
+@media (hover: none){
+  .hover-raise:hover,
+  #loginCard:hover,
+  #parentView .card:hover,
+  .lesson:hover { transform:none; box-shadow:none; }
+}
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header role="banner">
+    <div class="head-inner">
+      <div class="logo" aria-label="Uygulama adı">
+        <img src="https://i.ibb.co/cS9PSRpq/Logo-Fenomen.jpg" alt="Fenomen Yoklama Logo" class="logo-img">
+        <span class="logo-text">Yoklama</span>
+      </div>
+      <div class="head-right" role="group" aria-label="Oturum ve durum">
+        <div id="netState" class="row" aria-live="polite">
+          <div id="netDot" class="dot" aria-hidden="true"></div>
+          <div id="netText" class="mono">Bağlantı kontrol ediliyor…</div>
+        </div>
+        <div id="userChip" class="muted" aria-live="polite">Giriş yapılmadı</div>
+        <button class="btn ghost hidden" id="btnLogout" type="button">Çıkış</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Net status -->
+  <div id="statusBar" class="container hidden" role="status" aria-live="polite">
+    <span id="statusMsg" class="mono"></span>
+  </div>
+
+  <!-- App -->
+  <main id="app" class="container hidden">
+    <!-- ÖĞRETMEN -->
+    <section id="teacherView" class="hidden" aria-labelledby="teacherTitle">
+      <div class="card" role="region" aria-label="Bugünkü dersler">
+        <h3 id="teacherTitle">📚 Bugünkü Derslerim</h3>
+
+        <div class="teacher-kpis" id="teacherKpis">
+          <div class="kpi-card kpi-green"><span class="kpi-label">Katılım %</span><span class="kpi-value" id="kpiAttendPct">0%</span></div>
+          <div class="kpi-card kpi-red"><span class="kpi-label">Yoklama %</span><span class="kpi-value" id="kpiAbsentPct">0%</span></div>
+          <div class="kpi-card kpi-orange"><span class="kpi-label">Geç %</span><span class="kpi-value" id="kpiLatePct">0%</span></div>
+        </div>
+
+        <div class="body stack">
+          <div id="todayInfo" class="muted"></div>
+          <div id="lessonsGrid" class="grid cols-2" role="list"></div>
+          <div id="noLesson" class="muted hidden" role="note">Bugün için dersiniz görünmüyor.</div>
+        </div>
+      </div>
+
+      <div id="attCard" class="card hidden" role="region" aria-labelledby="attTitle">
+        <h3 id="attTitle">📝 Yoklama</h3>
+        <div class="body stack">
+          <div class="att-toolbar">
+            <div class="row btn-group" role="group" aria-label="Toplu işlemler">
+              <button class="btn ghost" id="allVar" type="button">Hepsi VAR</button>
+              <button class="btn ghost" id="allYok" type="button">Hepsi YOK</button>
+              <button class="btn ghost" id="undoBtn" type="button">Geri Al</button>
+              <button class="btn ghost danger" id="cancelBtn" type="button">İptal</button>
+              <button class="btn" id="saveBtn" type="button">Kaydet</button>
+              <label class="muted row" for="cfgDefaultVarChk" style="margin-left:10px;">
+                <input type="checkbox" id="cfgDefaultVarChk" /> Açılışta herkes VAR
+              </label>
+            </div>
+            <div class="row sum-group" id="sumBar" aria-live="polite">
+              <span class="pill" aria-label="Toplam">Toplam: 0</span>
+              <span class="pill" aria-label="Var">Var: 0</span>
+              <span class="pill" aria-label="Yok">Yok: 0</span>
+              <span class="pill" aria-label="Geç">Geç: 0</span>
+            </div>
+          </div>
+          <ul id="studentList" class="list" aria-label="Öğrenciler"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- VELİ -->
+    <section id="parentView" class="hidden" aria-labelledby="pTitle">
+      <div class="card" role="region" aria-label="Yoklama Özeti">
+        <h3 id="pTitle">📊 Yoklama Özeti</h3>
+        <div class="body stack">
+          <div class="row" role="group" aria-label="Tarih aralığı">
+            <button class="btn ghost" data-range="today" type="button">Bugün</button>
+            <button class="btn ghost" data-range="week" type="button">Bu Hafta</button>
+            <button class="btn ghost" data-range="month" type="button">Bu Ay</button>
+          </div>
+          <div class="grid cols-3" id="kpiGrid" role="list">
+            <div class="kpi" role="listitem" aria-label="Toplam"><div class="muted">Toplam</div><div id="kpiTop">0</div></div>
+            <div class="kpi" role="listitem" aria-label="Var"><div class="muted">VAR</div><div id="kpiVar">0</div></div>
+            <div class="kpi" role="listitem" aria-label="Yok"><div class="muted">YOK</div><div id="kpiYok">0</div></div>
+          </div>
+          <!-- Veliye detaylı öğrenci raporu düğmesi -->
+          <div class="row">
+            <button class="btn" id="parentReportBtn" type="button">🧾 Detaylı Öğrenci Raporu</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" role="region" aria-label="Kayıtlar">
+        <h3>📅 Kayıtlar</h3>
+        <div class="body">
+          <ul id="parentList" class="list"></ul>
+          <div id="noParentData" class="muted hidden">Seçilen aralıkta kayıt yok.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="adminView" class="hidden" aria-labelledby="adminTitle">
+  <div class="card" role="region" aria-label="Yönetim Paneli — Gelişmiş Liste">
+    <h3 id="adminTitle">🛠️ Yönetim Paneli — Gelişmiş Liste</h3>
+    <div class="body stack">
+
+      <!-- ↓ ESKİ: <div class="row no-print" ...> BLOĞUNUN YERİNE AŞAĞIDAKİYİ KOY ↓ -->
+      <div class="admin-filters no-print" role="group" aria-label="Tarih ve filtreler">
+        <div class="filter-row" role="group" aria-label="Filtreler">
+          <label class="row" for="admDate" title="Rapor tarihi">
+            <span class="muted">Tarih:</span>
+            <input id="admDate" class="input" type="date" aria-label="Tarih seçici" />
+          </label>
+
+          <label class="row" for="admClass" title="Sınıf seç">
+            <span class="muted">Sınıf:</span>
+            <select id="admClass" class="input" aria-label="Sınıf filtresi"></select>
+          </label>
+
+          <label class="row" for="admStatus" title="Durum seç">
+            <span class="muted">Durum:</span>
+            <select id="admStatus" class="input" aria-label="Durum filtresi">
+              <option value="hepsi">Hepsi</option>
+              <option value="gelen">Gelen (VAR)</option>
+              <option value="gelmeyen">Gelmeyen (YOK)</option>
+              <option value="gec">Geç Gelen</option>
+            </select>
+          </label>
+
+          <label class="row" for="admHour" title="Ders saati seç">
+            <span class="muted">Ders Saati:</span>
+            <select id="admHour" class="input" aria-label="Ders saati filtresi">
+              <option value="1" selected>1. saat</option>
+              <option value="2">2. saat</option>
+              <option value="3">3. saat</option>
+              <option value="4">4. saat</option>
+              <option value="hepsi">Hepsi</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="button-row" role="group" aria-label="İşlem butonları">
+          <button class="btn" id="admWhatsApp" type="button">WhatsApp</button>
+          <button class="btn" id="admTeacherReport" type="button" title="Öğretmen uyum raporu">Öğrt. Uyum</button>
+          <button class="btn" id="admStudentStats" type="button" title="Öğrenci istatistiği">Öğrenci İstatistiği</button>
+          <button class="btn danger" id="admHistory" type="button" title="Eski kayıtları görüntüle/sil">Eski Kayıtlar</button>
+
+          <span style="flex:1"></span><!-- butonları sağa/sola yaymak için -->
+          <button class="btn ghost" id="admRefresh" type="button">Yenile</button>
+          <button class="btn" id="admPrint" type="button">Yazdır</button>
+        </div>
+      </div>
+<!-- PRINT: Özet sayfa (sadece yazdırda görünür) -->
+<div id="admPrintSheet" class="print-sheet">
+  <header class="ps-head">
+    <h2>Fenomen Çocuk Kulübü — Yoklama Listesi</h2>
+    <div class="ps-date"><span id="psDateText"></span></div>
+  </header>
+
+  <table class="ps-table" id="admPrintTable" aria-label="Öğrenci günlük yoklama özeti">
+    <thead>
+      <tr>
+        <th style="width:80px">No</th>
+        <th>Ad Soyad</th>
+        <th style="width:110px">Sınıf</th>
+        <th>Geldiği Saatler</th>
+        <th>Gelemediği Saatler</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+          <div class="print-area">
+            <div class="table-wrap">
+              <table class="table" aria-label="Öğrenci listesi">
+                <thead>
+                  <tr>
+                    <th>No</th><th>Ad Soyad</th><th>Sınıf</th><th>Durum</th>
+                    <th>Geç</th><th>Ders</th><th>Saat</th><th>Öğretmen</th>
+                  </tr>
+                </thead>
+                <tbody id="admListBody"></tbody>
+              </table>
+            </div>
+            <div id="admEmpty" class="muted hidden">Liste boş.</div>
+          </div>
+
+          <div id="admMiniDash" class="grid cols-3">
+            <div class="kpi"><div class="muted">Bugün Gelen</div><div id="dashVar">0</div></div>
+            <div class="kpi"><div class="muted">Bugün Gelmeyen</div><div id="dashYok">0</div></div>
+            <div class="kpi"><div class="muted">Bugün Geç Gelen</div><div id="dashGec">0</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Giriş -->
+  <section class="card container" id="loginCard" role="form" aria-labelledby="loginTitle">
+    <h3 id="loginTitle">🔐 Giriş</h3>
+    <div class="body stack">
+      <label class="muted field">
+        <span>Veli: Öğrenci NO • Öğretmen: ID • Admin</span>
+        <input id="loginCode" class="input" type="password" inputmode="numeric" autocomplete="one-time-code" />
+      </label>
+      <div class="row">
+        <button class="btn" id="btnLogin" type="button">Giriş Yap</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- App Scripts -->
+  <script type="module">
+    dayjs.extend(dayjs_plugin_utc);
+    dayjs.extend(dayjs_plugin_timezone);
+    dayjs.tz.setDefault('Europe/Istanbul');
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA0jqzCSRFQYvLojoYEiBzfylXLqrL-NsQ",
+      authDomain: "ders-ac884.firebaseapp.com",
+      databaseURL: "https://ders-ac884-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "ders-ac884",
+      storageBucket: "ders-ac884.firebasestorage.app",
+      messagingSenderId: "601370057907",
+      appId: "1:601370057907:web:e1dcb9c04198f76b0d64c6",
+      measurementId: "G-Y7MMJL7D4D"
+    };
+
+    /* Google Sheet */
+    const SHEET_TOKEN = "d3RRMWt1WWdqQ3JtOUFtTUJuaFRkMWhyRlJnaE81czZQWFd2UXI1SURlTzE=";
+    const getSheetId = () => atob(SHEET_TOKEN).split('').reverse().join('');
+    const sheetUrl   = (tab) => `https://opensheet.elk.sh/${getSheetId()}/${tab}`;
+    const ATT_ROOT = 'yoklama_v2';
+    const attPath = (tarih, sinif, saatKodu, ogretmenId) =>
+    `${ATT_ROOT}/${tarih}/${sinif}/${saatKodu}/${ogretmenId}`;
+    const attDayRoot = (tarih, sinif) =>
+    sinif && sinif !== 'hepsi' ? `${ATT_ROOT}/${tarih}/${sinif}` : `${ATT_ROOT}/${tarih}`;
+    // UI
+    const UI = {
+      app: document.getElementById('app'),
+      loginCard: document.getElementById('loginCard'),
+      loginCode: document.getElementById('loginCode'),
+      btnLogin: document.getElementById('btnLogin'),
+      btnLogout: document.getElementById('btnLogout'),
+      userChip: document.getElementById('userChip'),
+
+      teacherView: document.getElementById('teacherView'),
+      kpiAttendPct: document.getElementById('kpiAttendPct'),
+      kpiAbsentPct: document.getElementById('kpiAbsentPct'),
+      kpiLatePct: document.getElementById('kpiLatePct'),
+      lessonsGrid: document.getElementById('lessonsGrid'),
+      todayInfo: document.getElementById('todayInfo'),
+      noLesson: document.getElementById('noLesson'),
+      attCard: document.getElementById('attCard'),
+      attTitle: document.getElementById('attTitle'),
+      studentList: document.getElementById('studentList'),
+      sumBar: document.getElementById('sumBar'),
+      allVar: document.getElementById('allVar'),
+      allYok: document.getElementById('allYok'),
+      saveBtn: document.getElementById('saveBtn'),
+      undoBtn: document.getElementById('undoBtn'),
+
+      parentView: document.getElementById('parentView'),
+      pTitle: document.getElementById('pTitle'),
+      parentList: document.getElementById('parentList'),
+      noParentData: document.getElementById('noParentData'),
+      kpiTop: document.getElementById('kpiTop'),
+      kpiVar: document.getElementById('kpiVar'),
+      kpiYok: document.getElementById('kpiYok'),
+      parentReportBtn: document.getElementById('parentReportBtn'),
+
+      netDot: document.getElementById('netDot'),
+      netText: document.getElementById('netText'),
+      statusBar: document.getElementById('statusBar'),
+      statusMsg: document.getElementById('statusMsg'),
+
+      // Admin
+      adminView: document.getElementById('adminView'),
+      admDate: document.getElementById('admDate'),
+      admRefresh: document.getElementById('admRefresh'),
+      admPrint: document.getElementById('admPrint'),
+      admClass: document.getElementById('admClass'),
+      admStatus: document.getElementById('admStatus'),
+      admListBody: document.getElementById('admListBody'),
+      admEmpty: document.getElementById('admEmpty'),
+      admWhatsApp: document.getElementById('admWhatsApp'),
+      admTeacherReport: document.getElementById('admTeacherReport'),
+      admStudentStats: document.getElementById('admStudentStats'),
+      admHistory: document.getElementById('admHistory'),
+      dashVar: document.getElementById('dashVar'),
+      dashYok: document.getElementById('dashYok'),
+      dashGec: document.getElementById('dashGec'),
+      admHour: document.getElementById('admHour'),
+    };
+
+    function updateTeacherKpis(toplam, v, y, g){
+      const pct = (n, d) => d > 0 ? Math.round((n/d)*100) : 0;
+      if(UI.kpiAttendPct) UI.kpiAttendPct.textContent = `${pct(v, toplam)}%`;
+      if(UI.kpiAbsentPct) UI.kpiAbsentPct.textContent = `${pct(y, toplam)}%`;
+      if(UI.kpiLatePct)   UI.kpiLatePct.textContent   = `${pct(g, toplam)}%`;
+    }
+
+    // State
+    let appFB, db;
+    let teachers=[], students=[], schedule=[], slots=[];
+    let slotOrderMap = new Map();
+    let session=null;
+    let currentLesson=null;
+    let tempAtt={};
+    let teacherRefreshTimer=null;
+
+    // Helpers
+    
+    const nowTR = () => dayjs.tz();
+    const toDateStr = (dy) => dy.format('YYYY-MM-DD');
+    const turkishDays = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+    const todayNameTR = () => turkishDays[nowTR().day()];
+    const safe = (v)=> (v??'').toString().trim();
+    const ordinal = (n)=> `${n}. Saat`;
+    function parseTime(hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return nowTR().hour(h).minute(m).second(0).millisecond(0); }
+    // >>> yeni: belirtilen tarihteki hh:mm'i oluştur
+    function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return dayjs.tz(dateStr).hour(h).minute(m).second(0).millisecond(0); }
+    const getSlotByCode = (code) => slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim()===String(code).trim())||null;
+
+    function teacherById(id){
+      const t = teachers.find(t=> safe(t.ID)===safe(id));
+      if(!t) return null;
+      const branch = t.BRANS || t.BRANŞ || t.BRANS_ADI || t.BRANSI || t.BRANCH || '';
+      const name   = t.OGRETMEN_ADI || t.AD || t.ADSOYAD || '';
+      return { id: safe(id), name: safe(name) || `Öğretmen #${id}`, branch: safe(branch) || 'Ders' };
+    }
+    function lessonNameFromRow(r, tInfo){
+      const ders = r.DERS || r.DERS_ADI || r.DERSI || '';
+      return safe(ders) || (tInfo?.branch || 'Ders');
+    }
+
+    function setStatus(msg, type='info'){
+      UI.statusBar.classList.remove('hidden');
+      UI.statusMsg.textContent = msg;
+      UI.statusMsg.style.color = (type==='ok')?'#22c55e':(type==='bad')?'#ef4444':'inherit';
+    }
+    function setNetUI(){
+      const online = navigator.onLine;
+      UI.netDot.className = 'dot '+(online?'ok':'bad');
+      UI.netText.textContent = online ? 'Online' : 'Offline — veriler yerelde kuyruğa alınıyor';
+      if(!online) setStatus('İnternet yok: kayıtlar geçici olarak cihazda saklanacak.', 'bad');
+    }
+
+    function queueOfflineWrite(path, payload){
+      const key='offlineQueue';
+      const q = JSON.parse(localStorage.getItem(key)||'[]');
+      q.push({path, payload});
+      localStorage.setItem(key, JSON.stringify(q));
+      setStatus(`Offline: ${q.length} işlem kuyrukta.`, 'bad');
+    }
+    async function flushQueue(showToast){
+      const key='offlineQueue';
+      const q = JSON.parse(localStorage.getItem(key)||'[]');
+      if(!q.length || !navigator.onLine) return;
+      try{
+        for(const item of q){ await update(ref(db, item.path), item.payload); }
+        localStorage.removeItem(key);
+        setStatus(`Online: ${q.length} bekleyen işlem aktarıldı.`, 'ok');
+        if(showToast) Swal.fire('Senkron', `${q.length} işlem veritabanına aktarıldı.`, 'success');
+      }catch(e){ console.error(e); setStatus('Senkron sırasında hata.', 'bad'); }
+    }
+
+    async function init(){
+      const app = initializeApp(firebaseConfig); appFB=app; db=getDatabase(appFB);
+      await loadSheets(); buildSlotOrder();
+
+      const cached = localStorage.getItem('session');
+      if(cached){ session = JSON.parse(cached); enterApp(); }
+
+      UI.btnLogin.onclick = validateLogin;
+      UI.btnLogout.onclick = ()=>{ localStorage.removeItem('session'); location.reload(); };
+
+      document.querySelectorAll('[data-range]').forEach(b=>{
+        b.addEventListener('click', ()=> loadParentRange(b.getAttribute('data-range')));
+      });
+
+      const _chk = document.getElementById('cfgDefaultVarChk');
+      if(_chk){
+        const cfg = JSON.parse(localStorage.getItem("cfg")||"{}");
+        _chk.checked = cfg.defaultVar ?? true;
+        _chk.addEventListener('change', ()=>{
+          const j=JSON.parse(localStorage.getItem("cfg")||"{}"); j.defaultVar=_chk.checked; localStorage.setItem("cfg", JSON.stringify(j));
+        });
+      }
+
+      // Admin controls
+      UI.admRefresh?.addEventListener('click', refreshAdmin);
+      UI.admWhatsApp?.addEventListener('click', sendWhatsAppReport);
+      UI.admClass?.addEventListener('change', refreshAdmin);
+      UI.admStatus?.addEventListener('change', refreshAdmin);
+      UI.admTeacherReport?.addEventListener('click', openTeacherReportModal);
+      UI.admStudentStats?.addEventListener('click', openStudentStatsModal);
+      UI.admHistory?.addEventListener('click', openHistoryModal);
+      UI.admHour?.addEventListener('change', refreshAdmin);
+
+      setNetUI();
+      window.addEventListener('online', async ()=>{ setNetUI(); await flushQueue(true); });
+      window.addEventListener('offline', ()=> setNetUI());
+      if(navigator.onLine) await flushQueue(false);
+    }
+
+    async function loadSheets(){
+      const [tRes,sRes,pRes,slRes] = await Promise.all([
+        fetch(sheetUrl('Ogretmenler')),
+        fetch(sheetUrl('Ogrenciler')),
+        fetch(sheetUrl('DersProgrami')),
+        fetch(sheetUrl('DersSaatleri')),
+      ]);
+      teachers = await tRes.json();
+      students = await sRes.json();
+      schedule = await pRes.json();
+      slots    = await slRes.json();
+    }
+    function buildSlotOrder(){
+      const tmp = slots.map(s=>{
+        const bas = (s.BASLANGIC||'23:59').toString();
+        const kod = safe(s.SAAT_KODU||s.KOD||s.ID);
+        return {kod, bas};
+      }).sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+      tmp.forEach((x,i)=> slotOrderMap.set(x.kod, i+1));
+    }
+
+    async function validateLogin(){
+      const code = safe(UI.loginCode.value);
+      if(!code) return Swal.fire('Uyarı','Lütfen kod giriniz.','warning');
+
+      if(code === '13579'){
+        session = {role:'admin', name:'Yönetici'};
+        localStorage.setItem('session', JSON.stringify(session));
+        return enterApp();
+      }
+      const stu = students.find(s=> safe(s.NO)===code);
+      if(stu){
+        session = {role:'veli', ogrNo:safe(stu.NO)};
+        localStorage.setItem('session', JSON.stringify(session));
+        return enterApp();
+      }
+      const t = teachers.find(t=> safe(t.ID)===code);
+      if(t){
+        const info = teacherById(t.ID);
+        session = {role:'ogretmen', ogretmenId:info.id, teacherName:info.name, teacherBranch:info.branch};
+        localStorage.setItem('session', JSON.stringify(session));
+        return enterApp();
+      }
+      Swal.fire('Hatalı','Kod bulunamadı.','error');
+    }
+
+    function enterApp(){
+      UI.loginCard.classList.add('hidden');
+      UI.app.classList.remove('hidden');
+      UI.btnLogout.classList.remove('hidden');
+
+      if(session.role==='ogretmen'){
+        UI.userChip.textContent = `🏫 ${session.teacherName||'Öğretmen'}`;
+        showTeacherToday();
+      }else if(session.role==='admin'){
+        UI.userChip.textContent = `🛠️ Yönetici`;
+        clearInterval(teacherRefreshTimer);
+        showAdminView();
+      }else{
+        const st = students.find(s=> safe(s.NO)===safe(session.ogrNo));
+        UI.userChip.textContent = `👪 ${st ? (st.ADSOYAD||'Veli') : 'Veli'}`;
+        clearInterval(teacherRefreshTimer);
+        showParentView();
+      }
+    }
+
+    /* ---------- TEACHER VIEW ---------- */
+    function lessonStatusInfo(lesson, hasTaken){
+      const now = nowTR();
+      const s = parseTime(lesson.bas);
+      const e = parseTime(lesson.bit);
+      if(hasTaken) return {chip:'ok', text:'Alındı'};
+      if(now.isAfter(e)) return {chip:'bad', text:'Süresi Geçti'};
+      if(now.isAfter(s) && now.isBefore(e)) return {chip:'due', text:'Zamanı Geldi'};
+      const mins = s.diff(now,'minute');
+      if(mins<=30) return {chip:'purple', text:'Yaklaşıyor'};
+      return {chip:'future', text:'Beklemede'};
+    }
+
+/* === Card Elevation: Son tıklanan ders kartı önde kalsın === */
+(() => {
+  let clickZ = 1000; // diğer katmanların üstüne çıkmak için güvenli bir başlangıç
+  const grid = document.getElementById('lessonsGrid');
+  if (!grid) return;
+
+  // Delegasyon: içeriğin yeniden oluşturulmasından etkilenmez
+  grid.addEventListener('click', (e) => {
+    const card = e.target.closest('.lesson');
+    if(!card) return;
+
+    // Daha önce aktif olanları kaldır
+    grid.querySelectorAll('.lesson.is-active').forEach(el => {
+      if (el !== card) el.classList.remove('is-active');
+    });
+
+    // Bu kartı aktif yap ve z-index'i artır
+    card.classList.add('is-active');
+    card.style.zIndex = String(++clickZ);
+  });
+})();
+async function getTakenSetTodayForTeacher(){
+  const tarih = toDateStr(nowTR());
+  const todayName = todayNameTR().toLocaleLowerCase('tr-TR');
+
+  const mine = schedule
+    .filter(r => safe(r.OGRETMEN_ID)===safe(session.ogretmenId))
+    .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR')===todayName);
+
+  const taken = new Set();
+  for (const r of mine){
+    const c   = safe(r.SINIF);
+    const sk  = safe(r.SAAT_KODU);
+    if(!c || !sk) continue;
+    // Neden: Kendi dalını kontrol ederek çakışmayı engeller
+    const snap = await get(ref(db, attPath(tarih, c, sk, session.ogretmenId)));
+    if (snap.exists()){
+      taken.add(`${c}|${sk}`);
+    }
+  }
+  return taken;
+}
+
+async function showTeacherToday(){
+  UI.teacherView.classList.remove('hidden');
+  UI.parentView.classList.add('hidden');
+  UI.adminView.classList.add('hidden');
+
+  const t = nowTR();
+  const AY = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  UI.todayInfo.textContent = `Bugün: ${t.date()} ${AY[t.month()]} ${t.year()} • ${todayNameTR()}`;
+
+  const today = todayNameTR().toLocaleLowerCase('tr-TR');
+  const mine = schedule
+    .filter(r => safe(r.OGRETMEN_ID) === safe(session.ogretmenId))
+    .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR') === today)
+    .map(r=>{
+      const slot = getSlotByCode(r.SAAT_KODU) || {};
+      const tInfo = teacherById(r.OGRETMEN_ID);
+      return {
+        gun: r.GUN, saatKodu: safe(r.SAAT_KODU),
+        sinif: safe(r.SINIF),
+        bas: safe(slot.BASLANGIC), bit: safe(slot.BITIS),
+        dersName: lessonNameFromRow(r, tInfo),
+        ogretmenId: tInfo?.id, ogretmenAd: tInfo?.name, ogretmenBrans: tInfo?.branch,
+        saatNo: slotOrderMap.get(safe(r.SAAT_KODU)) || null
+      };
+    })
+    .sort((a,b)=> (a.bas||'23:59').localeCompare(b.bas||'23:59','tr'));
+
+  const takenSet = await getTakenSetTodayForTeacher();
+
+  // Geciken yoklamaları toplamak için liste
+  const gecikenYoklamalar = [];
+
+  UI.lessonsGrid.innerHTML = mine.map((m,i)=>{
+    const hasTaken = takenSet.has(`${m.sinif}|${m.saatKodu}`);
+    const st = lessonStatusInfo(m, hasTaken);
+
+    // Saat kontrolü
+    const now = nowTR();
+    const basSaati = parseOnDate(toDateStr(now), m.bas);
+    const bitSaati = parseOnDate(toDateStr(now), m.bit);
+
+    // Başlangıca 5 dk kala ve bitişten 3 saat sonra kısıt
+    let canTake = true;
+    if (now.isBefore(basSaati.subtract(5, 'minute'))) {
+      canTake = false; // neden: erken yoklama engeli
+    }
+    if (now.isAfter(bitSaati.add(3, 'hour'))) {
+      canTake = false; // neden: geç yoklama engeli (3 saat)
+    }
+
+    // Geciken yoklama listesi (başladı +5 dk geçmiş ve 3 saatlik pencerede alınmamış)
+    if (!hasTaken && now.isAfter(basSaati.add(5, 'minute')) && now.isBefore(bitSaati.add(3, 'hour'))) {
+      gecikenYoklamalar.push(`${m.sinif} • ${m.dersName} (${m.bas}-${m.bit})`);
+    }
+
+    return `
+      <div class="lesson" role="button" tabindex="0"
+           data-idx="${i}" data-taken="${hasTaken?1:0}"
+           data-cantake="${canTake?1:0}"
+           data-sinif="${m.sinif}" data-saatkodu="${m.saatKodu}"
+           data-bas="${m.bas||''}" data-bit="${m.bit||''}">
+        <div>
+          <div class="title">${m.sinif} • ${m.dersName}</div>
+          <div class="sub">${m.gun} • ${m.saatNo?ordinal(m.saatNo):('Saat '+m.saatKodu)} (${m.bas||''}-${m.bit||''}) • ${m.ogretmenAd}</div>
+        </div>
+        <div class="chip ${st.chip}" aria-label="Durum">${st.text}</div>
+      </div>`;
+  }).join('');
+
+  UI.noLesson.classList.toggle('hidden', mine.length > 0);
+
+  Array.from(UI.lessonsGrid.querySelectorAll('.lesson')).forEach(el=>{
+    const activate = async ()=>{
+      const idx = Number(el.getAttribute('data-idx'));
+      const already = el.getAttribute('data-taken') === '1';
+      const canTake = el.getAttribute('data-cantake') === '1';
+
+      if (!canTake) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Yoklama Alınamaz',
+          text: 'Yoklama ders başlamadan 5 dakika önce veya ders bitiminden 3 saat sonra alınamaz.',
+        });
+        return;
+      }
+
+      if (already) {
+        const ok = await Swal.fire({title:'Bu yoklama daha önce alınmış.', text:'Tekrar almak istiyor musunuz?', icon:'question', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç'});
+        if(!ok.isConfirmed) return;
+      }
+      openLesson(mine[idx]);
+    };
+    el.addEventListener('click', activate);
+    el.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); activate(); } });
+  });
+
+  // === Uyarı ve 5 dk'lık yenileme mekanizması ===
+  UI._delayedAlertOpen = UI._delayedAlertOpen || false;
+  if (UI._delayedAlertTimer) clearInterval(UI._delayedAlertTimer);
+
+  // İlk gösterim: yalnızca en az bir yoklama alınmışsa
+  if (takenSet.size > 0 && gecikenYoklamalar.length > 0 && !UI._delayedAlertOpen) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Geciken Yoklamalar',
+      html: `Aşağıdaki derslerin yoklaması gecikmiş:<br><br>${gecikenYoklamalar.join('<br>')}`,
+      confirmButtonText: 'Tamam',
+      willOpen: () => { UI._delayedAlertOpen = true; },
+      didClose: () => { UI._delayedAlertOpen = false; }
+    });
+  }
+
+  // 5 dakikada bir yenile: ders bitişinden +3 saat sonrasına kadar
+  if (takenSet.size > 0) {
+    const nowForDeadline = nowTR();
+    const bitSaatleri = mine
+      .map(m => parseOnDate(toDateStr(nowForDeadline), m.bit))
+      .filter(x => x && typeof x.isValid === 'function' ? x.isValid() : true);
+    const maxDeadline = bitSaatleri.length
+      ? bitSaatleri.reduce((a,b)=> a.isAfter(b) ? a : b).add(3, 'hour')
+      : nowForDeadline;
+
+    UI._delayedAlertTimer = setInterval(async () => {
+      const tNow = nowTR();
+      if (tNow.isAfter(maxDeadline)) {
+        clearInterval(UI._delayedAlertTimer);
+        UI._delayedAlertTimer = null;
+        return;
+      }
+
+      // Güncel durumla tekrar hesapla
+      const freshTaken = await getTakenSetTodayForTeacher();
+      const delayedList = [];
+      for (const m of mine) {
+        const hasTaken = freshTaken.has(`${m.sinif}|${m.saatKodu}`);
+        const basSaati = parseOnDate(toDateStr(tNow), m.bas);
+        const bitSaati = parseOnDate(toDateStr(tNow), m.bit);
+        if (!hasTaken && tNow.isAfter(basSaati.add(5,'minute')) && tNow.isBefore(bitSaati.add(3,'hour'))) {
+          delayedList.push(`${m.sinif} • ${m.dersName} (${m.bas}-${m.bit})`);
+        }
+      }
+
+      if (delayedList.length > 0 && !UI._delayedAlertOpen) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Geciken Yoklamalar',
+          html: `Aşağıdaki derslerin yoklaması gecikmiş:<br><br>${delayedList.join('<br>')}`,
+          confirmButtonText: 'Tamam',
+          willOpen: () => { UI._delayedAlertOpen = true; },
+          didClose: () => { UI._delayedAlertOpen = false; }
+        });
+      }
+    }, 5 * 60 * 1000); // 5 dakika
+  }
+
+  restartTeacherAutoRefresh();
+  await refreshTeacherDailyKpis();
+}
+
+
+    function restartTeacherAutoRefresh(){
+      clearInterval(teacherRefreshTimer);
+      teacherRefreshTimer = setInterval(async ()=>{
+        if(UI.teacherView.classList.contains('hidden')) return;
+        if(!UI.attCard.classList.contains('hidden')) return;
+        await refreshLessonChips();
+        await refreshTeacherDailyKpis();
+      }, 3000);
+    }
+
+    async function refreshLessonChips(){
+      const takenSet = await getTakenSetTodayForTeacher();
+      const cards = Array.from(UI.lessonsGrid.querySelectorAll('.lesson'));
+      cards.forEach(card=>{
+        const bas = card.getAttribute('data-bas')||'';
+        const bit = card.getAttribute('data-bit')||'';
+        const sinif = card.getAttribute('data-sinif')||'';
+        const saatKodu = card.getAttribute('data-saatkodu')||'';
+        const hasTaken = takenSet.has(`${sinif}|${saatKodu}`);
+        card.setAttribute('data-taken', hasTaken?'1':'0');
+        const st = lessonStatusInfo({ bas, bit }, hasTaken);
+        const chip = card.querySelector('.chip'); chip.textContent = st.text; chip.className = 'chip '+st.chip;
+      });
+    }
+
+async function refreshTeacherDailyKpis(dateStr){
+  const tarih = dateStr || toDateStr(nowTR());
+  const dayName = turkishDays[dayjs(tarih).day()];
+  const todayRows = schedule
+    .filter(r=> safe(r.OGRETMEN_ID)===safe(session.ogretmenId))
+    .filter(r=> safe(r.GUN).toLocaleLowerCase('tr-TR')===dayName.toLocaleLowerCase('tr-TR'));
+
+  let v=0, y=0, g=0;
+  for(const r of todayRows){
+    const c  = safe(r.SINIF);
+    const sk = safe(r.SAAT_KODU);
+    if(!c || !sk) continue;
+    const snap = await get(ref(db, attPath(tarih, c, sk, session.ogretmenId)));
+    if(!snap.exists()) continue;
+    const data = snap.val();
+    for(const k in data){
+      const rec = data[k];
+      if(rec?.durum==='var') v++; else if(rec?.durum==='yok') y++;
+      if(rec?.late) g++;
+    }
+  }
+  updateTeacherKpis(v+y, v, y, g);
+}
+
+    /* ---------- ATTENDANCE PANEL ---------- */
+// 2) Güncellenmiş TAM fonksiyon: openLesson(lesson) — KLONLAMA DÂHİL
+async function openLesson(lesson){
+  currentLesson = lesson;
+  UI.attCard.classList.remove('hidden');
+  UI.attTitle.textContent = `📝 Yoklama — ${lesson.sinif} • ${lesson.dersName} • ${lesson.saatNo?ordinal(lesson.saatNo):('Saat '+lesson.saatKodu)} (${lesson.bas||''}-${lesson.bit||''}) • ${lesson.ogretmenAd}`;
+
+  const list = students
+    .filter(s=> safe(s.SINIF).toLocaleLowerCase('tr-TR')===lesson.sinif.toLocaleLowerCase('tr-TR'))
+    .map(s=>({id:safe(s.NO), ad:s.ADSOYAD||'', no:safe(s.NO)}))
+    .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+
+  const tarih = toDateStr(nowTR());
+  const path  = attPath(tarih, lesson.sinif, lesson.saatKodu, lesson.ogretmenId);
+  const snap  = await get(ref(db, path));
+  const existing = snap.exists() ? snap.val() : {};
+
+  // Bu derste geri al butonu durumu
+  const anyThisLesson = Object.keys(existing).length > 0;
+  UI.undoBtn.disabled = !anyThisLesson;
+
+  // --- KLON TEKLİFİ (yalnızca bu derste kayıt yoksa) ---
+  let prefillMode = 'existing'; // 'existing' | 'clone' | 'default'
+  let cloneData = null;
+
+  if (!anyThisLesson) {
+    const prev = findPrevConsecutiveSlot(lesson); // aynı gün + aynı öğretmen + aynı sınıf + hemen önceki saat
+    if (prev) {
+      const prevSnap = await get(ref(db, attPath(tarih, lesson.sinif, prev.saatKodu, lesson.ogretmenId)));
+      if (prevSnap.exists()) {
+        // Kullanıcıya sor
+        const ask = await Swal.fire({
+          icon:'question',
+          title:'Önceki yoklamayı klonla?',
+          html:`${lesson.sinif} sınıfının <b>${(prev.saatNo||lesson.saatNo-1)}. Saat</b> yoklaması bulundu.<br>
+                Bu derse uygulansın mı?<br><br>
+                <small>Kurallar: VAR→VAR, GEÇ→VAR, YOK→YOK</small>`,
+          showCancelButton:true,
+          confirmButtonText:'Evet, klonla',
+          cancelButtonText:'Hayır'
+        });
+        if (ask.isConfirmed) {
+          prefillMode = 'clone';
+          cloneData = prevSnap.val();
+        } else {
+          prefillMode = 'default';
+        }
+      } else {
+        prefillMode = 'default';
+      }
+    } else {
+      prefillMode = 'default';
+    }
+  }
+  // -----------------------------------------------------
+
+  tempAtt = {};
+  const cfg = JSON.parse(localStorage.getItem("cfg")||"{}");
+  const _defaultVar = (cfg.defaultVar ?? true);
+
+  // Doldurma: mevcut/klon/varsayılan
+  list.forEach(o=>{
+    let status='', late=false;
+
+    if (prefillMode==='existing' && existing[o.id]) {
+      const prev = existing[o.id];
+      status = (prev.durum==='var') ? 'var' : 'yok';
+      late   = !!prev.late;
+    } else if (prefillMode==='clone') {
+      const src = cloneData?.[o.id] || null;
+      // Klon kuralı: VAR→VAR (late=false), GEÇ→VAR (late=false), YOK→YOK
+      if (src) {
+        if (src.durum === 'yok') { status='yok'; late=false; }
+        else { status='var'; late=false; }
+      } else {
+        status = _defaultVar ? 'var' : ''; late=false;
+      }
+    } else {
+      status = _defaultVar ? 'var' : ''; late=false;
+    }
+
+    tempAtt[o.id] = { status, late };
+  });
+
+  UI.studentList.innerHTML = list.map(o=>{
+    const isVar = tempAtt[o.id].status==='var', isLate = !!tempAtt[o.id].late;
+    return `<li class="student" data-id="${o.id}" tabindex="0" aria-label="${o.ad}">
+      <div class="stack"><div class="name">${o.ad}</div><div class="muted">No: ${o.no}</div></div>
+      <div class="row">
+        <button class="late ${isLate?'on':''}" data-role="late" type="button">⏰ Geç</button>
+        <button class="switch ${isVar?'on':''}" data-role="switch" type="button" aria-pressed="${isVar}" title="${isVar?'Var':'Yok'}"></button>
+      </div>
+    </li>`;
+  }).join('');
+
+  Array.from(UI.studentList.querySelectorAll('.student')).forEach(li=>{
+    const id = li.getAttribute('data-id');
+    const sw = li.querySelector('[data-role="switch"]');
+    const late = li.querySelector('[data-role="late"]');
+
+    sw.addEventListener('click', ()=>{
+      const isOn = sw.classList.toggle('on');
+      sw.setAttribute('aria-pressed', String(isOn));
+      tempAtt[id].status = isOn ? 'var' : 'yok';
+      if(!isOn){ tempAtt[id].late = false; late.classList.remove('on'); }
+      renderSummary();
+    });
+    late.addEventListener('click', ()=>{
+      if(tempAtt[id].status!=='var') return;
+      tempAtt[id].late = !tempAtt[id].late;
+      late.classList.toggle('on', tempAtt[id].late);
+      renderSummary();
+    });
+  });
+
+  UI.allVar.onclick = ()=> setAll('var');
+  UI.allYok.onclick = ()=> setAll('yok');
+  UI.saveBtn.onclick = saveAttendance;
+  UI.undoBtn.onclick = undoAttendance;
+  document.getElementById('cancelBtn')?.addEventListener('click', ()=>{ closeAttendance(); });
+
+  renderSummary();
+}
+
+
+  function closeAttendance(){
+      UI.attCard.classList.add('hidden');
+      UI.studentList.innerHTML = '';
+      currentLesson = null;
+      tempAtt = {};
+      const firstLesson = document.querySelector('.lesson'); firstLesson?.focus();
+      // >>> İptal sonrası anında tazele
+      refreshLessonChips();                 // Çipler
+      refreshTeacherDailyKpis();            // KPI
+    }
+
+    function setAll(val){
+      Object.keys(tempAtt).forEach(k=> { tempAtt[k].status=val; tempAtt[k].late=false; });
+      Array.from(UI.studentList.querySelectorAll('.student')).forEach(li=>{
+        const sw = li.querySelector('[data-role="switch"]');
+        const late = li.querySelector('[data-role="late"]');
+        const on = val==='var';
+        sw.classList.toggle('on', on);
+        sw.setAttribute('aria-pressed', String(on));
+        late.classList.remove('on');
+      });
+      renderSummary();
+    }
+
+    function renderSummary(){
+      const ids = Array.from(UI.studentList.querySelectorAll('.student')).map(li => li.getAttribute('data-id'));
+      const toplam = ids.length; let v=0,y=0,g=0;
+      ids.forEach(id => { const d = tempAtt[id]; if (d.status==='var') v++; else if (d.status==='yok') y++; if (d.late) g++; });
+      UI.sumBar.innerHTML = `<span class="pill">Toplam: ${toplam}</span><span class="pill">Var: ${v}</span><span class="pill">Yok: ${y}</span><span class="pill">Geç: ${g}</span>`;
+      updateTeacherKpis(toplam, v, y, g);
+    }
+
+async function saveAttendance(){
+  if(!currentLesson) return;
+  const tarih = toDateStr(nowTR());
+  const sinif = currentLesson.sinif;
+  const pathBase = attPath(tarih, sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
+
+  const updates = {};
+  Object.entries(tempAtt).forEach(([id, d])=>{
+    if(d.status){
+      updates[`${pathBase}/${id}`] = {
+        durum:d.status, late:!!d.late, ts:Date.now(),
+        ogretmenId:currentLesson.ogretmenId, ogretmenAd:currentLesson.ogretmenAd, ogretmenBrans:currentLesson.ogretmenBrans,
+        ders:currentLesson.dersName, saatKodu:currentLesson.saatKodu, saatNo:currentLesson.saatNo||null,
+        saatBas:currentLesson.bas||'', saatBit:currentLesson.bit||'', gun:currentLesson.gun
+      };
+    }else{
+      // Neden: Boş durumda bu öğrenciyi bu dersten sil
+      updates[`${pathBase}/${id}`] = null;
+    }
+  });
+
+  try{
+    if(navigator.onLine){
+      await update(ref(db), updates);
+      await flushQueue(false);
+      setStatus('Kaydedildi.', 'ok');
+      Swal.fire('Kaydedildi','Yoklama kaydedildi.','success');
+    }else{
+      // Offline kuyruk: çoklu yol güncellemesini tek paket sakla
+      queueOfflineWrite('/', updates);
+      Swal.fire('Offline','Kayıt kuyruğa alındı.','info');
+    }
+    closeAttendance();
+    await showTeacherToday();
+    await refreshTeacherDailyKpis();
+  }catch(e){
+    console.error(e); setStatus('Hata: kayıt sırasında sorun.', 'bad');
+    Swal.fire('Hata','Kayıt sırasında bir sorun oluştu.','error');
+  }
+}
+async function undoAttendance(){
+  if(!currentLesson) return;
+  const tarih = toDateStr(nowTR());
+  const sinif = currentLesson.sinif;
+  const base = attPath(tarih, sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
+
+  const ok = await Swal.fire({title:'Geri al?', text:'Bu derse ait kayıtlar silinecek.', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç'});
+  if(!ok.isConfirmed) return;
+
+  try{
+    const snap = await get(ref(db, base));
+    if(!snap.exists()) return Swal.fire('Kayıt yok','Silinecek kayıt bulunamadı.','info');
+
+    const data = snap.val();
+    const updates = {};
+    for(const ogrNo in data){ updates[`${base}/${ogrNo}`] = null; }
+
+    if(navigator.onLine){ await update(ref(db), updates); }
+    else{ queueOfflineWrite('/', updates); }
+
+    Swal.fire('Geri alındı','Kayıtlar silindi.','success');
+    closeAttendance(); await showTeacherToday(); await refreshTeacherDailyKpis();
+  }catch(e){ console.error(e); Swal.fire('Hata','Geri alırken sorun oluştu.','error'); }
+}
+    /* ---------- PARENT VIEW ---------- */
+    function showParentView(){
+      UI.parentView.classList.remove('hidden');
+      UI.teacherView.classList.add('hidden'); UI.adminView.classList.add('hidden');
+      const st = students.find(s=> safe(s.NO)===safe(session.ogrNo));
+      document.getElementById('pTitle').textContent = `📊 Yoklama Özeti — ${st ? `${st.ADSOYAD} (${st.NO})` : ''}`;
+      loadParentRange('today');
+
+      // Veli için "Detaylı Öğrenci Raporu" — Admin’deki birebir rapor
+      UI.parentReportBtn?.addEventListener('click', ()=>{
+        if(st){ showStudentReport(safe(st.NO), st.ADSOYAD||''); }
+      });
+    }
+    function rangeDates(kind){
+      const end = nowTR().startOf('day'); let start=end;
+      if(kind==='week') start = end.subtract(6,'day');
+      if(kind==='month') start = end.subtract(1,'month');
+      const dates=[]; let d=start.clone(); while(d.isBefore(end)||d.isSame(end,'day')){ dates.push(d.format('YYYY-MM-DD')); d=d.add(1,'day'); }
+      return dates;
+    }
+async function loadParentRange(kind){
+  const no = safe(session?.ogrNo); const st = students.find(s => safe(s.NO)===no); if (!st) return;
+  const dates = (kind === 'today') ? [toDateStr(nowTR())] : rangeDates(kind);
+  const rows = [];
+
+  // Neden: Öğrencinin sınıfındaki tüm saat/öğretmen dallarını tarıyoruz
+  for (const t of dates) {
+    const dayRootSnap = await get(ref(db, `${ATT_ROOT}/${t}/${st.SINIF}`));
+    if (!dayRootSnap.exists()) continue;
+    const bySaat = dayRootSnap.val(); // {saatKodu:{ogretmenId:{ogrNo:{...}}}}
+    for (const sk of Object.keys(bySaat||{})){
+      const byTeacher = bySaat[sk]||{};
+      for (const ogretmenId of Object.keys(byTeacher)){
+        const rec = byTeacher[ogretmenId]?.[no];
+        if(rec){
+          rows.push({
+            tarih:t, durum:rec.durum, late:!!rec.late, ogretmenAd:rec.ogretmenAd||'',
+            ders:rec.ders||'', saatNo:rec.saatNo||null, saatBas:rec.saatBas||'', saatBit:rec.saatBit||''
+          });
+        }
+      }
+    }
+  }
+
+  const top=rows.length, v=rows.filter(r=>r.durum==='var').length, y=rows.filter(r=>r.durum==='yok').length;
+  UI.kpiTop.textContent=String(top); UI.kpiVar.textContent=String(v); UI.kpiYok.textContent=String(y);
+
+  const fmt = new Intl.DateTimeFormat('tr-TR',{ day:'numeric', month:'long', year:'numeric' });
+  UI.parentList.innerHTML = rows.sort((a,b)=> b.tarih.localeCompare(a.tarih)).map(r=>{
+    const [Y,M,D]=r.tarih.split('-').map(Number); const tarihStr = fmt.format(new Date(Y,M-1,D));
+    const detail = [r.ders||'Ders','•',r.ogretmenAd||'Öğretmen','•',r.saatNo?ordinal(r.saatNo):'Saat',`(${r.saatBas||''}-${r.saatBit||''})`].join(' ');
+    const chipClass = r.durum==='var'?'ok':'bad'; const chipText = r.durum==='var'?(r.late?'VAR • GEÇ':'VAR'):'YOK';
+    return `<li class="student"><div class="stack"><div>${tarihStr}</div><div class="muted">${detail}</div></div><div class="chip ${chipClass}">${chipText}</div></li>`;
+  }).join('');
+  UI.noParentData.classList.toggle('hidden', rows.length > 0);
+}
+
+    /* ---------- ADMIN VIEW ---------- */
+    function showAdminView(){
+      UI.adminView.classList.remove('hidden');
+      UI.teacherView.classList.add('hidden'); UI.parentView.classList.add('hidden');
+      const todayStr = toDateStr(nowTR()); UI.admDate.value = todayStr;
+      const classSet = new Set(students.map(s=> safe(s.SINIF)).filter(Boolean));
+      const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+      UI.admClass.innerHTML = `<option value="hepsi">Hepsi</option>` + classes.map(c=> `<option value="${c}">${c}</option>`).join('');
+      UI.admHour && (UI.admHour.value = '1'); // ilk açılış: 1. saat
+      refreshAdmin();
+    }
+function getAdminFilters(){
+  return {
+    date: UI.admDate.value || toDateStr(nowTR()),
+    cls: UI.admClass.value || 'hepsi',
+    status: UI.admStatus.value || 'hepsi',
+    hour: UI.admHour?.value || '1'  // varsayılan 1. saat
+  };
+}
+
+async function refreshAdmin(){
+  const {date, cls, status, hour} = getAdminFilters();
+
+  // Öğrenci sözlüğü (adı/sınıfı hızlı erişim için)
+  const studentPool = (cls && cls !== 'hepsi') ? students.filter(s => safe(s.SINIF) === cls) : students;
+  const byNo = new Map(studentPool.map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
+
+  // Günlük kök verisi
+  const rootPath = attDayRoot(date, cls);
+  const daySnap = await get(ref(db, rootPath));
+  const dayData = daySnap.exists() ? daySnap.val() : {}; // {SINIF:{SAAT_KODU:{OGRT_ID:{OGR_NO:{rec}}}}} | tek sınıf altı
+
+  // ---- TABLO: Saat & Durum filtresi uygulanır ----
+  const isHourPass = (rec, saatKodu) => {
+    if (hour === 'hepsi') return true;
+    const recHour = rec?.saatNo ?? (() => {
+      const m = String(saatKodu || '').match(/\d+/);
+      return m ? parseInt(m[0], 10) : undefined;
+    })();
+    return String(recHour ?? '') === String(hour);
+  };
+
+  const rows = [];
+  const pushRow = (sinif, no, rec, saatKodu) => {
+    const stu = byNo.get(no);
+    if (!stu) return;                // sınıf kapsamı dışında
+    if (!isHourPass(rec, saatKodu)) return;
+
+    const durum = rec?.durum || '';
+    const gec   = !!rec?.late;
+
+    // Durum filtresi
+    const pass =
+      status === 'hepsi' ||
+      (status === 'gelen'    && durum === 'var') ||
+      (status === 'gelmeyen' && durum === 'yok') ||
+      (status === 'gec'      && durum === 'var' && gec);
+    if (!pass) return;
+
+    rows.push({
+      no: no,
+      ad: stu.ad,
+      sinif: sinif,
+      durum,
+      gec,
+      ders: rec?.ders || '',
+      saat: rec?.saatNo
+        ? `${ordinal(rec.saatNo)} (${rec?.saatBas || ''}-${rec?.saatBit || ''})`
+        : (rec?.saatBas || rec?.saatBit ? `(${rec?.saatBas || ''}-${rec?.saatBit || ''})` : ''),
+      ogretmen: rec?.ogretmenAd || ''
+    });
+  };
+
+  const scanClassNode = (sinif, node) => {
+    Object.entries(node || {}).forEach(([saatKodu, byTeacher]) => {
+      Object.entries(byTeacher || {}).forEach(([ogretmenId, byStudent]) => {
+        Object.entries(byStudent || {}).forEach(([ogrNo, rec]) => {
+          pushRow(safe(sinif), safe(ogrNo), rec, saatKodu);
+        });
+      });
+    });
+  };
+
+  if (cls === 'hepsi') {
+    Object.entries(dayData || {}).forEach(([sinif, node]) => scanClassNode(safe(sinif), node));
+  } else {
+    // dayData doğrudan sınıf düğümü
+    scanClassNode(cls, dayData);
+  }
+
+  // Tablo yaz
+  UI.admListBody.innerHTML = rows
+    .sort((a, b) => (a.sinif + a.ad).localeCompare(b.sinif + b.ad, 'tr', { numeric: true, sensitivity: 'base' }))
+    .map(r => {
+      const dTxt = r.durum === 'var' ? 'GELDİ' : (r.durum === 'yok' ? 'GELMEDİ' : '—');
+      return `<tr>
+        <td>${r.no}</td>
+        <td>${r.ad}</td>
+        <td>${r.sinif}</td>
+        <td>${dTxt}</td>
+        <td>${r.gec ? '⏰' : ''}</td>
+        <td>${r.ders || ''}</td>
+        <td>${r.saat || ''}</td>
+        <td>${r.ogretmen || ''}</td>
+      </tr>`;
+    }).join('');
+  UI.admEmpty.classList.toggle('hidden', rows.length > 0);
+
+  // ---- KARTLAR: Gün geneli, öğrenci bazında tekil mantık ----
+  // (Saat/durum filtresinden BAĞIMSIZ; tüm günün kayıtlarına bakar)
+  const aggPerStudent = new Map(); // key: sinif#no -> { sinif, hasVarAny, hasYokAny, hasLateAny }
+
+  const aggEnsure = (sinif, no) => {
+    const k = `${sinif}#${no}`;
+    if (!aggPerStudent.has(k)) aggPerStudent.set(k, { sinif, hasVarAny:false, hasYokAny:false, hasLateAny:false });
+    return { k, rec: aggPerStudent.get(k) };
+  };
+
+  const scanForAgg = (sinif, node) => {
+    Object.entries(node || {}).forEach(([saatKodu, byTeacher]) => {
+      Object.entries(byTeacher || {}).forEach(([ogretmenId, byStudent]) => {
+        Object.entries(byStudent || {}).forEach(([ogrNo, rec]) => {
+          // yalnızca mevcut kapsam öğrencileri (cls='hepsi' ise tüm öğrenciler)
+          if (!byNo.has(safe(ogrNo))) return;
+          const { rec: S } = aggEnsure(safe(sinif), safe(ogrNo));
+          if (rec?.durum === 'var') {
+            S.hasVarAny = true;
+            if (rec?.late) S.hasLateAny = true;
+          } else if (rec?.durum === 'yok') {
+            S.hasYokAny = true;
+          }
+        });
+      });
+    });
+  };
+
+  if (cls === 'hepsi') {
+    Object.entries(dayData || {}).forEach(([sinif, node]) => scanForAgg(safe(sinif), node));
+  } else {
+    scanForAgg(cls, dayData);
+  }
+
+  // Kurallar:
+  // - Tüm derslere giren → Gelen (+1)
+  // - Herhangi bir derste "geç" → Geç (+1) ve Gelen (+1)
+  // - Hiç derse girmeyen → Gelmeyen (+1)
+  // - En az 1 derse girip + en az 1 derse girmemiş (kısmi) → Geç (+1) ve Gelen (+1)
+  let tVar = 0, tYok = 0, tGec = 0;
+  const classStats = {};
+  const ensureClass = c => (classStats[c] ||= { var:0, yok:0, gec:0, top:0 });
+
+  for (const { sinif, hasVarAny, hasYokAny, hasLateAny } of aggPerStudent.values()) {
+    ensureClass(sinif);
+
+    if (!hasVarAny && hasYokAny) {
+      // Tamamen gelmeyen
+      tYok++; classStats[sinif].yok++; classStats[sinif].top++;
+      continue;
+    }
+
+    if (hasVarAny) {
+      // Geldi kabul
+      tVar++; classStats[sinif].var++; classStats[sinif].top++;
+
+      // Geç kriteri: (herhangi bir derste geç) veya (kısmi katılım: var && yok)
+      if (hasLateAny || (hasVarAny && hasYokAny)) {
+        tGec++; classStats[sinif].gec++;
+      }
+    }
+    // hasVarAny=false & hasYokAny=false durumu (kayıt yok) sayma
+  }
+
+  if (UI.dashVar) UI.dashVar.textContent = String(tVar);
+  if (UI.dashYok) UI.dashYok.textContent = String(tYok);
+  if (UI.dashGec) UI.dashGec.textContent = String(tGec);
+
+  // WhatsApp için sakla (tekil, gün geneli)
+  lastWAReport = {
+    date,
+    scope: { cls, status, hour },
+    stats: { tVar, tYok, tGec, classes: classStats }
+  };
+}
+
+
+
+
+
+
+    function computeStats(byClass, classList){
+      const res = { tVar:0, tYok:0, tGec:0, classes:{} };
+      for(const c of classList){
+        const data = byClass[c]||{}; let v=0,y=0,g=0;
+        for(const k in data){ const r=data[k]; if(r?.durum==='var') v++; else if(r?.durum==='yok') y++; if(r?.late) g++; }
+        res.classes[c]={var:v,yok:y,gec:g,top:v+y}; res.tVar+=v; res.tYok+=y; res.tGec+=g;
+      }
+      return res;
+    }
+    function exportAdminCsv(){ /* opsiyonel */ }
+    let lastWAReport=null;
+
+    // WhatsApp raporu — yüzdeleri "geç" hariç toplam üstünden hesapla + tek sınıfta en çok/en az yazma + daha anlaşılır metin
+// WhatsApp raporu — yüzdeye göre karşılaştır, eşitse "en çok/en az" yazma
+function sendWhatsAppReport(){
+  const {date, cls, status} = getAdminFilters();
+
+  // Kapsam metni
+  const scope = (cls==='hepsi' ? 'Tüm sınıflar' : cls) + ' • ' + (
+    status==='hepsi' ? 'Hepsi' :
+    status==='gelen' ? 'Gelenler' :
+    status==='gelmeyen' ? 'Gelmeyenler' : 'Geç Gelenler'
+  );
+
+  // refreshAdmin() içinde hazırlanıyor
+  const st = lastWAReport?.stats;
+  if(!st){
+    Swal.fire('Bekleyin','Veriler yükleniyor.','info');
+    return;
+  }
+
+  // Toplam yüzdeler (geç gelenler yüzdelere dahil edilmez)
+  const totalForPct = st.tVar + st.tYok;
+  const P = n => totalForPct ? Math.round((n / totalForPct) * 100) : 0;
+
+  // Sınıf bazlı girişler: { name, var, yok, top, pct }
+  const entries = Object.entries(st.classes || {})
+    .map(([name, v]) => ({
+      name,
+      var: v.var || 0,
+      yok: v.yok || 0,
+      top: v.top || 0,
+      pct: v.top ? Math.round((v.var / v.top) * 100) : 0
+    }))
+    .filter(e => e.top > 0);
+
+  // En çok / en az — yüzdeye göre kıyasla; en yüksek pct == en düşük pct ise hiç yazma
+  let extra = '';
+  if (entries.length > 1) {
+    const sortedByPctDesc = entries.slice().sort((a, b) => b.pct - a.pct || b.var - a.var);
+    const sortedByPctAsc  = entries.slice().sort((a, b) => a.pct - b.pct || a.var - b.var);
+
+    const most  = sortedByPctDesc[0];
+    const least = sortedByPctAsc[0];
+
+    if (most && least && most.pct > least.pct) {
+      // Yüzdeler farklıysa mesajlara ekle
+      extra =
+        `\n\n🏆 En yüksek katılım: *${most.name}* — ${most.var}/${most.top} (${most.pct}%)` +
+        `\n📉 En az katılım: *${least.name}* — ${least.yok} kişi katılmadı • Katılım ${least.pct}% (${least.var}/${least.top})`;
+    }
+    // EŞİT ise: extra boş bırakılır → hiçbir karşılaştırma yazılmaz
+  }
+
+  // Mesaj (sadece standart emoji ve ASCII; " " karakteri oluşmasın diye özel karakter kullanmıyoruz)
+  const msg =
+`📣 *Günlük Yoklama Özeti*
+📅 *${formatTurkishDate(date)}*
+📌 *Kapsam:* ${scope}
+
+✅ Katılan: *${st.tVar}* (${P(st.tVar)}%)
+❌ Katılmayan: *${st.tYok}* (${P(st.tYok)}%)
+⏰ Geç gelen: *${st.tGec}* (bilgi amaçlı, yüzdelere dahil edilmez)${extra}`;
+
+  // WhatsApp'a aç
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+
+
+function formatTurkishDate(dateStr) {
+  const monthsTR = [
+    "", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
+  ];
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return `${day} ${monthsTR[month]} ${year}`;
+}
+
+    /* ---------- ADMIN: ÖĞRETMEN UYUM ---------- */
+async function openTeacherReportModal(){
+  const html = `
+  <div class="stack" style="text-align:left">
+    <div class="row" style="gap:10px;align-items:center;">
+      <label class="row"><span class="muted">Gün:</span><input id="trDate" type="date" class="input" /></label>
+    </div>
+    <div class="tr-scroll">
+      <section class="tr-sec">
+        <h4 class="tr-head">🟢 Zamanında Alanlar</h4>
+        <table class="table" id="tblOnTime"><thead><tr><th>Öğretmen</th><th>Ders Sayısı</th><th>Detay</th></tr></thead><tbody></tbody></table>
+      </section>
+
+      <section class="tr-sec">
+        <h4 class="tr-subhead">🔴 Almayanlar</h4>
+        <table class="table" id="tblMissing"><thead><tr><th>Öğretmen</th><th>Eksik Ders</th><th>Detay</th></tr></thead><tbody></tbody></table>
+      </section>
+    </div>
+  </div>`;
+  await Swal.fire({ title:'Öğretmen Uyum Raporu', html, width:900, showConfirmButton:false, showCloseButton:true, didOpen: bind });
+  function bind(){
+    const h = Swal.getHtmlContainer();
+    const inpDate = h.querySelector('#trDate');
+    UI.admDate?.value && (inpDate.value = UI.admDate.value);
+
+    const fmtSlot = (l)=> {
+      const no   = slotOrderMap.get((l.saatKodu||'').toString().trim()) || '-';
+      const slot = getSlotByCode(l.saatKodu) || {};
+      const saat = `${(slot.BASLANGIC||'').toString().trim()} - ${(slot.BITIS||'').toString().trim()}`;
+      return `${l.sinif} • ${no!=='-'?ordinal(no):'Saat'} (${saat})`;
+    };
+
+    const run = async ()=>{
+      const date = inpDate.value || toDateStr(nowTR());
+      const dayName = turkishDays[dayjs(date).day()].toLocaleLowerCase('tr-TR');
+
+      const rowsToday = schedule.filter(r =>
+        safe(r.GUN).toLocaleLowerCase('tr-TR') === dayName
+      );
+
+      const lessons = rowsToday.map(r=>{
+        const tInfo = teacherById(r.OGRETMEN_ID);
+        return {
+          teacherId: safe(r.OGRETMEN_ID),
+          teacherName: tInfo?.name || `Öğretmen #${r.OGRETMEN_ID}`,
+          sinif: safe(r.SINIF),
+          saatKodu: safe(r.SAAT_KODU)
+        };
+      });
+
+      const byTeacher = new Map();
+      lessons.forEach(l=>{
+        if(!byTeacher.has(l.teacherId)){
+          byTeacher.set(l.teacherId, { name:l.teacherName, total:0, taken:0, missing:0, details:[], takenList:[], missingList:[] });
+        }
+        const t = byTeacher.get(l.teacherId);
+        t.total++; t.details.push(l);
+      });
+
+      // v2: o gün ders yapılan sınıflar
+      const classSet = Array.from(new Set(lessons.map(l=> l.sinif)));
+      const classNodes = {};
+      for(const c of classSet){
+        const s = await get(ref(db, attDayRoot(date, c))); // {saatKodu:{ogretmenId:{ogrNo:{...}}}}
+        classNodes[c] = s.exists() ? s.val() : {};
+      }
+
+      // Alınmış kabulü: ilgili sınıfta ilgili (saatKodu/teacherId) dalında EN AZ BİR öğrenci kaydı varsa
+      for(const [, t] of byTeacher.entries()){
+        for(const l of t.details){
+          const node = classNodes[l.sinif]?.[l.saatKodu]?.[l.teacherId];
+          const hasTaken = node && Object.keys(node).length > 0;
+
+          if(hasTaken){
+            t.taken++; t.takenList.push(l);
+          }else{
+            // "geçti" kararı: geçmiş gün -> direkt; bugün -> ders bitiş +15 dk
+            const slot = getSlotByCode(l.saatKodu)||{};
+            const now = nowTR();
+            const selectedDay = dayjs.tz(date);
+            const isPast = selectedDay.isBefore(now, 'day');
+            const isFuture = selectedDay.isAfter(now, 'day');
+            let passed = false;
+            if(isPast){ passed = true; }
+            else if(!isFuture){
+              const endOnSelected = parseOnDate(date, safe(slot.BITIS)).add(15,'minute');
+              passed = now.isAfter(endOnSelected);
+            }
+            if(passed){ t.missing++; t.missingList.push(l); }
+          }
+        }
+      }
+
+      // tabloya bas
+      const tbOn   = h.querySelector('#tblOnTime tbody');
+      const tbMiss = h.querySelector('#tblMissing tbody');
+      tbOn.innerHTML = ''; tbMiss.innerHTML = '';
+      for(const [, t] of byTeacher.entries()){
+        if(t.taken > 0){
+          const det = t.takenList.map(fmtSlot).join('<br>');
+          tbOn.insertAdjacentHTML('beforeend', `<tr><td>${t.name}</td><td>${t.taken}</td><td>${det||'-'}</td></tr>`);
+        }
+      }
+      for(const [, t] of byTeacher.entries()){
+        if((t.missing||0) > 0){
+          const det = t.missingList.map(fmtSlot).join('<br>');
+          tbMiss.insertAdjacentHTML('beforeend', `<tr><td>${t.name}</td><td>${t.missing}</td><td>${det||'-'}</td></tr>`);
+        }
+      }
+    };
+
+    run();
+    inpDate.addEventListener('change', run);
+  }
+}
+
+
+    /* ---------- ADMIN: ÖĞRENCİ İSTATİSTİĞİ ---------- */
+async function openStudentStatsModal(){
+  const html = `
+  <div class="stack" style="text-align:left">
+    <div class="row" style="gap:10px;align-items:center;">
+      <label class="field" style="max-width:360px;">
+        <span class="muted">No veya Ad ile ara</span>
+        <input id="stSearch" class="input" placeholder="Örn: 123 veya Ali Veli" />
+      </label>
+    </div>
+    <div style="max-height:60vh;overflow:auto;">
+      <table class="table" id="stTbl">
+        <thead><tr><th>No</th><th>Ad Soyad</th><th>Sınıf</th><th>İşlem</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="stEmpty" class="muted">Kayıt bulunamadı.</div>
+    </div>
+  </div>`;
+
+  await Swal.fire({ title:'Öğrenci İstatistiği', html, width:900, showConfirmButton:false, showCloseButton:true, didOpen: bind });
+
+  function bind(){
+    const h = Swal.getHtmlContainer();
+    const input = h.querySelector('#stSearch');
+    const tbody = h.querySelector('#stTbl tbody');
+
+    const rows = students
+      .map(s=>({ no:(s.NO||'').toString().trim(), ad:(s.ADSOYAD||'').toString(), sinif:(s.SINIF||'').toString().trim() }))
+      .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+
+    const render = (list)=>{
+      tbody.innerHTML = list.map(r =>
+        `<tr><td>${r.no}</td><td>${r.ad}</td><td>${r.sinif}</td><td><button class="btn" data-no="${r.no}" type="button">Rapor</button></td></tr>`
+      ).join('');
+      Array.from(tbody.querySelectorAll('button[data-no]')).forEach(btn=>{
+        const no = btn.getAttribute('data-no');
+        const ad = rows.find(x=> x.no===no)?.ad || '';
+        btn.addEventListener('click', ()=> showStudentReport(no, ad));
+      });
+      h.querySelector('#stEmpty').classList.toggle('hidden', list.length>0);
+    };
+
+    render(rows);
+    input.addEventListener('input', ()=>{
+      const q = (input.value||'').trim().toLocaleLowerCase('tr-TR');
+      const filtered = rows.filter(r => r.no.includes(q) || r.ad.toLocaleLowerCase('tr-TR').includes(q));
+      render(filtered);
+    });
+  }
+}
+
+    /* ---------- ADMIN: ÖĞRENCİ RAPORU (Detay + Yazdır) ---------- */
+async function showStudentReport(no, name){
+  const snap = await get(ref(db, ATT_ROOT));
+  const root = snap.exists() ? snap.val() : {};
+  const rows = [];
+  // v2: {tarih:{sinif:{saatKodu:{ogretmenId:{ogrNo:{rec}}}}}}
+  Object.entries(root).forEach(([tarih, byClass])=>{
+    Object.entries(byClass||{}).forEach(([cls, bySlot])=>{
+      Object.entries(bySlot||{}).forEach(([saatKodu, byTeacher])=>{
+        Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
+          const rec = byStudent?.[no];
+          if(rec){
+            rows.push({
+              tarih, cls,
+              durum: rec.durum,
+              late: !!rec.late,
+              ogretmen: rec.ogretmenAd || '',
+              ders: rec.ders || '',
+              saatNo: rec.saatNo || null,
+              saatBas: rec.saatBas || '',
+              saatBit: rec.saatBit || ''
+            });
+          }
+        });
+      });
+    });
+  });
+
+  rows.sort((a,b)=> a.tarih.localeCompare(b.tarih));
+
+  const totalMarked = rows.filter(r=> r.durum==='var' || r.durum==='yok').length;
+  const came = rows.filter(r=> r.durum==='var').length;
+  const absent = rows.filter(r=> r.durum==='yok');
+  const late = rows.filter(r=> r.durum==='var' && r.late);
+  const pct = totalMarked ? Math.round((came/totalMarked)*100) : 0;
+
+  const fmtDate = (ds)=> {
+    const [Y,M,D] = ds.split('-').map(Number);
+    return new Intl.DateTimeFormat('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(Y,M-1,D));
+  };
+  const fmtSaat = (r)=> r.saatNo ? `${ordinal(r.saatNo)} (${r.saatBas||''}-${r.saatBit||''})` : `(${r.saatBas||''}-${r.saatBit||''})`;
+
+  const reportHtml = `
+  <div id="printStudentReport">
+    <h2 style="margin:0 0 6px 0;">Fenomen Çocuk Kulübü — Öğrenci Raporu</h2>
+    <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
+    <div class="grid cols-3" style="margin:8px 0;">
+      <div class="kpi"><div class="muted">Toplam İşaretli</div><div style="font-weight:800;">${totalMarked}</div></div>
+      <div class="kpi"><div class="muted">Toplam Geldi</div><div style="font-weight:800;">${came}</div></div>
+      <div class="kpi"><div class="muted">Katılım %</div><div style="font-weight:800;">${pct}%</div></div>
+    </div>
+
+    <h3 style="margin-top:16px;">❌ Gelmeyen Günler (Detay)</h3>
+    ${
+      absent.length
+      ? `<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${
+          absent.map(r=> `<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')
+        }</tbody></table>`
+      : `<div class="muted">Kayıtlı “gelmedi” bulunamadı.</div>`
+    }
+
+    <h3 style="margin-top:16px;">⏰ Geç Geldiği Günler (Detay)</h3>
+    ${
+      late.length
+      ? `<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${
+          late.map(r=> `<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')
+        }</tbody></table>`
+      : `<div class="muted">Kayıtlı “geç” bulunamadı.</div>`
+    }
+  </div>`;
+
+  const html = `
+    <div class="stack" style="text-align:left;max-height:70vh;overflow:auto;">
+      <div class="row"><button id="btnPrintStudent" class="btn" type="button">Yazdır</button></div>
+      ${reportHtml}
+    </div>`;
+  await Swal.fire({title:'Öğrenci Raporu', html, width:1000, showConfirmButton:false, showCloseButton:true, didOpen: bindPrint});
+
+  function bindPrint(){
+    const h = Swal.getHtmlContainer();
+    const btn = h.querySelector('#btnPrintStudent');
+    btn.addEventListener('click', ()=> printDivAsA4(h.querySelector('#printStudentReport'), `Fenomen_ogrenci_${no}.pdf`));
+  }
+}
+
+    function printDivAsA4(div, title){
+      // Neden: Modal içeriğini temiz A4 çıktısı için ayrı pencerede yazdırıyoruz.
+      const w = window.open('', '_blank');
+      const css = `
+        <style>
+        @page { size: A4; margin: 16mm; }
+        body{ font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#000; }
+        h2,h3{ margin:6px 0; }
+        .kpi{ border:1px solid #000; border-radius:8px; padding:8px; }
+        .grid{ display:grid; gap:8px; grid-template-columns:repeat(3,1fr); }
+        .muted{ color:#333 }
+        table{ width:100%; border-collapse:collapse; margin-top:8px; }
+        th,td{ border:1px solid #000; padding:6px 8px; text-align:left; font-size:12px; }
+        </style>`;
+      w.document.write(`<html><head><title>${title||''}</title>${css}</head><body>${div.outerHTML}</body></html>`);
+      w.document.close();
+      w.focus();
+      w.print();
+      // w.close(); // İsteyen kapatabilir
+    }
+
+    /* ---------- ADMIN: ESKİ KAYITLAR ---------- */
+    async function openHistoryModal(){
+  const clsOptions = Array.from(new Set(
+    students.map(s=> (s.SINIF||'').toString().trim())
+  )).filter(Boolean).sort();
+
+  const html = `
+  <div class="stack" style="text-align:left">
+    <div class="row" style="gap:10px;align-items:center;">
+      <label class="row"><span class="muted">Tarih:</span>
+        <input id="hDate" type="date" class="input" />
+      </label>
+      <label class="row"><span class="muted">Sınıf:</span>
+        <select id="hClass" class="input">
+          <option value="hepsi">Hepsi</option>
+          ${clsOptions.map(c=> `<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </label>
+      <button class="btn ghost" id="hReload" type="button">Yükle</button>
+      <button class="btn danger" id="hDelSel" type="button">Seçileni Sil</button>
+      <button class="btn danger" id="hDelAll" type="button">Hepsini Sil</button>
+      <button class="btn danger" id="hDelAllTime" type="button">Tüm Zamanları Sil</button>
+    </div>
+    <div style="max-height:60vh;overflow:auto;">
+      <table class="table" id="hTable">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="hAll"/></th>
+            <th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Saat</th>
+            <th>Var</th><th>Yok</th><th>Geç</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="hEmpty" class="muted">Kayıt yok.</div>
+    </div>
+  </div>`;
+
+  await Swal.fire({ title:'Eski Kayıtlar', html, width:1000, showConfirmButton:false, showCloseButton:true, didOpen: bind });
+
+  function bind(){
+    const h = Swal.getHtmlContainer();
+    const inpDate  = h.querySelector('#hDate');
+    const selClass = h.querySelector('#hClass');
+    const btnReload = h.querySelector('#hReload');
+    const btnSel    = h.querySelector('#hDelSel');
+    const btnAll    = h.querySelector('#hDelAll');
+    const btnAllTm  = h.querySelector('#hDelAllTime');
+    const tbBody    = h.querySelector('#hTable tbody');
+    const chkAll    = h.querySelector('#hAll');
+
+    UI.admDate?.value && (inpDate.value = UI.admDate.value);
+
+    const fmtSaat = (kodu)=>{
+      const no   = slotOrderMap.get((kodu||'').toString().trim());
+      const slot = getSlotByCode(kodu)||{};
+      const saat = `${(slot.BASLANGIC||'').toString().trim()} - ${(slot.BITIS||'').toString().trim()}`;
+      return `${no?ordinal(no):'Saat'} (${saat})`;
+    };
+
+    const loadList = async ()=>{
+      const date = inpDate.value || toDateStr(nowTR());
+      const cls  = selClass.value || 'hepsi';
+      tbBody.innerHTML = '';
+
+      // v2: doğrudan saatKodu/ogretmenId düğümleri üzerinden sayımlar
+      const pushRow = (tarih, sinif, ogretmenAd, ogretmenId, saatKodu, varC, yokC, gecC)=>{
+        tbBody.insertAdjacentHTML('beforeend', `
+          <tr data-date="${tarih}" data-sinif="${sinif}" data-oid="${ogretmenId}" data-saatk="${saatKodu}">
+            <td><input type="checkbox" class="rowChk"/></td>
+            <td>${tarih}</td>
+            <td>${sinif}</td>
+            <td>${ogretmenAd||'-'}</td>
+            <td>${fmtSaat(saatKodu)}</td>
+            <td>${varC}</td>
+            <td>${yokC}</td>
+            <td>${gecC}</td>
+          </tr>`);
+      };
+
+      const scanClass = async (sinif)=>{
+        const snap = await get(ref(db, attDayRoot(date, sinif))); // {saatKodu:{ogretmenId:{ogrNo:{rec}}}}
+        const data = snap.exists() ? snap.val() : {};
+        Object.entries(data).forEach(([saatKodu, byTeacher])=>{
+          Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
+            let varC=0,yokC=0,gecC=0, ogretmenAd='';
+            Object.values(byStudent||{}).forEach(rec=>{
+              ogretmenAd = rec?.ogretmenAd || ogretmenAd;
+              if(rec?.durum==='var') varC++; else if(rec?.durum==='yok') yokC++;
+              if(rec?.late) gecC++;
+            });
+            if(varC+yokC+gecC>0) pushRow(date, sinif, ogretmenAd, ogretmenId, saatKodu, varC, yokC, gecC);
+          });
+        });
+      };
+
+      if(cls==='hepsi'){
+        const daySnap = await get(ref(db, attDayRoot(date)));
+        const dayData = daySnap.exists() ? daySnap.val() : {};
+        await Promise.all(Object.keys(dayData).map(scanClass));
+      }else{
+        await scanClass(cls);
+      }
+
+      h.querySelector('#hEmpty').classList.toggle('hidden', tbBody.children.length>0);
+    };
+
+    const collectSelectedRows = ()=> Array.from(tbBody.querySelectorAll('tr'))
+      .filter(tr => tr.querySelector('.rowChk')?.checked)
+      .map(tr => ({
+        date: tr.getAttribute('data-date'),
+        sinif: tr.getAttribute('data-sinif'),
+        ogretmenId: tr.getAttribute('data-oid'),
+        saatKodu: tr.getAttribute('data-saatk')
+      }));
+
+    chkAll.addEventListener('change', ()=>{
+      tbBody.querySelectorAll('.rowChk').forEach(c=> c.checked = chkAll.checked);
+    });
+
+    btnReload.addEventListener('click', loadList);
+    inpDate.addEventListener('change', loadList);
+    selClass.addEventListener('change', loadList);
+
+    btnSel.addEventListener('click', async ()=>{
+      const rows = collectSelectedRows();
+      if(rows.length===0) return Swal.fire('Uyarı','Silmek için satır seçin.','warning');
+
+      const ok = await Swal.fire({ title:'Seçili kayıtlar silinsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç' });
+      if(!ok.isConfirmed) return;
+
+      const updates = {};
+      rows.forEach(r=>{
+        updates[attPath(r.date, r.sinif, r.saatKodu, r.ogretmenId)] = null; // tüm öğrencileri barındıran düğümü komple sil
+      });
+
+      try{
+        if(navigator.onLine){ await update(ref(db), updates); await flushQueue(false); }
+        else{ queueOfflineWrite('/', updates); }
+        setStatus('Kayıtlar silindi.','ok');
+        await loadList();
+      }catch(e){
+        console.error(e);
+        Swal.fire('Hata','Silme sırasında sorun oluştu.','error');
+      }
+    });
+
+    btnAll.addEventListener('click', async ()=>{
+      const date = inpDate.value || toDateStr(nowTR());
+      const cls  = selClass.value || 'hepsi';
+      const ok = await Swal.fire({ title: cls==='hepsi'?'Seçili günün TÜM sınıfları silinsin mi?':'Seçili sınıfın tüm kayıtları silinsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç' });
+      if(!ok.isConfirmed) return;
+
+      const updates = (cls==='hepsi')
+        ? { [`${ATT_ROOT}/${date}`]: null }
+        : { [`${ATT_ROOT}/${date}/${cls}`]: null };
+
+      try{
+        if(navigator.onLine){ await update(ref(db), updates); await flushQueue(false); }
+        else{ queueOfflineWrite('/', updates); }
+        setStatus('Kayıtlar silindi.','ok');
+        await loadList();
+      }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
+    });
+
+    btnAllTm.addEventListener('click', async ()=>{
+      const ok = await Swal.fire({ title:'Tüm zamanların yoklamaları silinsin mi?', text:'Bu işlem geri alınamaz.', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç' });
+      if(!ok.isConfirmed) return;
+
+      try{
+        if(navigator.onLine){ await update(ref(db), { [ATT_ROOT]: null }); await flushQueue(false); }
+        else{ queueOfflineWrite('/', { [ATT_ROOT]: null }); }
+        setStatus('Tüm kayıtlar silindi.','ok');
+        tbBody.innerHTML=''; h.querySelector('#hEmpty').classList.remove('hidden');
+      }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
+    });
+
+    loadList();
+  }
+}
+// Saat numarasını kayıttan çıkar (saatNo yoksa "S3" gibi anahtar adından al)
+function extractHour(rec, saatKodu){
+  if (rec?.saatNo != null) return Number(rec.saatNo);
+  const m = String(saatKodu || '').match(/\d+/);
+  return m ? Number(m[0]) : undefined;
+}
+
+// "1, 2, 4" string'i — boşsa "—"
+function hoursText(set){
+  if (!set || set.size === 0) return '—';
+  return Array.from(set).sort((a,b)=>a-b).join(', ');
+}
+
+// TR tarih (yyyy-mm-dd veya yyyymmdd -> dd.MM.yyyy)
+function formatDateTR(yyyymmdd){
+  const s = String(yyyymmdd).replaceAll('-','');
+  const y = s.slice(0,4), m = s.slice(4,6), d = s.slice(6,8);
+  return `${d}.${m}.${y}`;
+}
+
+// Aynı gün + aynı öğretmen + aynı sınıf için, bu dersin hemen bir önceki saatini bul
+function findPrevConsecutiveSlot(lesson){
+  if(!lesson?.saatNo || lesson.saatNo <= 1) return null; // 1. derse klon yok
+  const hedefNo = lesson.saatNo - 1;
+
+  const today = todayNameTR().toLocaleLowerCase('tr-TR');
+  // Öğretmenin bugünkü programından, aynı sınıftaki dersleri saatNo ile eşle
+  const candidates = schedule
+    .filter(r => safe(r.OGRETMEN_ID)===safe(lesson.ogretmenId))
+    .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR')===today)
+    .filter(r => safe(r.SINIF).toLocaleLowerCase('tr-TR')===lesson.sinif.toLocaleLowerCase('tr-TR'))
+    .map(r => {
+      const sk = safe(r.SAAT_KODU);
+      return { saatKodu: sk, saatNo: slotOrderMap.get(sk) || null };
+    });
+
+  const prev = candidates.find(c => c.saatNo === hedefNo);
+  return prev || null;
+}
+
+
+
+// Admin: Yazdırmadan önce özet tabloyu hazırla
+async function buildAdminPrintSheet(){
+  const { date, cls } = getAdminFilters();
+  const d = date || toDateStr(nowTR());
+
+  const psDateText = document.getElementById('psDateText');
+  if (psDateText) psDateText.textContent = formatDateTR(d);
+
+  // Kapsamdaki öğrenciler
+  const studentPool = (cls && cls !== 'hepsi') ? students.filter(s => safe(s.SINIF) === cls) : students;
+  const byNo = new Map(studentPool.map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
+
+  // Günlük veriyi çek
+  const rootPath = attDayRoot(d, cls);
+  const snap = await get(ref(db, rootPath));
+  const dayData = snap.exists() ? snap.val() : {};
+
+  // Öğrenci bazında: geldi/gelemedi saat setleri
+  const perStudent = new Map(); // key: sinif#no -> { no, ad, sinif, present:Set, absent:Set }
+  const ensure = (sinif, no) => {
+    const k = `${sinif}#${no}`;
+    if (!perStudent.has(k)) {
+      const stu = byNo.get(no);
+      if (!stu) return null;
+      perStudent.set(k, { no, ad: stu.ad, sinif, present: new Set(), absent: new Set() });
+    }
+    return perStudent.get(k);
+  };
+
+  const scanClassNode = (sinif, node) => {
+    Object.entries(node || {}).forEach(([saatKodu, byTeacher]) => {
+      Object.entries(byTeacher || {}).forEach(([_, byStudent]) => {
+        Object.entries(byStudent || {}).forEach(([ogrNo, rec]) => {
+          const no = safe(ogrNo);
+          const s = ensure(safe(sinif), no);
+          if (!s) return;
+
+          const h = extractHour(rec, saatKodu);
+          if (rec?.durum === 'var') s.present.add(h);
+          else if (rec?.durum === 'yok') s.absent.add(h);
+        });
+      });
+    });
+  };
+
+  if (cls === 'hepsi') {
+    Object.entries(dayData || {}).forEach(([sinif, node]) => scanClassNode(safe(sinif), node));
+  } else {
+    scanClassNode(cls, dayData);
+  }
+
+  // Aynı saat hem var hem yoksa "var" öncelikli — yok listesinden çıkar
+  for (const s of perStudent.values()) {
+    s.absent = new Set([...s.absent].filter(h => !s.present.has(h)));
+  }
+
+  // Tablo gövdesini yaz
+  const tbody = document.querySelector('#admPrintTable tbody');
+  tbody.innerHTML = [...perStudent.values()]
+    .sort((a,b)=>(a.sinif+a.ad).localeCompare(b.sinif+b.ad,'tr',{numeric:true,sensitivity:'base'}))
+    .map(s => `
+      <tr>
+        <td>${s.no}</td>
+        <td>${s.ad}</td>
+        <td>${s.sinif}</td>
+        <td>${hoursText(s.present)}</td>
+        <td>${hoursText(s.absent)}</td>
+      </tr>`).join('') || `<tr><td colspan="5" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
+}
+
+// Yazdır düğmesi: önce özet tabloyu kur, sonra yazdır
+if (UI?.admPrint) {
+  UI.admPrint.addEventListener('click', async () => {
+    await buildAdminPrintSheet();
+    setTimeout(()=>window.print(), 20);
+  }, { passive:true });
+}
+
+    // Boot
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
