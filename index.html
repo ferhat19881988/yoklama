@@ -17,6 +17,8 @@
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/utc.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/timezone.js" defer></script>
+  <!-- Load Turkish locale for Day.js so month names appear in Turkish -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/tr.js" defer></script>
 
   <style>
     :root{
@@ -30,6 +32,20 @@
       --glass:rgba(255,255,255,.03);
       --ring:0 0 0 3px rgba(249,115,22,.35);
     }
+  
+@media print {
+  header,
+  .head-inner,
+  .head-right,
+  .btn,
+  .btn.ghost,
+  .btn-group,
+  .row button {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
     @media (prefers-color-scheme: light){
       :root{ --bg:#f7f7fb; --panel:#fff; --card:#fff; --ink:#0f172a; --muted:#667085;
         --shadow:0 12px 28px rgba(2,6,23,.08);
@@ -140,7 +156,11 @@
     .chip.due{ color:#7c2d12; background:rgba(245,158,11,.16) }
     .chip.purple{ color:#3f1d7a; background:rgba(168,85,247,.16) }
     .chip.future{ color:#1f2937; background:rgba(148,163,184,.16) }
-
+.chip.warn{
+  color:#7c2d12;                      /* koyu sarı/kahverengi yazı */
+  background:rgba(245,158,11,.16);    /* sarı arka plan */
+  border-color: rgba(245,158,11,.35); /* neden: uyarı vurgusu */
+}
     .list{ list-style:none; padding:0; margin:0 }
     .student{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:var(--stroke); transition:background .15s ease, transform .03s ease }
     .student:hover{ background:rgba(255,255,255,.04) }
@@ -172,6 +192,28 @@
     }
     @media (max-width:600px){ .head-inner{ padding:12px 14px } .card h3{ padding:12px 14px } .card .body{ padding:14px } }
     @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important } }
+
+    /* Checkbox group for class selection */
+    .checkbox-group{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .checkbox-group label{
+      display:flex;
+      align-items:center;
+      gap:4px;
+      cursor:pointer;
+    }
+    .checkbox-group input[type="checkbox"]{
+      margin:0;
+    }
+
+    /* Smaller buttons for list actions */
+    .btn.small{
+      padding:4px 8px;
+      font-size:0.8rem;
+    }
 
     /* KPI satırlarını tek satırda tut */
     #kpiGrid,#admMiniDash{ display:flex !important; gap:14px; flex-wrap:nowrap }
@@ -430,6 +472,55 @@ div.admin-filters .button-row {
   #parentView .card:hover,
   .lesson:hover { transform:none; box-shadow:none; }
 }
+
+/* ----- Ödev/Quiz yönetimi düzenlemeleri ----- */
+/* Ödev kontrolündeki statü seçimlerini daralt */
+#hwStudentList select.statusSelect{
+  width: 100px;
+  max-width: 100px;
+}
+/* Quiz kontrolünde yanlış sayı girişi daralt */
+#qzStudentList input.wrongInput{
+  width: 60px;
+  max-width: 60px;
+}
+/* Başlıklar ve listeler arası boşluklar */
+#homeworkCard h4, #quizCard h4{
+  margin-top: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+/* Veli panelinde yazdırma düğmeleri sağa hizalı olsun */
+#parentHomeworkCard .row button, #parentQuizCard .row button{
+  margin-left:auto;
+}
+
+#hwStudentList li .statusSelect{
+  width: 160px;          /* neden: seçenek metni rahat sığsın */
+  max-width: none;       /* neden: genişliği kısıtlamayı kaldır */
+  font-size: 1rem;       /* neden: okunabilirlik */
+  padding: 12px 14px;    /* neden: dokunmatik hedefi büyüt */
+  min-height: 42px;      /* neden: erişilebilir minimum yükseklik */
+  /* İstersen daha da büyük: width: 180px; */
+}
+
+/* Çok dar ekranlarda taşmayı önlemek için biraz küçült */
+@media (max-width: 420px){
+  #hwStudentList li .statusSelect{ width: 140px; }
+}
+
+#qzStudentList li .wrongInput{
+  width: 120px;        /* neden: değerler rahat sığsın */
+  max-width: none;     /* neden: genişlik kısıtını kaldır */
+  font-size: 1rem;     /* neden: okunabilirlik */
+  padding: 10px 14px;  /* neden: dokunmatik hedefi büyüt */
+  min-height: 40px;    /* neden: erişilebilir minimum yükseklik */
+  text-align: center;  /* neden: sayıların hizası */
+}
+
+/* Çok dar ekranlarda biraz küçült */
+@media (max-width: 420px){
+  #qzStudentList li .wrongInput{ width: 100px; }
+}
   </style>
 </head>
 <body>
@@ -500,6 +591,67 @@ div.admin-filters .button-row {
           <ul id="studentList" class="list" aria-label="Öğrenciler"></ul>
         </div>
       </div>
+
+      <!-- ÖDEV YÖNETİMİ -->
+      <div id="homeworkCard" class="card hidden" role="region" aria-label="Ödev Yönetimi">
+        <h3>📘 Ödev Yönetimi</h3>
+        <div class="body stack">
+          <div id="hwForm" class="stack">
+            <h4>Yeni Ödev</h4>
+            <div class="row" style="flex-wrap:wrap;gap:10px;">
+              <input id="hwTitle" class="input" placeholder="Ödev konusu" />
+              <input id="hwDueDate" class="input" type="date" />
+              <!-- Çoklu sınıf seçimi için checkbox grubu -->
+              <div id="hwClassSelect" class="checkbox-group"></div>
+              <button class="btn" id="hwCreateBtn" type="button">Oluştur</button>
+            </div>
+          </div>
+          <div id="hwList" class="stack" aria-label="Ödevler"></div>
+        </div>
+      </div>
+
+      <!-- Ödev Kontrol Paneli -->
+      <div id="hwControlCard" class="card hidden" role="region" aria-label="Ödev Kontrol">
+        <h3 id="hwControlTitle">📘 Ödev Kontrol</h3>
+        <div class="body stack">
+          <div class="row" style="gap:10px;">
+            <button class="btn" id="hwSaveBtn" type="button">Kaydet</button>
+            <button class="btn danger" id="hwCancelBtn" type="button">İptal</button>
+          </div>
+          <ul id="hwStudentList" class="list" aria-label="Ödev Öğrenci Listesi"></ul>
+        </div>
+      </div>
+
+      <!-- QUIZ YÖNETİMİ -->
+      <div id="quizCard" class="card hidden" role="region" aria-label="Quiz Yönetimi">
+        <h3>📝 Quiz Yönetimi</h3>
+        <div class="body stack">
+          <div id="qzForm" class="stack">
+            <h4>Yeni Quiz</h4>
+            <div class="row" style="flex-wrap:wrap;gap:10px;">
+              <input id="qzTitle" class="input" placeholder="Quiz adı" />
+              <input id="qzDate" class="input" type="date" />
+              <input id="qzTotal" class="input" type="number" min="1" placeholder="Soru sayısı" />
+              <!-- Çoklu sınıf seçimi için checkbox grubu -->
+              <div id="qzClassSelect" class="checkbox-group"></div>
+              <button class="btn" id="qzCreateBtn" type="button">Oluştur</button>
+            </div>
+          </div>
+          <div id="qzList" class="stack" aria-label="Quizler"></div>
+        </div>
+      </div>
+
+      <!-- Quiz Kontrol Paneli -->
+      <div id="qzControlCard" class="card hidden" role="region" aria-label="Quiz Kontrol">
+        <h3 id="qzControlTitle">📝 Quiz Kontrol</h3>
+        <div class="body stack">
+          <div class="row" style="gap:10px;">
+            <button class="btn" id="qzSaveBtn" type="button">Kaydet</button>
+            <button class="btn danger" id="qzCancelBtn" type="button">İptal</button>
+          </div>
+          <ul id="qzStudentList" class="list" aria-label="Quiz Öğrenci Listesi"></ul>
+        </div>
+      </div>
     </section>
 
     <!-- VELİ -->
@@ -528,6 +680,40 @@ div.admin-filters .button-row {
         <div class="body">
           <ul id="parentList" class="list"></ul>
           <div id="noParentData" class="muted hidden">Seçilen aralıkta kayıt yok.</div>
+        </div>
+      </div>
+
+      <!-- Veli: Ödevler Listesi ve Yazdırma -->
+      <div class="card" role="region" aria-label="Ödevler" id="parentHomeworkCard">
+        <h3>📘 Ödevler</h3>
+        <div class="body stack">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <!-- Homework filter buttons: default to Güncel (current) -->
+            <div class="row" style="gap:6px;">
+              <button class="btn" id="hwFilterCurrent" type="button">Güncel</button>
+              <button class="btn ghost" id="hwFilterPast" type="button">Geçmiş</button>
+            </div>
+            <button class="btn ghost" id="parentHwPrintBtn" type="button">🖨️ Yazdır</button>
+          </div>
+          <ul id="parentHomeworkList" class="list"></ul>
+          <div id="noParentHomework" class="muted hidden">Ödev bulunmuyor.</div>
+        </div>
+      </div>
+
+      <!-- Veli: Quizler Listesi ve Yazdırma -->
+      <div class="card" role="region" aria-label="Quizler" id="parentQuizCard">
+        <h3>📝 Quizler</h3>
+        <div class="body stack">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <!-- Quiz filter buttons: default to Güncel (current) -->
+            <div class="row" style="gap:6px;">
+              <button class="btn" id="qzFilterCurrent" type="button">Güncel</button>
+              <button class="btn ghost" id="qzFilterPast" type="button">Geçmiş</button>
+            </div>
+            <button class="btn ghost" id="parentQzPrintBtn" type="button">🖨️ Yazdır</button>
+          </div>
+          <ul id="parentQuizList" class="list"></ul>
+          <div id="noParentQuiz" class="muted hidden">Quiz bulunmuyor.</div>
         </div>
       </div>
     </section>
@@ -577,6 +763,10 @@ div.admin-filters .button-row {
           <button class="btn" id="admTeacherReport" type="button" title="Öğretmen uyum raporu">Öğrt. Uyum</button>
           <button class="btn" id="admStudentStats" type="button" title="Öğrenci istatistiği">Öğrenci İstatistiği</button>
           <button class="btn danger" id="admHistory" type="button" title="Eski kayıtları görüntüle/sil">Eski Kayıtlar</button>
+
+          <!-- Yeni: Ödev ve Quiz rapor düğmeleri -->
+          <button class="btn" id="admHomeworksBtn" type="button" title="Ödev raporları">Ödevler</button>
+          <button class="btn" id="admQuizzesBtn" type="button" title="Quiz raporları">Quizler</button>
 
           <span style="flex:1"></span><!-- butonları sağa/sola yaymak için -->
           <button class="btn ghost" id="admRefresh" type="button">Yenile</button>
@@ -648,6 +838,8 @@ div.admin-filters .button-row {
     dayjs.extend(dayjs_plugin_utc);
     dayjs.extend(dayjs_plugin_timezone);
     dayjs.tz.setDefault('Europe/Istanbul');
+    // Türkçe tarih formatları için locale'i ayarla
+    dayjs.locale('tr');
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -729,6 +921,49 @@ div.admin-filters .button-row {
       dashYok: document.getElementById('dashYok'),
       dashGec: document.getElementById('dashGec'),
       admHour: document.getElementById('admHour'),
+
+      // Homework & Quiz UI (teacher)
+      homeworkCard: document.getElementById('homeworkCard'),
+      hwTitle: document.getElementById('hwTitle'),
+      hwDueDate: document.getElementById('hwDueDate'),
+      hwClassSelect: document.getElementById('hwClassSelect'),
+      hwCreateBtn: document.getElementById('hwCreateBtn'),
+      hwList: document.getElementById('hwList'),
+      hwControlCard: document.getElementById('hwControlCard'),
+      hwControlTitle: document.getElementById('hwControlTitle'),
+      hwStudentList: document.getElementById('hwStudentList'),
+      hwSaveBtn: document.getElementById('hwSaveBtn'),
+      hwCancelBtn: document.getElementById('hwCancelBtn'),
+
+      quizCard: document.getElementById('quizCard'),
+      qzTitle: document.getElementById('qzTitle'),
+      qzDate: document.getElementById('qzDate'),
+      qzTotal: document.getElementById('qzTotal'),
+      qzClassSelect: document.getElementById('qzClassSelect'),
+      qzCreateBtn: document.getElementById('qzCreateBtn'),
+      qzList: document.getElementById('qzList'),
+      qzControlCard: document.getElementById('qzControlCard'),
+      qzControlTitle: document.getElementById('qzControlTitle'),
+      qzStudentList: document.getElementById('qzStudentList'),
+      qzSaveBtn: document.getElementById('qzSaveBtn'),
+      qzCancelBtn: document.getElementById('qzCancelBtn'),
+
+      // Parent: Homework & Quiz lists and print buttons
+      parentHomeworkList: document.getElementById('parentHomeworkList'),
+      noParentHomework: document.getElementById('noParentHomework'),
+      parentQuizList: document.getElementById('parentQuizList'),
+      noParentQuiz: document.getElementById('noParentQuiz'),
+      parentHwPrintBtn: document.getElementById('parentHwPrintBtn'),
+      parentQzPrintBtn: document.getElementById('parentQzPrintBtn'),
+      // Parent homework & quiz filters
+      hwFilterCurrent: document.getElementById('hwFilterCurrent'),
+      hwFilterPast: document.getElementById('hwFilterPast'),
+      qzFilterCurrent: document.getElementById('qzFilterCurrent'),
+      qzFilterPast: document.getElementById('qzFilterPast'),
+
+      // Admin: Homework & Quiz buttons
+      admHomeworksBtn: document.getElementById('admHomeworksBtn'),
+      admQuizzesBtn: document.getElementById('admQuizzesBtn'),
     };
 
     function updateTeacherKpis(toplam, v, y, g){
@@ -746,6 +981,15 @@ div.admin-filters .button-row {
     let currentLesson=null;
     let tempAtt={};
     let teacherRefreshTimer=null;
+
+    // Parent filters and displayed lists (for homework & quizzes)
+    // parentHwFilter and parentQzFilter control which items are shown in the parent view.
+    // Possible values: 'current' (upcoming/current items) or 'past' (already due or older than a month).
+    let parentHwFilter = 'current';
+    let parentQzFilter = 'current';
+    // Arrays holding the currently displayed homework and quiz entries for printing
+    let parentHwDisplayed = [];
+    let parentQzDisplayed = [];
 
     // Helpers
     
@@ -835,6 +1079,68 @@ div.admin-filters .button-row {
       UI.admStudentStats?.addEventListener('click', openStudentStatsModal);
       UI.admHistory?.addEventListener('click', openHistoryModal);
       UI.admHour?.addEventListener('change', refreshAdmin);
+
+      // Homework & Quiz event listeners
+      UI.hwCreateBtn?.addEventListener('click', createHomework);
+      UI.qzCreateBtn?.addEventListener('click', createQuiz);
+      UI.admHomeworksBtn?.addEventListener('click', openAdminHomeworks);
+      UI.admQuizzesBtn?.addEventListener('click', openAdminQuizzes);
+      UI.parentHwPrintBtn?.addEventListener('click', printParentHomeworks);
+      UI.parentQzPrintBtn?.addEventListener('click', printParentQuizzes);
+
+      // Parent filter buttons event binding
+      if(UI.hwFilterCurrent && UI.hwFilterPast){
+        const updateHwFilterBtns = ()=>{
+          if(parentHwFilter === 'current'){
+            UI.hwFilterCurrent.classList.remove('ghost');
+            UI.hwFilterPast.classList.add('ghost');
+          }else{
+            UI.hwFilterCurrent.classList.add('ghost');
+            UI.hwFilterPast.classList.remove('ghost');
+          }
+        };
+        UI.hwFilterCurrent.addEventListener('click', ()=>{
+          if(parentHwFilter !== 'current'){
+            parentHwFilter = 'current';
+            updateHwFilterBtns();
+            loadParentHomeworks();
+          }
+        });
+        UI.hwFilterPast.addEventListener('click', ()=>{
+          if(parentHwFilter !== 'past'){
+            parentHwFilter = 'past';
+            updateHwFilterBtns();
+            loadParentHomeworks();
+          }
+        });
+        updateHwFilterBtns();
+      }
+      if(UI.qzFilterCurrent && UI.qzFilterPast){
+        const updateQzFilterBtns = ()=>{
+          if(parentQzFilter === 'current'){
+            UI.qzFilterCurrent.classList.remove('ghost');
+            UI.qzFilterPast.classList.add('ghost');
+          }else{
+            UI.qzFilterCurrent.classList.add('ghost');
+            UI.qzFilterPast.classList.remove('ghost');
+          }
+        };
+        UI.qzFilterCurrent.addEventListener('click', ()=>{
+          if(parentQzFilter !== 'current'){
+            parentQzFilter = 'current';
+            updateQzFilterBtns();
+            loadParentQuizzes();
+          }
+        });
+        UI.qzFilterPast.addEventListener('click', ()=>{
+          if(parentQzFilter !== 'past'){
+            parentQzFilter = 'past';
+            updateQzFilterBtns();
+            loadParentQuizzes();
+          }
+        });
+        updateQzFilterBtns();
+      }
 
       setNetUI();
       window.addEventListener('online', async ()=>{ setNetUI(); await flushQueue(true); });
@@ -1121,6 +1427,17 @@ async function showTeacherToday(){
 
   restartTeacherAutoRefresh();
   await refreshTeacherDailyKpis();
+
+  // Ödev ve Quiz panellerini hazırla
+  try {
+    await loadTeacherClasses();
+    await loadTeacherHomeworks();
+    await loadTeacherQuizzes();
+    if (UI.homeworkCard) UI.homeworkCard.classList.remove('hidden');
+    if (UI.quizCard) UI.quizCard.classList.remove('hidden');
+  } catch(e) {
+    console.error(e);
+  }
 }
 
 
@@ -1401,6 +1718,23 @@ async function undoAttendance(){
       const st = students.find(s=> safe(s.NO)===safe(session.ogrNo));
       document.getElementById('pTitle').textContent = `📊 Yoklama Özeti — ${st ? `${st.ADSOYAD} (${st.NO})` : ''}`;
       loadParentRange('today');
+
+      // Reset parent filters to show current items when opening the parent view
+      parentHwFilter = 'current';
+      parentQzFilter = 'current';
+      // Update filter button styles if elements exist
+      if(UI.hwFilterCurrent && UI.hwFilterPast){
+        UI.hwFilterCurrent.classList.remove('ghost');
+        UI.hwFilterPast.classList.add('ghost');
+      }
+      if(UI.qzFilterCurrent && UI.qzFilterPast){
+        UI.qzFilterCurrent.classList.remove('ghost');
+        UI.qzFilterPast.classList.add('ghost');
+      }
+
+      // Ödev ve quiz listelerini yükle
+      loadParentHomeworks();
+      loadParentQuizzes();
 
       // Veli için "Detaylı Öğrenci Raporu" — Admin’deki birebir rapor
       UI.parentReportBtn?.addEventListener('click', ()=>{
@@ -1899,17 +2233,18 @@ async function openStudentStatsModal(){
 
     /* ---------- ADMIN: ÖĞRENCİ RAPORU (Detay + Yazdır) ---------- */
 async function showStudentReport(no, name){
+  // --- Fetch attendance data for the student ---
+  // Attendance records are stored under ATT_ROOT by date/class/slot/teacher/student
   const snap = await get(ref(db, ATT_ROOT));
   const root = snap.exists() ? snap.val() : {};
-  const rows = [];
-  // v2: {tarih:{sinif:{saatKodu:{ogretmenId:{ogrNo:{rec}}}}}}
+  const attRows = [];
   Object.entries(root).forEach(([tarih, byClass])=>{
     Object.entries(byClass||{}).forEach(([cls, bySlot])=>{
       Object.entries(bySlot||{}).forEach(([saatKodu, byTeacher])=>{
         Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
           const rec = byStudent?.[no];
           if(rec){
-            rows.push({
+            attRows.push({
               tarih, cls,
               durum: rec.durum,
               late: !!rec.late,
@@ -1924,85 +2259,222 @@ async function showStudentReport(no, name){
       });
     });
   });
+  attRows.sort((a,b)=> a.tarih.localeCompare(b.tarih));
 
-  rows.sort((a,b)=> a.tarih.localeCompare(b.tarih));
+  const totalMarked = attRows.filter(r=> r.durum==='var' || r.durum==='yok').length;
+  const came       = attRows.filter(r=> r.durum==='var').length;
+  const absentRows = attRows.filter(r=> r.durum==='yok');
+  const lateRows   = attRows.filter(r=> r.durum==='var' && r.late);
+  const pct        = totalMarked ? Math.round((came/totalMarked)*100) : 0;
 
-  const totalMarked = rows.filter(r=> r.durum==='var' || r.durum==='yok').length;
-  const came = rows.filter(r=> r.durum==='var').length;
-  const absent = rows.filter(r=> r.durum==='yok');
-  const late = rows.filter(r=> r.durum==='var' && r.late);
-  const pct = totalMarked ? Math.round((came/totalMarked)*100) : 0;
-
+  // Helpers to format dates and lesson times
   const fmtDate = (ds)=> {
     const [Y,M,D] = ds.split('-').map(Number);
     return new Intl.DateTimeFormat('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(Y,M-1,D));
   };
   const fmtSaat = (r)=> r.saatNo ? `${ordinal(r.saatNo)} (${r.saatBas||''}-${r.saatBit||''})` : `(${r.saatBas||''}-${r.saatBit||''})`;
 
-  const reportHtml = `
-  <div id="printStudentReport">
-    <h2 style="margin:0 0 6px 0;">Fenomen Çocuk Kulübü — Öğrenci Raporu</h2>
-    <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
-    <div class="grid cols-3" style="margin:8px 0;">
-      <div class="kpi"><div class="muted">Toplam İşaretli</div><div style="font-weight:800;">${totalMarked}</div></div>
-      <div class="kpi"><div class="muted">Toplam Geldi</div><div style="font-weight:800;">${came}</div></div>
-      <div class="kpi"><div class="muted">Katılım %</div><div style="font-weight:800;">${pct}%</div></div>
-    </div>
+  // --- Fetch homework and quiz data for the student ---
+  // Determine student's class
+  const studentObj = students.find(s => safe(s.NO) === safe(no));
+  const cls = safe(studentObj?.SINIF);
 
-    <h3 style="margin-top:16px;">❌ Gelmeyen Günler (Detay)</h3>
-    ${
-      absent.length
-      ? `<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${
-          absent.map(r=> `<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')
-        }</tbody></table>`
-      : `<div class="muted">Kayıtlı “gelmedi” bulunamadı.</div>`
-    }
+  // Homework list
+  const homeworkList = [];
+  if(cls){
+    try{
+      const hwSnap = await get(ref(db, `homeworks/${cls}`));
+      const hwData = hwSnap.exists() ? hwSnap.val() : {};
+      Object.entries(hwData).forEach(([hwId, hw])=>{
+        const dueStr = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
+        const rec = (hw.statuses || {})[no] || {};
+        const stKey = rec.status;
+        const statusText = stKey ? (HW_STATUSES[stKey] || stKey) : '—';
+        homeworkList.push({
+          title: hw.title || '',
+          subject: hw.subject || '',
+          due: dueStr,
+          teacherName: hw.teacherName || '',
+          statusText
+        });
+      });
+      // Sort by due date ascending (empty due dates at end)
+      homeworkList.sort((a,b)=> ((a.due||'').localeCompare(b.due||'','tr')));
+    }catch(err){ console.error(err); }
+  }
 
-    <h3 style="margin-top:16px;">⏰ Geç Geldiği Günler (Detay)</h3>
-    ${
-      late.length
-      ? `<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${
-          late.map(r=> `<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')
-        }</tbody></table>`
-      : `<div class="muted">Kayıtlı “geç” bulunamadı.</div>`
-    }
-  </div>`;
+  // Quiz list
+  const quizList = [];
+  if(cls){
+    try{
+      const qSnap = await get(ref(db, `quizzes/${cls}`));
+      const qData = qSnap.exists() ? qSnap.val() : {};
+      Object.entries(qData).forEach(([qId, q])=>{
+        const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
+        const res = (q.results || {})[no];
+        let resultText = 'Katılmadı';
+        if(res && typeof res.correct === 'number' && typeof res.percent === 'number'){
+          const correct = res.correct;
+          const wrong   = res.wrong ?? (typeof res.total === 'number' ? res.total - res.correct : undefined);
+          const pctRes  = res.percent;
+          if(typeof wrong === 'number'){
+            resultText = `${correct} Doğru • ${wrong} Yanlış • %${pctRes}`;
+          } else {
+            resultText = `${correct} Doğru • %${pctRes}`;
+          }
+        }
+        quizList.push({
+          title: q.title || '',
+          subject: q.subject || '',
+          date: dateStr,
+          teacherName: q.teacherName || '',
+          resultText
+        });
+      });
+      // Sort by date ascending (empty dates at end)
+      quizList.sort((a,b)=> ((a.date||'').localeCompare(b.date||'','tr')));
+    }catch(err){ console.error(err); }
+  }
 
-  const html = `
-    <div class="stack" style="text-align:left;max-height:70vh;overflow:auto;">
-      <div class="row"><button id="btnPrintStudent" class="btn" type="button">Yazdır</button></div>
-      ${reportHtml}
+  // Build HTML for each section (attendance, homeworks, quizzes)
+  const attendanceSection = `
+    <div id="tab-attendance" class="report-tab">
+      <h2 style="margin:0 0 6px 0;">Fenomen Çocuk Kulübü — Öğrenci Raporu</h2>
+      <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
+      <div class="grid cols-3" style="margin:8px 0;">
+        <div class="kpi"><div class="muted">Toplam İşaretli</div><div style="font-weight:800;">${totalMarked}</div></div>
+        <div class="kpi"><div class="muted">Toplam Geldi</div><div style="font-weight:800;">${came}</div></div>
+        <div class="kpi"><div class="muted">Katılım %</div><div style="font-weight:800;">${pct}%</div></div>
+      </div>
+      <h3 style="margin-top:16px;">❌ Gelmeyen Günler (Detay)</h3>
+      ${
+        absentRows.length
+        ? `<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${
+            absentRows.map(r=> `<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')
+          }</tbody></table>`
+        : `<div class="muted">Kayıtlı “gelmedi” bulunamadı.</div>`
+      }
+      <h3 style="margin-top:16px;">⏰ Geç Geldiği Günler (Detay)</h3>
+      ${
+        lateRows.length
+        ? `<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${
+            lateRows.map(r=> `<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')
+          }</tbody></table>`
+        : `<div class="muted">Kayıtlı “geç” bulunamadı.</div>`
+      }
     </div>`;
-  await Swal.fire({title:'Öğrenci Raporu', html, width:1000, showConfirmButton:false, showCloseButton:true, didOpen: bindPrint});
 
-  function bindPrint(){
-    const h = Swal.getHtmlContainer();
-    const btn = h.querySelector('#btnPrintStudent');
-    btn.addEventListener('click', ()=> printDivAsA4(h.querySelector('#printStudentReport'), `Fenomen_ogrenci_${no}.pdf`));
+  const homeworksSection = `
+    <div id="tab-homeworks" class="report-tab" style="display:none;">
+      <h2 style="margin:0 0 6px 0;">Fenomen Çocuk Kulübü — Öğrenci Ödevleri</h2>
+      <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
+      ${
+        homeworkList.length
+        ? `<table class="table"><thead><tr><th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th></tr></thead><tbody>${
+            homeworkList.map(r=> `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.due}</td><td>${r.teacherName}</td><td>${r.statusText}</td></tr>`).join('')
+          }</tbody></table>`
+        : `<div class="muted">Ödev bulunamadı.</div>`
+      }
+    </div>`;
+
+  const quizzesSection = `
+    <div id="tab-quizzes" class="report-tab" style="display:none;">
+      <h2 style="margin:0 0 6px 0;">Fenomen Çocuk Kulübü — Öğrenci Quizleri</h2>
+      <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
+      ${
+        quizList.length
+        ? `<table class="table"><thead><tr><th>Quiz</th><th>Ders</th><th>Tarih</th><th>Öğretmen</th><th>Sonuç</th></tr></thead><tbody>${
+            quizList.map(r=> `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.date}</td><td>${r.teacherName}</td><td>${r.resultText}</td></tr>`).join('')
+          }</tbody></table>`
+        : `<div class="muted">Quiz bulunamadı.</div>`
+      }
+    </div>`;
+
+  // Build navigation buttons
+  const navBar = `
+  <div class="row report-toolbar no-print" style="gap:6px; align-items:center; margin-bottom:8px;">
+    <button class="btn tab-btn" data-tab="attendance" type="button">Yoklama</button>
+    <button class="btn ghost tab-btn" data-tab="homeworks" type="button">Ödevler</button>
+    <button class="btn ghost tab-btn" data-tab="quizzes" type="button">Quizler</button>
+    <span style="flex:1;"></span>
+    <button id="btnPrintStudent" class="btn" type="button">Yazdır</button>
+  </div>`; // Neden: bu satırların çıktıda görünmemesi gerekiyor
+
+  // Compose the modal HTML
+  const modalHtml = `
+  <div style="text-align:left;max-height:70vh;overflow:auto;">
+    ${navBar}
+    <div id="printStudentReport">
+      ${attendanceSection}
+      ${homeworksSection}
+      ${quizzesSection}
+    </div>
+  </div>`; // Neden: yazdırılacak alan artık sadece #printStudentReport
+
+
+  // Show modal with SweetAlert2
+  await Swal.fire({
+    title:'Öğrenci Raporu',
+    html: modalHtml,
+    width: 1000,
+    showConfirmButton:false,
+    showCloseButton:true,
+    didOpen: bindReport
+  });
+
+  // Bind events for tab navigation and printing
+  function bindReport(){
+    const h   = Swal.getHtmlContainer();
+    const tabs = h.querySelectorAll('.report-tab');
+    const btns = h.querySelectorAll('.tab-btn');
+    const showTab = (tabName)=>{
+      tabs.forEach(div=>{
+        const isMatch = div.id === `tab-${tabName}`;
+        div.style.display = isMatch ? '' : 'none';
+      });
+      btns.forEach(b=>{
+        const isActive = b.getAttribute('data-tab') === tabName;
+        if(isActive) b.classList.remove('ghost'); else b.classList.add('ghost');
+      });
+    };
+    btns.forEach(btn=>{
+      btn.addEventListener('click', ()=> {
+        const tabName = btn.getAttribute('data-tab');
+        showTab(tabName);
+      }, { passive:true });
+    });
+    // Initialize default tab
+    showTab('attendance');
+    // Print current visible tab (export entire report)
+    const printBtn = h.querySelector('#btnPrintStudent');
+    printBtn.addEventListener('click', ()=>{
+      const reportDiv = h.querySelector('#printStudentReport');
+      printDivAsA4(reportDiv, `Fenomen_ogrenci_${no}.pdf`);
+    }, { passive:true });
   }
 }
 
     function printDivAsA4(div, title){
-      // Neden: Modal içeriğini temiz A4 çıktısı için ayrı pencerede yazdırıyoruz.
-      const w = window.open('', '_blank');
-      const css = `
-        <style>
-        @page { size: A4; margin: 16mm; }
-        body{ font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#000; }
-        h2,h3{ margin:6px 0; }
-        .kpi{ border:1px solid #000; border-radius:8px; padding:8px; }
-        .grid{ display:grid; gap:8px; grid-template-columns:repeat(3,1fr); }
-        .muted{ color:#333 }
-        table{ width:100%; border-collapse:collapse; margin-top:8px; }
-        th,td{ border:1px solid #000; padding:6px 8px; text-align:left; font-size:12px; }
-        </style>`;
-      w.document.write(`<html><head><title>${title||''}</title>${css}</head><body>${div.outerHTML}</body></html>`);
-      w.document.close();
-      w.focus();
-      w.print();
-      // w.close(); // İsteyen kapatabilir
-    }
-
+  const w = window.open('', '_blank');
+  const css = `
+    <style>
+      @page { size: A4; margin: 16mm; }
+      body{ font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#000; }
+      h2,h3{ margin:6px 0; }
+      .kpi{ border:1px solid #000; border-radius:8px; padding:8px; }
+      .grid{ display:grid; gap:8px; grid-template-columns:repeat(3,1fr); }
+      .muted{ color:#333 }
+      table{ width:100%; border-collapse:collapse; margin-top:8px; }
+      th,td{ border:1px solid #000; padding:6px 8px; text-align:left; font-size:12px; }
+      .no-print{ display:none !important; } /* Neden: yanlışlıkla yazdırılacak parçaları güvenceye al */
+    </style>`;
+  w.document.write(`<html><head><title>${title||''}</title>${css}</head><body>${div.outerHTML}</body></html>`);
+  w.document.close();
+  w.focus();
+  w.print();
+  // w.close();
+}
+  
     /* ---------- ADMIN: ESKİ KAYITLAR ---------- */
     async function openHistoryModal(){
   const clsOptions = Array.from(new Set(
@@ -2293,6 +2765,1019 @@ async function buildAdminPrintSheet(){
         <td>${hoursText(s.present)}</td>
         <td>${hoursText(s.absent)}</td>
       </tr>`).join('') || `<tr><td colspan="5" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
+}
+
+/* ---------- Ödev & Quiz Fonksiyonları ---------- */
+
+const HW_STATUSES = {
+  yapti: 'Yaptı',
+  yapmadi: 'Yapmadı',
+  eksik: 'Eksik',
+  kitap: 'Kitap Yok',
+  gelmedi: 'Gelmedi'
+};
+
+// Öğretmen: sınıf listesini yükle (ödev/quiz için)
+async function loadTeacherClasses(){
+  if(!session || session.role !== 'ogretmen') return;
+  const classes = Array.from(new Set(schedule
+    .filter(r => safe(r.OGRETMEN_ID) === safe(session.ogretmenId))
+    .map(r => safe(r.SINIF))
+    .filter(Boolean)
+  )).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+  // Sınıf seçimi için checkbox'lar oluştur
+  if(UI.hwClassSelect){
+    UI.hwClassSelect.innerHTML = classes.map(c => `<label><input type="checkbox" value="${c}" /> ${c}</label>`).join('');
+  }
+  if(UI.qzClassSelect){
+    UI.qzClassSelect.innerHTML = classes.map(c => `<label><input type="checkbox" value="${c}" /> ${c}</label>`).join('');
+  }
+}
+
+// Öğretmen: yeni ödev oluştur
+async function createHomework(){
+  const title = safe(UI.hwTitle?.value);
+  const dueDate = UI.hwDueDate?.value;
+  // Çoklu sınıf seçimi: checkboxlar üzerinden seçili sınıfları al
+  const selected = Array.from(UI.hwClassSelect?.querySelectorAll('input[type="checkbox"]:checked') || []);
+  const classes = selected.map(el => el.value).filter(Boolean);
+  if(!title || !dueDate || classes.length===0){
+    Swal.fire('Eksik','Lütfen tüm alanları doldurunuz ve sınıf seçiniz.','warning');
+    return;
+  }
+  const updates = {};
+  const ts = Date.now();
+  classes.forEach((cls,i) => {
+    const id = `${ts}-${i}`;
+    updates[`homeworks/${cls}/${id}`] = {
+      title: title,
+      dueDate: dueDate,
+      teacherId: session?.ogretmenId || '',
+      teacherName: session?.teacherName || '',
+      subject: session?.teacherBranch || '',
+      created: ts
+    };
+  });
+  try{
+    if(navigator.onLine) await update(ref(db), updates);
+    else queueOfflineWrite('/', updates);
+    Swal.fire('Kaydedildi','Ödev oluşturuldu.','success');
+    if(UI.hwTitle) UI.hwTitle.value='';
+    if(UI.hwDueDate) UI.hwDueDate.value='';
+    await loadTeacherHomeworks();
+  }catch(e){ console.error(e); Swal.fire('Hata','Ödev kaydedilemedi.','error'); }
+}
+
+// Öğretmen: ödev listesini yükle
+async function loadTeacherHomeworks(){
+  if(!session || session.role !== 'ogretmen') return;
+  const teacherId = session.ogretmenId;
+  // Tüm sınıfların listesi: checkbox'ların value değerleri
+  const classes = Array.from(UI.hwClassSelect?.querySelectorAll('input[type="checkbox"]') || []).map(el => el.value);
+  const items = [];
+  for(const cls of classes){
+    const snap = await get(ref(db, `homeworks/${cls}`));
+    const data = snap.exists() ? snap.val() : {};
+    for(const id in data){
+      const hw = data[id];
+      if(hw.teacherId && safe(hw.teacherId) !== safe(teacherId)) continue;
+      items.push({id, class: cls, ...hw});
+    }
+  }
+  items.sort((a,b) => ((a.dueDate||'').localeCompare(b.dueDate||'','tr')));
+  if(UI.hwList){
+    if(items.length){
+      UI.hwList.innerHTML = items.map(hw => {
+        const dueDate = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
+        let diff=null, timeLeft='', leftClass='ok';
+        try{
+          if(hw.dueDate){
+            const now=dayjs().startOf('day');
+            const due=dayjs(hw.dueDate);
+            diff = due.endOf('day').diff(now,'day');
+            if(diff < 0){ timeLeft='Süre doldu'; leftClass='bad'; }
+            else if(diff===0){ timeLeft='Bugün teslim'; leftClass='bad'; }
+            else if(diff===1){ timeLeft='1 gün kaldı'; leftClass='bad'; }
+            else if(diff===2){ timeLeft='2 gün kaldı'; leftClass='warn'; }
+            else { timeLeft=`${diff} gün kaldı`; leftClass='ok'; }
+          }
+        }catch(_){ }
+        const statuses = hw.statuses || {};
+        const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
+        Object.values(statuses).forEach(rec=>{
+          const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++;
+        });
+        const summary = Object.entries(counts).filter(([k,v])=>v>0).map(([k,v])=>`${HW_STATUSES[k]}: ${v}`).join(', ') || 'Henüz kontrol edilmedi';
+        return `<div class="lesson hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" role="button" tabindex="0">
+  <div>
+    <div class="title">${hw.class} • ${hw.title||''}</div>
+    <div class="muted">Ders: ${hw.subject||''}</div>
+    <div class="muted">Teslim: ${dueDate}</div>
+    <div class="row" style="gap:6px;align-items:center;">
+      <div class="chip ${leftClass}">${timeLeft}</div>
+      <div class="muted" style="font-size:0.75rem;">${summary}</div>
+    </div>
+  </div>
+  <div class="row" style="gap:6px;align-items:center;">
+    <div class="chip future">Kontrol</div>
+    <button class="btn ghost small edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">✏️</button>
+    <button class="btn ghost danger small delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">🗑️</button>
+  </div>
+</div>`;
+      }).join('');
+      Array.from(UI.hwList.querySelectorAll('[data-hw-id]')).forEach(el=>{
+        const open = ()=>{
+          const id = el.getAttribute('data-hw-id');
+          const cls = el.getAttribute('data-hw-class');
+          openHomeworkControl(cls,id);
+        };
+        el.addEventListener('click', open);
+        el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
+      });
+      // Düzenle ve sil butonları için olay bağlama
+      Array.from(UI.hwList.querySelectorAll('button.edit-hw')).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-hw-id');
+          const cls = btn.getAttribute('data-hw-class');
+          if(id && cls){ editHomework(cls,id); }
+        });
+      });
+      Array.from(UI.hwList.querySelectorAll('button.delete-hw')).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-hw-id');
+          const cls = btn.getAttribute('data-hw-class');
+          if(id && cls){ deleteHomework(cls,id); }
+        });
+      });
+    }else{
+      UI.hwList.innerHTML = '<div class="muted">Ödev yok.</div>';
+    }
+  }
+}
+
+// Öğretmen: ödev kontrol panelini aç
+async function openHomeworkControl(cls,id){
+  if(!cls || !id) return;
+  UI.hwControlCard?.classList.remove('hidden');
+  try{
+    const snap = await get(ref(db, `homeworks/${cls}/${id}`));
+    if(!snap.exists()){ Swal.fire('Hata','Ödev bulunamadı.','error'); return; }
+    const hw = snap.val();
+    if(UI.hwControlTitle) UI.hwControlTitle.textContent = `📘 Ödev Kontrol — ${cls} • ${hw.title||''}`;
+    const list = students.filter(s => safe(s.SINIF) === safe(cls)).map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) })).sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+    const statuses = hw.statuses || {};
+    if(UI.hwStudentList){
+      UI.hwStudentList.innerHTML = list.map(s => {
+        return `<li class="student" data-id="${s.id}">
+          <div class="stack"><div class="name">${s.ad}</div><div class="muted">No: ${s.no}</div></div>
+          <select class="input statusSelect">
+            <option value="">—</option>
+            <option value="yapti">Yaptı</option>
+            <option value="yapmadi">Yapmadı</option>
+            <option value="eksik">Eksik</option>
+            <option value="kitap">Kitap Yok</option>
+            <option value="gelmedi">Gelmedi</option>
+          </select>
+        </li>`;
+      }).join('');
+      Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
+        const sid = li.getAttribute('data-id');
+        const sel = li.querySelector('select.statusSelect');
+        sel.value = statuses[sid]?.status || '';
+      });
+    }
+    if(UI.hwSaveBtn){
+      UI.hwSaveBtn.onclick = async () => {
+        const updates2 = {};
+        Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
+          const sid = li.getAttribute('data-id');
+          const val = li.querySelector('select.statusSelect').value;
+          if(val){ updates2[`homeworks/${cls}/${id}/statuses/${sid}`] = { status: val, ts: Date.now() }; }
+          else { updates2[`homeworks/${cls}/${id}/statuses/${sid}`] = null; }
+        });
+        try{
+          if(navigator.onLine) await update(ref(db), updates2);
+          else queueOfflineWrite('/', updates2);
+          Swal.fire('Kaydedildi','Ödev durumları kaydedildi.','success');
+          UI.hwControlCard?.classList.add('hidden');
+          await loadTeacherHomeworks();
+        }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
+      };
+    }
+    if(UI.hwCancelBtn){
+      UI.hwCancelBtn.onclick = () => {
+        UI.hwControlCard?.classList.add('hidden');
+      };
+    }
+  }catch(e){ console.error(e); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
+}
+
+// Öğretmen: Quiz oluştur
+async function createQuiz(){
+  const title = safe(UI.qzTitle?.value);
+  const date = UI.qzDate?.value;
+  const total = parseInt(UI.qzTotal?.value || '0',10);
+  // Çoklu sınıf seçimi: checkboxlar üzerinden seçili sınıfları al
+  const selected = Array.from(UI.qzClassSelect?.querySelectorAll('input[type="checkbox"]:checked') || []);
+  const classes = selected.map(el => el.value).filter(Boolean);
+  if(!title || !date || !total || classes.length === 0){
+    Swal.fire('Eksik','Lütfen tüm alanları doldurunuz ve sınıf seçiniz.','warning');
+    return;
+  }
+  const ts = Date.now();
+  const payloadBase = {
+    title: title,
+    date: date,
+    totalQuestions: total,
+    teacherId: session?.ogretmenId || '',
+    teacherName: session?.teacherName || '',
+    subject: session?.teacherBranch || '',
+    created: ts
+  };
+  const updates = {};
+  classes.forEach((cls,i) => {
+    const id = `${ts}-${i}`;
+    updates[`quizzes/${cls}/${id}`] = payloadBase;
+  });
+  try{
+    if(navigator.onLine) await update(ref(db), updates);
+    else queueOfflineWrite('/', updates);
+    Swal.fire('Kaydedildi','Quiz oluşturuldu.','success');
+    if(UI.qzTitle) UI.qzTitle.value='';
+    if(UI.qzDate) UI.qzDate.value='';
+    if(UI.qzTotal) UI.qzTotal.value='';
+    await loadTeacherQuizzes();
+  }catch(e){ console.error(e); Swal.fire('Hata','Quiz kaydedilemedi.','error'); }
+}
+
+// Öğretmen: quiz listesini yükle
+async function loadTeacherQuizzes(){
+  if(!session || session.role !== 'ogretmen') return;
+  const teacherId = session.ogretmenId;
+  // Tüm sınıfların listesi: checkbox'ların value değerleri
+  const classes = Array.from(UI.qzClassSelect?.querySelectorAll('input[type="checkbox"]') || []).map(el => el.value);
+  const items = [];
+  for(const cls of classes){
+    const snap = await get(ref(db, `quizzes/${cls}`));
+    const data = snap.exists() ? snap.val() : {};
+    for(const id in data){
+      const q = data[id];
+      if(q.teacherId && safe(q.teacherId) !== safe(teacherId)) continue;
+      items.push({ id, class: cls, ...q });
+    }
+  }
+  items.sort((a,b) => ((a.date||'').localeCompare(b.date||'','tr')));
+  if(UI.qzList){
+    if(items.length){
+      UI.qzList.innerHTML = items.map(q => {
+        const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
+        const results = q.results || {};
+        let sum=0, count=0;
+        Object.values(results).forEach(rec=>{ const p=rec?.percent; if(typeof p==='number'){ sum += p; count++; } });
+        const avg = count>0 ? Math.round(sum / count) : null;
+        const participants = count;
+        const summary = (avg!==null) ? `Ortalama: ${avg}% • Katılan: ${participants}` : 'Henüz kontrol edilmedi';
+        return `<div class="lesson hover-raise" data-qz-id="${q.id}" data-qz-class="${q.class}" role="button" tabindex="0">
+          <div>
+            <div class="title">${q.class} • ${q.title||''}</div>
+            <div class="muted">Ders: ${q.subject||''}</div>
+            <div class="muted">Tarih: ${dateStr} • Toplam: ${q.totalQuestions||0}</div>
+            <div class="muted">${summary}</div>
+          </div>
+          <div class="row" style="gap:6px;align-items:center;">
+            <div class="chip future">Kontrol</div>
+            <button class="btn ghost small edit-qz" data-qz-id="${q.id}" data-qz-class="${q.class}" type="button">✏️</button>
+            <button class="btn ghost danger small delete-qz" data-qz-id="${q.id}" data-qz-class="${q.class}" type="button">🗑️</button>
+          </div>
+        </div>`;
+      }).join('');
+      Array.from(UI.qzList.querySelectorAll('[data-qz-id]')).forEach(el => {
+        const open = () => {
+          const id = el.getAttribute('data-qz-id');
+          const cls = el.getAttribute('data-qz-class');
+          openQuizControl(cls,id);
+        };
+        el.addEventListener('click', open);
+        el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
+      });
+      // Düzenle ve sil butonları için olay bağla
+      Array.from(UI.qzList.querySelectorAll('button.edit-qz')).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-qz-id');
+          const cls = btn.getAttribute('data-qz-class');
+          if(id && cls){ editQuiz(cls,id); }
+        });
+      });
+      Array.from(UI.qzList.querySelectorAll('button.delete-qz')).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-qz-id');
+          const cls = btn.getAttribute('data-qz-class');
+          if(id && cls){ deleteQuiz(cls,id); }
+        });
+      });
+    } else {
+      UI.qzList.innerHTML = '<div class="muted">Quiz yok.</div>';
+    }
+  }
+}
+
+// Öğretmen: quiz kontrol panelini aç
+async function openQuizControl(cls,id){
+  if(!cls || !id) return;
+  UI.qzControlCard?.classList.remove('hidden');
+  try{
+    const snap = await get(ref(db, `quizzes/${cls}/${id}`));
+    if(!snap.exists()){ Swal.fire('Hata','Quiz bulunamadı.','error'); return; }
+    const q = snap.val();
+    if(UI.qzControlTitle) UI.qzControlTitle.textContent = `📝 Quiz Kontrol — ${cls} • ${q.title||''}`;
+    const list = students.filter(s => safe(s.SINIF) === safe(cls)).map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) })).sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+    const results = q.results || {};
+    const totalQ = parseInt(q.totalQuestions||'0',10) || 0;
+    if(UI.qzStudentList){
+      UI.qzStudentList.innerHTML = list.map(s => {
+        const rec = results[s.id] || {};
+        const wrong = (typeof rec.wrong === 'number') ? rec.wrong : '';
+        const correct = (typeof rec.correct === 'number') ? rec.correct : '';
+        const pct = (typeof rec.percent === 'number') ? rec.percent : '';
+        const display = (typeof correct==='number' && typeof pct==='number') ? `${correct} Doğru • ${wrong} Yanlış • %${pct}` : '';
+        return `<li class="student" data-id="${s.id}">
+          <div class="stack"><div class="name">${s.ad}</div><div class="muted">No: ${s.no}</div></div>
+          <input type="number" class="input wrongInput" min="0" max="${totalQ}" value="${wrong}" placeholder="Yanlış" />
+          <div class="muted result">${display}</div>
+        </li>`;
+      }).join('');
+      Array.from(UI.qzStudentList.querySelectorAll('li')).forEach(li => {
+        const input = li.querySelector('input.wrongInput');
+        const resDiv = li.querySelector('.result');
+        input.addEventListener('input', () => {
+          const val = input.value;
+          if(val === ''){
+            resDiv.textContent = '';
+            return;
+          }
+          let wNum = parseInt(val,10);
+          if(isNaN(wNum) || wNum < 0) wNum = 0;
+          if(wNum > totalQ) wNum = totalQ;
+          input.value = wNum;
+          const c = totalQ - wNum;
+          const pct2 = totalQ > 0 ? Math.round((c/totalQ)*100) : 0;
+          resDiv.textContent = `${c} Doğru • ${wNum} Yanlış • %${pct2}`;
+        });
+      });
+    }
+    if(UI.qzSaveBtn){
+      UI.qzSaveBtn.onclick = async () => {
+        const updates2 = {};
+        Array.from(UI.qzStudentList.querySelectorAll('li')).forEach(li => {
+          const sid = li.getAttribute('data-id');
+          const input = li.querySelector('input.wrongInput');
+          const val = input.value;
+          if(val === '' || val === null){
+            updates2[`quizzes/${cls}/${id}/results/${sid}`] = null;
+          } else {
+            let wNum = parseInt(val,10);
+            if(isNaN(wNum) || wNum < 0) wNum = 0;
+            if(wNum > totalQ) wNum = totalQ;
+            const c = totalQ - wNum;
+            const pct2 = totalQ > 0 ? Math.round((c/totalQ)*100) : 0;
+            updates2[`quizzes/${cls}/${id}/results/${sid}`] = { wrong: wNum, correct: c, percent: pct2, ts: Date.now() };
+          }
+        });
+        try{
+          if(navigator.onLine) await update(ref(db), updates2);
+          else queueOfflineWrite('/', updates2);
+          Swal.fire('Kaydedildi','Quiz sonuçları kaydedildi.','success');
+          UI.qzControlCard?.classList.add('hidden');
+          await loadTeacherQuizzes();
+        }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
+      };
+    }
+    if(UI.qzCancelBtn){
+      UI.qzCancelBtn.onclick = () => {
+        UI.qzControlCard?.classList.add('hidden');
+      };
+    }
+  }catch(e){ console.error(e); Swal.fire('Hata','Quiz yüklenemedi.','error'); }
+}
+
+// Veli: ödevleri yükle
+async function loadParentHomeworks(){
+  const no = safe(session?.ogrNo);
+  const st = students.find(s => safe(s.NO) === no);
+  if(!st) return;
+  const cls = safe(st.SINIF);
+  if(!cls) return;
+  const snap = await get(ref(db, `homeworks/${cls}`));
+  const data = snap.exists() ? snap.val() : {};
+  const items = [];
+  for(const id in data){ items.push({ id, ...data[id] }); }
+  items.sort((a,b) => ((a.dueDate||'').localeCompare(b.dueDate||'','tr')));
+  // Build display list based on the selected homework filter
+  const displayItems = [];
+  const now = dayjs().startOf('day');
+  for(const hw of items){
+    let dueDate = null;
+    let diff = null;
+    let timeLeft = '';
+    let leftClass = 'ok';
+    let include = true;
+    try{
+      if(hw.dueDate){
+        dueDate = dayjs(hw.dueDate);
+        diff = dueDate.endOf('day').diff(now,'day');
+        // Determine inclusion based on filter
+        if(parentHwFilter === 'current'){
+          include = (diff === null || diff >= 0);
+        } else if(parentHwFilter === 'past'){
+          include = (diff !== null && diff < 0);
+        }
+        if(diff < 0){ timeLeft='Süre doldu'; leftClass='bad'; }
+        else if(diff===0){ timeLeft='Bugün teslim'; leftClass='bad'; }
+        else if(diff===1){ timeLeft='1 gün kaldı'; leftClass='bad'; }
+        else if(diff===2){ timeLeft='2 gün kaldı'; leftClass='warn'; }
+        else { timeLeft=`${diff} gün kaldı`; leftClass='ok'; }
+      } else {
+        // no due date: treat as always current
+        include = (parentHwFilter === 'current');
+      }
+    }catch(_){ }
+    if(!include) continue;
+    const dueStr = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
+    const statuses = hw.statuses || {};
+    const rec = statuses[no];
+    let statusText='—';
+    let statusClass='';
+    if(rec && rec.status){
+      const stKey = rec.status;
+      statusText = HW_STATUSES[stKey] || stKey;
+      statusClass = stKey==='yapti' ? 'ok' : (stKey==='yapmadi' ? 'bad' : 'warn');
+    }
+    displayItems.push({
+      title: hw.title || '',
+      subject: hw.subject || '',
+      due: dueStr,
+      teacherName: hw.teacherName || '',
+      statusText,
+      timeLeft,
+      statusClass,
+      leftClass
+    });
+  }
+  parentHwDisplayed = displayItems;
+  if(UI.parentHomeworkList){
+    if(displayItems.length){
+      UI.parentHomeworkList.innerHTML = displayItems.map(item => {
+        return `<li class="student">
+          <div class="stack"><div>${item.title}</div><div class="muted">Ders: ${item.subject} • Teslim: ${item.due} • Öğretmen: ${item.teacherName}</div></div>
+          <div class="row" style="gap:8px;align-items:center;">
+            <div class="chip ${item.statusClass}">${item.statusText}</div>
+            <div class="chip ${item.leftClass}">${item.timeLeft}</div>
+          </div>
+        </li>`;
+      }).join('');
+    } else {
+      UI.parentHomeworkList.innerHTML = '<div class="muted">Ödev bulunmuyor.</div>';
+    }
+    UI.noParentHomework?.classList.toggle('hidden', displayItems.length>0);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Öğretmen: Ödev ve Quiz Düzenleme / Silme Fonksiyonları
+   Bu fonksiyonlar öğretmenlerin oluşturdukları ödev ve quizleri düzenlemesine
+   veya silmesine olanak tanır. Düzenleme işlemi için SweetAlert üzerinden
+   basit bir form kullanılır. Silme işlemi öncesinde onay alınır.
+*/
+
+// Öğretmen: ödev düzenle
+async function editHomework(cls, id){
+  if(!cls || !id) return;
+  try{
+    const snap = await get(ref(db, `homeworks/${cls}/${id}`));
+    if(!snap.exists()){ Swal.fire('Hata','Ödev bulunamadı.','error'); return; }
+    const hw = snap.val();
+    const { value: formValues } = await Swal.fire({
+      title: 'Ödev Düzenle',
+      html: `
+        <input id="swalHwTitle" class="swal2-input" placeholder="Ödev başlığı" value="${(hw.title||'').replace(/"/g,'&quot;')}" />
+        <input id="swalHwDue" type="date" class="swal2-input" value="${hw.dueDate||''}" />
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Kaydet',
+      cancelButtonText: 'İptal',
+      preConfirm: () => {
+        const title = document.getElementById('swalHwTitle').value.trim();
+        const due   = document.getElementById('swalHwDue').value;
+        if(!title || !due){
+          Swal.showValidationMessage('Lütfen tüm alanları doldurunuz.');
+          return false;
+        }
+        return { title, due };
+      }
+    });
+    if(!formValues) return; // iptal edildi
+    const updates = {};
+    updates[`homeworks/${cls}/${id}/title`] = formValues.title;
+    updates[`homeworks/${cls}/${id}/dueDate`] = formValues.due;
+    try{
+      if(navigator.onLine) await update(ref(db), updates);
+      else queueOfflineWrite('/', updates);
+      await loadTeacherHomeworks();
+      Swal.fire('Kaydedildi','Ödev güncellendi.','success');
+    }catch(e){ console.error(e); Swal.fire('Hata','Güncelleme sırasında hata oluştu.','error'); }
+  }catch(err){ console.error(err); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
+}
+
+// Öğretmen: ödev sil
+async function deleteHomework(cls,id){
+  if(!cls || !id) return;
+  const confirm = await Swal.fire({
+    title:'Ödev Sil',
+    text:'Bu ödevi silmek istediğinize emin misiniz?',
+    icon:'warning',
+    showCancelButton:true,
+    confirmButtonText:'Sil',
+    cancelButtonText:'İptal'
+  });
+  if(confirm.isConfirmed){
+    const updates = {};
+    updates[`homeworks/${cls}/${id}`] = null;
+    try{
+      if(navigator.onLine) await update(ref(db), updates);
+      else queueOfflineWrite('/', updates);
+      await loadTeacherHomeworks();
+      Swal.fire('Silindi','Ödev silindi.','success');
+    }catch(e){ console.error(e); Swal.fire('Hata','Ödev silinemedi.','error'); }
+  }
+}
+
+// Öğretmen: quiz düzenle
+async function editQuiz(cls,id){
+  if(!cls || !id) return;
+  try{
+    const snap = await get(ref(db, `quizzes/${cls}/${id}`));
+    if(!snap.exists()){ Swal.fire('Hata','Quiz bulunamadı.','error'); return; }
+    const q = snap.val();
+    const { value: formValues } = await Swal.fire({
+      title: 'Quiz Düzenle',
+      html: `
+        <input id="swalQzTitle" class="swal2-input" placeholder="Quiz başlığı" value="${(q.title||'').replace(/"/g,'&quot;')}" />
+        <input id="swalQzDate" type="date" class="swal2-input" value="${q.date||''}" />
+        <input id="swalQzTotal" type="number" min="1" class="swal2-input" placeholder="Soru sayısı" value="${q.totalQuestions||''}" />
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText:'Kaydet',
+      cancelButtonText:'İptal',
+      preConfirm: () => {
+        const title = document.getElementById('swalQzTitle').value.trim();
+        const date  = document.getElementById('swalQzDate').value;
+        const total = parseInt(document.getElementById('swalQzTotal').value,10);
+        if(!title || !date || !total || total <= 0){
+          Swal.showValidationMessage('Lütfen tüm alanları doldurunuz ve geçerli soru sayısı giriniz.');
+          return false;
+        }
+        return { title, date, total };
+      }
+    });
+    if(!formValues) return;
+    const updates = {};
+    updates[`quizzes/${cls}/${id}/title`] = formValues.title;
+    updates[`quizzes/${cls}/${id}/date`]  = formValues.date;
+    updates[`quizzes/${cls}/${id}/totalQuestions`] = formValues.total;
+    try{
+      if(navigator.onLine) await update(ref(db), updates);
+      else queueOfflineWrite('/', updates);
+      await loadTeacherQuizzes();
+      Swal.fire('Kaydedildi','Quiz güncellendi.','success');
+    }catch(e){ console.error(e); Swal.fire('Hata','Güncelleme sırasında hata oluştu.','error'); }
+  }catch(err){ console.error(err); Swal.fire('Hata','Quiz yüklenemedi.','error'); }
+}
+
+// Öğretmen: quiz sil
+async function deleteQuiz(cls,id){
+  if(!cls || !id) return;
+  const confirm = await Swal.fire({
+    title:'Quiz Sil',
+    text:'Bu quizi silmek istediğinize emin misiniz?',
+    icon:'warning',
+    showCancelButton:true,
+    confirmButtonText:'Sil',
+    cancelButtonText:'İptal'
+  });
+  if(confirm.isConfirmed){
+    const updates = {};
+    updates[`quizzes/${cls}/${id}`] = null;
+    try{
+      if(navigator.onLine) await update(ref(db), updates);
+      else queueOfflineWrite('/', updates);
+      await loadTeacherQuizzes();
+      Swal.fire('Silindi','Quiz silindi.','success');
+    }catch(e){ console.error(e); Swal.fire('Hata','Quiz silinemedi.','error'); }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Admin: Ödev ve Quiz Detay Fonksiyonları
+   Yönetici raporlarında bir ödev veya quiz satırına tıklandığında
+   öğrencilerin durumlarının detaylı bir listesini gösterir.
+*/
+
+async function showAdminHomeworkDetail(cls,id){
+  if(!cls || !id) return;
+  try{
+    const snap = await get(ref(db, `homeworks/${cls}/${id}`));
+    if(!snap.exists()){ Swal.fire('Hata','Ödev bulunamadı.','error'); return; }
+    const hw = snap.val();
+    const statuses = hw.statuses || {};
+    // İlgili sınıftaki öğrencileri al ve alfabetik sırala
+    const list = students
+      .filter(s => safe(s.SINIF) === safe(cls))
+      .map(s => ({ id: safe(s.NO), name: s.ADSOYAD || '', no: safe(s.NO) }))
+      .sort((a,b) => a.name.localeCompare(b.name,'tr',{sensitivity:'base'}));
+    const htmlList = '<ul class="list">' + list.map(st => {
+      const rec = statuses[st.id] || {};
+      const stKey = rec.status || '';
+      const statusText = HW_STATUSES[stKey] || '—';
+      let chipClass = 'muted';
+      if(stKey === 'yapti') chipClass = 'ok';
+      else if(stKey === 'yapmadi' || stKey === 'gelmedi') chipClass = 'bad';
+      else if(stKey === 'eksik' || stKey === 'kitap') chipClass = 'warn';
+      return `<li class="student">
+        <div class="stack"><div class="name">${st.name}</div><div class="muted">No: ${st.no}</div></div>
+        <div class="chip ${chipClass}">${statusText}</div>
+      </li>`;
+    }).join('') + '</ul>';
+    const dueStr = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
+    const titleHtml = `📘 Ödev Detayı — ${cls} • ${hw.title || ''}`;
+    const subHtml = `<div class="muted" style="margin-bottom:10px;">Teslim: ${dueStr} • Öğretmen: ${hw.teacherName || ''} • Ders: ${hw.subject || ''}</div>`;
+    await Swal.fire({
+      title: titleHtml,
+      html: subHtml + htmlList,
+      width: 600,
+      showConfirmButton: false,
+      showCloseButton: true
+    });
+  }catch(err){ console.error(err); Swal.fire('Hata','Detaylar yüklenemedi.','error'); }
+}
+
+async function showAdminQuizDetail(cls,id){
+  if(!cls || !id) return;
+  try{
+    const snap = await get(ref(db, `quizzes/${cls}/${id}`));
+    if(!snap.exists()){ Swal.fire('Hata','Quiz bulunamadı.','error'); return; }
+    const q = snap.val();
+    const results = q.results || {};
+    const totalQ = parseInt(q.totalQuestions || '0', 10) || 0;
+    const list = students
+      .filter(s => safe(s.SINIF) === safe(cls))
+      .map(s => ({ id: safe(s.NO), name: s.ADSOYAD || '', no: safe(s.NO) }))
+      .sort((a,b) => a.name.localeCompare(b.name,'tr',{sensitivity:'base'}));
+    const htmlList = '<ul class="list">' + list.map(st => {
+      const rec = results[st.id] || {};
+      let display = '';
+      let chipClass = 'muted';
+      if(typeof rec.correct === 'number' && typeof rec.percent === 'number'){
+        display = `${rec.correct} Doğru • ${rec.wrong} Yanlış • %${rec.percent}`;
+        const pct = rec.percent;
+        if(pct >= 70) chipClass = 'ok';
+        else if(pct >= 40) chipClass = 'warn';
+        else chipClass = 'bad';
+      } else {
+        display = 'Katılmadı';
+        chipClass = 'bad';
+      }
+      return `<li class="student">
+        <div class="stack"><div class="name">${st.name}</div><div class="muted">No: ${st.no}</div></div>
+        <div class="chip ${chipClass}">${display}</div>
+      </li>`;
+    }).join('') + '</ul>';
+    const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
+    const titleHtml = `📝 Quiz Detayı — ${cls} • ${q.title || ''}`;
+    const subHtml = `<div class="muted" style="margin-bottom:10px;">Tarih: ${dateStr} • Toplam Soru: ${q.totalQuestions || 0} • Öğretmen: ${q.teacherName || ''} • Ders: ${q.subject || ''}</div>`;
+    await Swal.fire({
+      title: titleHtml,
+      html: subHtml + htmlList,
+      width: 600,
+      showConfirmButton: false,
+      showCloseButton: true
+    });
+  }catch(err){ console.error(err); Swal.fire('Hata','Detaylar yüklenemedi.','error'); }
+}
+
+// Veli: quizleri yükle
+async function loadParentQuizzes(){
+  const no = safe(session?.ogrNo);
+  const st = students.find(s => safe(s.NO) === no);
+  if(!st) return;
+  const cls = safe(st.SINIF);
+  if(!cls) return;
+  const snap = await get(ref(db, `quizzes/${cls}`));
+  const data = snap.exists() ? snap.val() : {};
+  const items = [];
+  for(const id in data){ items.push({ id, ...data[id] }); }
+  items.sort((a,b) => ((b.date||'').localeCompare(a.date||'','tr')));
+  // Build display list based on the selected quiz filter
+  const displayItems = [];
+  const now = dayjs().startOf('day');
+  for(const q of items){
+    let include = true;
+    let qDate = null;
+    let diffDays = null;
+    try{
+      if(q.date){
+        qDate = dayjs(q.date);
+        diffDays = now.diff(qDate.startOf('day'), 'day');
+        if(parentQzFilter === 'current'){
+          include = (diffDays <= 30);
+        } else if(parentQzFilter === 'past'){
+          include = (diffDays > 30);
+        }
+      } else {
+        // no date: treat as current
+        include = (parentQzFilter === 'current');
+      }
+    }catch(_){ }
+    if(!include) continue;
+    const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
+    const res = q.results || {};
+    const rec = res[no];
+    let resultText='Katılmadı';
+    let chipClass='bad';
+    if(rec && typeof rec.correct === 'number'){
+      const correct = rec.correct;
+      const wrong = rec.wrong;
+      const pct = rec.percent;
+      resultText = `${correct} Doğru • ${wrong} Yanlış • %${pct}`;
+      chipClass = (pct >= 70) ? 'ok' : (pct >= 40 ? 'warn' : 'bad');
+    }
+    displayItems.push({
+      title: q.title || '',
+      subject: q.subject || '',
+      date: dateStr,
+      teacherName: q.teacherName || '',
+      resultText,
+      resultClass: chipClass
+    });
+  }
+  parentQzDisplayed = displayItems;
+  if(UI.parentQuizList){
+    if(displayItems.length){
+      UI.parentQuizList.innerHTML = displayItems.map(item => {
+        return `<li class="student">
+          <div class="stack"><div>${item.title}</div><div class="muted">Ders: ${item.subject} • Tarih: ${item.date} • Öğretmen: ${item.teacherName}</div></div>
+          <div class="chip ${item.resultClass}">${item.resultText}</div>
+        </li>`;
+      }).join('');
+    } else {
+      UI.parentQuizList.innerHTML = '<div class="muted">Quiz bulunmuyor.</div>';
+    }
+    UI.noParentQuiz?.classList.toggle('hidden', displayItems.length>0);
+  }
+}
+
+// Admin: ödev raporları
+async function openAdminHomeworks(){
+  const classSet = new Set(students.map(s => safe(s.SINIF)).filter(Boolean));
+  const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+  const html = `
+  <div class="stack" style="text-align:left">
+    <div class="row" style="gap:10px;align-items:center;">
+      <label class="row"><span class="muted">Tarih:</span><input id="admHwDate" type="date" class="input" /></label>
+      <label class="row"><span class="muted">Sınıf:</span>
+        <select id="admHwClass" class="input">
+          <option value="hepsi">Hepsi</option>
+          ${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </label>
+      <button class="btn" id="admHwLoad" type="button">Yükle</button>
+      <button class="btn" id="admHwPrint" type="button">Yazdır</button>
+    </div>
+    <div style="max-height:60vh;overflow:auto;">
+      <table class="table">
+        <thead><tr><th>Ödev</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Teslim</th><th>Yaptı</th><th>Yapmadı</th><th>Eksik</th><th>Kitap Yok</th><th>Gelmedi</th></tr></thead>
+        <tbody id="admHwBody"></tbody>
+      </table>
+      <div id="admHwEmpty" class="muted">Kayıt bulunamadı.</div>
+    </div>
+  </div>`;
+  await Swal.fire({ title:'Ödev Raporları', html, width:1100, showConfirmButton:false, showCloseButton:true, didOpen: bind });
+  function bind(){
+    const h = Swal.getHtmlContainer();
+    const dateInput = h.querySelector('#admHwDate');
+    const classSelect = h.querySelector('#admHwClass');
+    const loadBtn = h.querySelector('#admHwLoad');
+    const printBtn = h.querySelector('#admHwPrint');
+    dateInput.value = '';
+    const run = async () => {
+      const date = dateInput.value || '';
+      const cls = classSelect.value || 'hepsi';
+      const rootSnap = await get(ref(db, 'homeworks'));
+      const all = rootSnap.exists() ? rootSnap.val() : {};
+      const rows = [];
+      for(const classKey in all){
+        if(cls !== 'hepsi' && classKey !== cls) continue;
+        const classData = all[classKey];
+        for(const id in classData){
+          const hw = classData[id];
+          if(date && hw.dueDate){
+            // Tarih filtresi: seçilen tarihle tam aynı gün değilse atla
+            const sel = dayjs(date);
+            const dueDt = dayjs(hw.dueDate);
+            if(!dueDt.isSame(sel, 'day')) continue;
+          }
+          const statuses = hw.statuses || {};
+          const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
+          Object.values(statuses).forEach(rec=>{ const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++; });
+          rows.push({ id: id, title: hw.title || '', subject: hw.subject || '', cls: classKey, teacher: hw.teacherName || '', due: hw.dueDate || '', counts });
+        }
+      }
+      const tbody = h.querySelector('#admHwBody');
+      if(rows.length){
+        // Sırala ve tablo gövdesini oluştur
+        const sortedRows = rows.sort((a,b)=> ((a.due||'').localeCompare(b.due||'','tr')));
+        tbody.innerHTML = sortedRows.map(r=>{
+          const dueStr = r.due ? dayjs(r.due).locale('tr').format('D MMMM YYYY') : '';
+          return `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.cls}</td><td>${r.teacher}</td><td>${dueStr}</td><td>${r.counts.yapti}</td><td>${r.counts.yapmadi}</td><td>${r.counts.eksik}</td><td>${r.counts.kitap}</td><td>${r.counts.gelmedi}</td></tr>`;
+        }).join('');
+        // Her satıra id ve class ekle ve tıklama olayı bağla
+        sortedRows.forEach((r,i) => {
+          const tr = tbody.rows[i];
+          if(tr){
+            tr.setAttribute('data-id', r.id);
+            tr.setAttribute('data-class', r.cls);
+            tr.style.cursor = 'pointer';
+            tr.addEventListener('click', () => {
+              showAdminHomeworkDetail(r.cls, r.id);
+            });
+          }
+        });
+      } else {
+        tbody.innerHTML = '';
+      }
+      h.querySelector('#admHwEmpty').classList.toggle('hidden', rows.length>0);
+    };
+    loadBtn.addEventListener('click', run);
+    printBtn.addEventListener('click', () => {
+      const rowsHtml = h.querySelector('#admHwBody').innerHTML;
+      const styleStr = '<style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:6px;text-align:left;} h2{text-align:center;margin-bottom:10px;}</style>';
+      const headerHtml = '<h2>Fenomen Çocuk Kulübü — Ödev Raporu</h2>';
+      const tableHead = '<table><thead><tr><th>Ödev</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Teslim</th><th>Yaptı</th><th>Yapmadı</th><th>Eksik</th><th>Kitap Yok</th><th>Gelmedi</th></tr></thead><tbody>';
+      const htmlDoc = '<html><head><title>Ödev Raporu</title>' + styleStr + '</head><body>' + headerHtml + tableHead + rowsHtml + '</tbody></table></body></html>';
+      const w = window.open('', '_blank');
+      w.document.write(htmlDoc);
+      w.document.close();
+      w.focus();
+      w.print();
+      w.close();
+    });
+    run();
+  }
+}
+
+// Admin: quiz raporları
+async function openAdminQuizzes(){
+  const classSet = new Set(students.map(s => safe(s.SINIF)).filter(Boolean));
+  const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+  const html = `
+  <div class="stack" style="text-align:left">
+    <div class="row" style="gap:10px;align-items:center;">
+      <label class="row"><span class="muted">Tarih:</span><input id="admQzDate" type="date" class="input" /></label>
+      <label class="row"><span class="muted">Sınıf:</span>
+        <select id="admQzClass" class="input">
+          <option value="hepsi">Hepsi</option>
+          ${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </label>
+      <button class="btn" id="admQzLoad" type="button">Yükle</button>
+      <button class="btn" id="admQzPrint" type="button">Yazdır</button>
+    </div>
+    <div style="max-height:60vh;overflow:auto;">
+      <table class="table">
+        <thead><tr><th>Quiz</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Tarih</th><th>Ortalama %</th><th>Öğrenci Sayısı</th></tr></thead>
+        <tbody id="admQzBody"></tbody>
+      </table>
+      <div id="admQzEmpty" class="muted">Kayıt bulunamadı.</div>
+    </div>
+  </div>`;
+  await Swal.fire({ title:'Quiz Raporları', html, width:1000, showConfirmButton:false, showCloseButton:true, didOpen: bind });
+  function bind(){
+    const h = Swal.getHtmlContainer();
+    const dateInput = h.querySelector('#admQzDate');
+    const classSelect = h.querySelector('#admQzClass');
+    const loadBtn = h.querySelector('#admQzLoad');
+    const printBtn = h.querySelector('#admQzPrint');
+    dateInput.value = '';
+    const run = async () => {
+      const date = dateInput.value || '';
+      const cls = classSelect.value || 'hepsi';
+      const rootSnap = await get(ref(db, 'quizzes'));
+      const all = rootSnap.exists() ? rootSnap.val() : {};
+      const rows = [];
+      for(const classKey in all){
+        if(cls !== 'hepsi' && classKey !== cls) continue;
+        const classData = all[classKey];
+        for(const id in classData){
+          const q = classData[id];
+          if(date && q.date){
+            const sel = dayjs(date);
+            const qdt = dayjs(q.date);
+            if(!qdt.isSame(sel, 'day')) continue;
+          }
+          const results = q.results || {};
+          let sum=0, count=0;
+          Object.values(results).forEach(rec=>{
+            const p=rec?.percent; if(typeof p==='number'){ sum += p; count++; }
+          });
+          const avg = count>0 ? Math.round(sum / count) : null;
+          rows.push({ id: id, title: q.title || '', subject: q.subject || '', cls: classKey, teacher: q.teacherName || '', date: q.date || '', avg: avg, count: count });
+        }
+      }
+      const tbody = h.querySelector('#admQzBody');
+      if(rows.length){
+        const sortedRows = rows.sort((a,b)=> ((a.date||'').localeCompare(b.date||'','tr')));
+        tbody.innerHTML = sortedRows.map(r=>{
+          const avgTxt = (r.avg===null) ? '—' : `${r.avg}%`;
+          const dateStr = r.date ? dayjs(r.date).locale('tr').format('D MMMM YYYY') : '';
+          return `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.cls}</td><td>${r.teacher}</td><td>${dateStr}</td><td>${avgTxt}</td><td>${r.count}</td></tr>`;
+        }).join('');
+        // Satırlara id ve class ekle ve tıklama olayı bağla
+        sortedRows.forEach((r,i) => {
+          const tr = tbody.rows[i];
+          if(tr){
+            tr.setAttribute('data-id', r.id);
+            tr.setAttribute('data-class', r.cls);
+            tr.style.cursor = 'pointer';
+            tr.addEventListener('click', () => {
+              showAdminQuizDetail(r.cls, r.id);
+            });
+          }
+        });
+      } else {
+        tbody.innerHTML = '';
+      }
+      h.querySelector('#admQzEmpty').classList.toggle('hidden', rows.length>0);
+    };
+    loadBtn.addEventListener('click', run);
+    printBtn.addEventListener('click', () => {
+      const rowsHtml = h.querySelector('#admQzBody').innerHTML;
+      const styleStr = '<style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:6px;text-align:left;} h2{text-align:center;margin-bottom:10px;}</style>';
+      const headerHtml = '<h2>Fenomen Çocuk Kulübü — Quiz Raporu</h2>';
+      const tableHead = '<table><thead><tr><th>Quiz</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Tarih</th><th>Ortalama %</th><th>Öğrenci Sayısı</th></tr></thead><tbody>';
+      const htmlDoc = '<html><head><title>Quiz Raporu</title>' + styleStr + '</head><body>' + headerHtml + tableHead + rowsHtml + '</tbody></table></body></html>';
+      const w = window.open('', '_blank');
+      w.document.write(htmlDoc);
+      w.document.close();
+      w.focus();
+      w.print();
+      w.close();
+    });
+    run();
+  }
+}
+
+// Veli: ödev ve quiz listelerini yazdırma
+function printParentHomeworks(){
+  // Use the filtered homework list for printing
+  if(!parentHwDisplayed || parentHwDisplayed.length === 0){
+    if(typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak ödev yok.','warning');
+    return;
+  }
+  const rowsHtml = parentHwDisplayed.map(item => `<tr><td>${item.title}</td><td>${item.subject}</td><td>${item.due}</td><td>${item.teacherName}</td><td>${item.statusText}</td><td>${item.timeLeft}</td></tr>`).join('');
+  const styleStr = '<style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:6px;text-align:left;} h2{text-align:center;margin-bottom:10px;font-size:20px;}</style>';
+  const headerHtml = '<h2>Fenomen Çocuk Kulübü — Ödevler</h2>';
+  const tableHead = '<table><thead><tr><th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th><th>Kalan Süre</th></tr></thead><tbody>';
+  const htmlDoc = '<html><head><title>Ödevler</title>' + styleStr + '</head><body>' + headerHtml + tableHead + rowsHtml + '</tbody></table></body></html>';
+  const w = window.open('', '_blank');
+  w.document.write(htmlDoc);
+  w.document.close();
+  w.focus();
+  w.print();
+  w.close();
+}
+
+function printParentQuizzes(){
+  // Use the filtered quiz list for printing
+  if(!parentQzDisplayed || parentQzDisplayed.length === 0){
+    if(typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak quiz yok.','warning');
+    return;
+  }
+  const rowsHtml = parentQzDisplayed.map(item => `<tr><td>${item.title}</td><td>${item.subject}</td><td>${item.date}</td><td>${item.teacherName}</td><td>${item.resultText}</td></tr>`).join('');
+  const styleStr = '<style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:6px;text-align:left;} h2{text-align:center;margin-bottom:10px;font-size:20px;}</style>';
+  const headerHtml = '<h2>Fenomen Çocuk Kulübü — Quizler</h2>';
+  const tableHead = '<table><thead><tr><th>Quiz</th><th>Ders</th><th>Tarih</th><th>Öğretmen</th><th>Sonuç</th></tr></thead><tbody>';
+  const htmlDoc = '<html><head><title>Quizler</title>' + styleStr + '</head><body>' + headerHtml + tableHead + rowsHtml + '</tbody></table></body></html>';
+  const w = window.open('', '_blank');
+  w.document.write(htmlDoc);
+  w.document.close();
+  w.focus();
+  w.print();
+  w.close();
 }
 
 // Yazdır düğmesi: önce özet tabloyu kur, sonra yazdır
