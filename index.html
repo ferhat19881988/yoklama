@@ -843,7 +843,7 @@ div.admin-filters .button-row {
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-    
+    const COMPANY_NAME = 'Fenomen Çocuk Kulübü';
 
     const firebaseConfig = {
       apiKey: "AIzaSyA0jqzCSRFQYvLojoYEiBzfylXLqrL-NsQ",
@@ -2964,6 +2964,7 @@ async function loadTeacherHomeworks(){
 }
 
 // Öğretmen: ödev kontrol panelini aç
+// /index.html — openHomeworkControl(cls,id) EMOJİLİ MESAJLA GÜNCELLENMİŞ
 async function openHomeworkControl(cls,id){
   if(!cls || !id) return;
   UI.hwControlCard?.classList.remove('hidden');
@@ -2971,29 +2972,84 @@ async function openHomeworkControl(cls,id){
     const snap = await get(ref(db, `homeworks/${cls}/${id}`));
     if(!snap.exists()){ Swal.fire('Hata','Ödev bulunamadı.','error'); return; }
     const hw = snap.val();
+
     if(UI.hwControlTitle) UI.hwControlTitle.textContent = `📘 Ödev Kontrol — ${cls} • ${hw.title||''}`;
-    const list = students.filter(s => safe(s.SINIF) === safe(cls)).map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) })).sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+
+    const list = students
+      .filter(s => safe(s.SINIF) === safe(cls))
+      .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) }))
+      .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+
     const statuses = hw.statuses || {};
+    const STATUS_EMOJI = { yapti:'✅', yapmadi:'❌', eksik:'⚠️', kitap:'📕', gelmedi:'🚫' }; // neden: platform uyumlu ikonlar
+
     if(UI.hwStudentList){
       UI.hwStudentList.innerHTML = list.map(s => {
-        return `<li class="student" data-id="${s.id}">
-          <div class="stack"><div class="name">${s.ad}</div><div class="muted">No: ${s.no}</div></div>
-          <select class="input statusSelect">
-            <option value="">—</option>
-            <option value="yapti">Yaptı</option>
-            <option value="yapmadi">Yapmadı</option>
-            <option value="eksik">Eksik</option>
-            <option value="kitap">Kitap Yok</option>
-            <option value="gelmedi">Gelmedi</option>
-          </select>
-        </li>`;
+        return `<li class="student" data-id="${s.id}" data-name="${s.ad}">
+  <div class="stack">
+    <div class="name">${s.ad}</div>
+    <div class="muted">No: ${s.no}</div>
+  </div>
+  <button type="button" class="btn whatsBtn hidden" title="Veliyi WhatsApp'ta bilgilendir">WhatsApp</button>
+  <select class="input statusSelect" aria-label="Ödev durumu">
+    <option value="">—</option>
+    <option value="yapti">Yaptı</option>
+    <option value="yapmadi">Yapmadı</option>
+    <option value="eksik">Eksik</option>
+    <option value="kitap">Kitap Yok</option>
+    <option value="gelmedi">Gelmedi</option>
+  </select>
+</li>`;
       }).join('');
+
       Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
         const sid = li.getAttribute('data-id');
         const sel = li.querySelector('select.statusSelect');
-        sel.value = statuses[sid]?.status || '';
+        const btn = li.querySelector('button.whatsBtn');
+
+        // başlangıç
+        sel.value = (statuses[sid]?.status) || '';
+
+        // 'yapti' harici seçimlerde butonu göster
+        const syncBtn = () => {
+          const v = sel.value;
+          btn.classList.toggle('hidden', !(v && v !== 'yapti'));
+        };
+        syncBtn();
+        sel.addEventListener('change', syncBtn);
+
+        // WhatsApp yönlendirme
+        btn.addEventListener('click', () => {
+          const stKey = sel.value;
+          if(!stKey || stKey === 'yapti') return;
+
+          const studentName = li.getAttribute('data-name') || '';
+          const teacherName = session?.teacherName || '';
+          const statusText  = (typeof HW_STATUSES !== 'undefined' && HW_STATUSES[stKey]) ? HW_STATUSES[stKey] : stKey;
+          const statusIcon  = STATUS_EMOJI[stKey] || 'ℹ️';
+          const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
+          const title = hw?.title ? hw.title : 'Ödev';
+
+          // WhatsApp biçimlendirme: *kalın*, satır kırımları, basit Unicode emojiler
+          const msg =
+`*${companyName} Bilgilendirmesi* 📣
+
+👤 *Öğrenci:* ${studentName}
+👤 *Öğretmen:* ${teacherName}
+📘 *Ödev:* ${title}
+${statusIcon} *Durum:* ${statusText}
+
+📝 *Not:* Öğrencimizin akademik takibinin düzenli ilerlemesi için gerekli tedbirlerin alınmasını rica ederiz. Sorularınız için bizimle iletişime geçebilirsiniz.
+
+— *Saygılarımızla*  
+${companyName} 🏫`;
+
+          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
+          location.href = url; // tek tıkta yönlendirme (popup engeline takılmaz)
+        });
       });
     }
+
     if(UI.hwSaveBtn){
       UI.hwSaveBtn.onclick = async () => {
         const updates2 = {};
@@ -3012,6 +3068,7 @@ async function openHomeworkControl(cls,id){
         }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
       };
     }
+
     if(UI.hwCancelBtn){
       UI.hwCancelBtn.onclick = () => {
         UI.hwControlCard?.classList.add('hidden');
@@ -3019,6 +3076,8 @@ async function openHomeworkControl(cls,id){
     }
   }catch(e){ console.error(e); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
 }
+
+
 
 // Öğretmen: Quiz oluştur
 async function createQuiz(){
