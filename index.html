@@ -1046,6 +1046,36 @@ div.admin-filters .button-row {
         if(showToast) Swal.fire('Senkron', `${q.length} işlem veritabanına aktarıldı.`, 'success');
       }catch(e){ console.error(e); setStatus('Senkron sırasında hata.', 'bad'); }
     }
+function refreshVisibleView(){
+    // neden: ekran geri gelince zaman tabanlı chip
+    if(!session) return;
+    if(document.visibilityState !== 'visible') return;
+
+    if(session.role === 'ogretmen'){
+      showTeacherToday();           // ders kartlarını ve "Zamanı Geldi" benzeri chip'leri güncelle
+      if(typeof refreshTeacherDailyKpis === 'function'){
+        refreshTeacherDailyKpis();  // varsa KPI'ları da tazele
+      }
+    } else if(session.role === 'veli'){
+      // İsteğe göre veli tarafında da tazelemek isterseniz burada çağrı ekleyin (opsiyonel)
+      // loadParentRange('today');
+    } else if(session.role === 'admin'){
+      // refreshAdmin(); // isterseniz açın
+    }
+  }
+
+  // YENİ: Sayfa görünürlüğü/odak geri gelince çalıştır
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') refreshVisibleView();
+  });
+
+  // YENİ: bfcache'den (geri/ileri) dönünce tetikleyin (özellikle iOS/Safari)
+  window.addEventListener('pageshow', (e) => {
+    if(e.persisted) refreshVisibleView();
+  });
+
+  // YENİ: Uygulamaya odaklanınca tazele
+  window.addEventListener('focus', refreshVisibleView);
 
     async function init(){
       const app = initializeApp(firebaseConfig); appFB=app; db=getDatabase(appFB);
@@ -1194,25 +1224,41 @@ div.admin-filters .button-row {
       Swal.fire('Hatalı','Kod bulunamadı.','error');
     }
 
-    function enterApp(){
-      UI.loginCard.classList.add('hidden');
-      UI.app.classList.remove('hidden');
-      UI.btnLogout.classList.remove('hidden');
+     function enterApp(){
+    UI.loginCard.classList.add('hidden');
+    UI.app.classList.remove('hidden');
+    UI.btnLogout.classList.remove('hidden');
 
-      if(session.role==='ogretmen'){
-        UI.userChip.textContent = `🏫 ${session.teacherName||'Öğretmen'}`;
-        showTeacherToday();
-      }else if(session.role==='admin'){
-        UI.userChip.textContent = `🛠️ Yönetici`;
-        clearInterval(teacherRefreshTimer);
-        showAdminView();
-      }else{
-        const st = students.find(s=> safe(s.NO)===safe(session.ogrNo));
-        UI.userChip.textContent = `👪 ${st ? (st.ADSOYAD||'Veli') : 'Veli'}`;
-        clearInterval(teacherRefreshTimer);
-        showParentView();
-      }
+    // önce tüm zamanlayıcıyı sıfırla
+    clearInterval(teacherRefreshTimer);
+    teacherRefreshTimer = null;
+
+    if(session.role==='ogretmen'){
+      UI.userChip.textContent = `🏫 ${session.teacherName||'Öğretmen'}`;
+      showTeacherToday();
+
+      // YENİ: Her 60 sn’de bir yalnızca görünürken tazele
+      teacherRefreshTimer = setInterval(() => {
+        if(document.visibilityState === 'visible') {
+          showTeacherToday();
+          if(typeof refreshTeacherDailyKpis === 'function'){
+            refreshTeacherDailyKpis();
+          }
+        }
+      }, 60000);
+
+    }else if(session.role==='admin'){
+      UI.userChip.textContent = `🛠️ Yönetici`;
+      showAdminView();
+      // admin görünümünde periyodik timer yok
+    }else{
+      const st = students.find(s=> safe(s.NO)===safe(session.ogrNo));
+      UI.userChip.textContent = `👪 ${st ? (st.ADSOYAD||'Veli') : 'Veli'}`;
+      showParentView();
+      // veli görünümünde periyodik timer opsiyonel
     }
+  }
+
 
     /* ---------- TEACHER VIEW ---------- */
     function lessonStatusInfo(lesson, hasTaken){
