@@ -2800,6 +2800,13 @@ function formatDateTRLong(dateInput){
   }catch(e){ return String(dateInput||''); }
 }
 
+if (UI?.admPrint) {
+  UI.admPrint.addEventListener('click', async () => {
+    await buildAdminPrintSheet();
+    setTimeout(()=>window.print(), 20);
+  }, { passive:true });
+}
+
 // Admin: Yazdırmadan önce özet tabloyu hazırla
 async function buildAdminPrintSheet(){
   const { date, cls } = getAdminFilters();
