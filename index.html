@@ -1432,7 +1432,7 @@ async function showTeacherToday(){
       const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(5,'minute')) ||
                         now.isAfter(parseOnDate(toDateStr(now), m.bit).add(3,'hour')));
       if (!canTake){
-        await Swal.fire({icon:'error',title:'Zaman Kısıtı',text:'Yoklama penceresi dışında.',confirmButtonText:'Tamam'});
+        await Swal.fire({icon:'error',title:'Yoklama Alınamaz',text:'Yoklama ders başlamadan 5 dakika önce veya ders bitiminden 3 saat sonra alınamaz.',confirmButtonText:'Tamam'});
         return;
       }
       openLesson(m);
