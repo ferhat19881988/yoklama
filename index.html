@@ -2816,7 +2816,7 @@ async function buildAdminPrintSheet(){
   const psDateText = document.getElementById('psDateText');
   if (psDateText) psDateText.textContent = formatDateTRLong(dStr);
 
-  // Tablo tipografi ve kolon genişlikleri (neden: A4 hizası sabit kalsın)
+  // Tablo tipografi ve kolon genişlikleri (A4 hizası sabit kalsın)
   const table = document.getElementById('admPrintTable');
   if (table) {
     table.style.font = '13px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif';
@@ -2832,7 +2832,7 @@ async function buildAdminPrintSheet(){
           <col style="width:24%">
           <col style="width:24%">
         </colgroup>
-      `); // No / Ad Soyad / Sınıf / Geldiği / Gelemediği
+      `);
     }
     table.querySelectorAll('th,td').forEach(cell=>{
       cell.style.border = '1px solid #e6e6e6';
@@ -2854,7 +2854,7 @@ async function buildAdminPrintSheet(){
   // Derleme
   const perStudent = new Map();
   const ensure = (sinif, no) => {
-    if(!byNo.has(no)) return null; // neden: filtre dışı kayıtlar hariç
+    if(!byNo.has(no)) return null; // Neden: filtre dışı kayıtlar
     const key = `${sinif}#${no}`;
     if(!perStudent.has(key)) {
       const stu = byNo.get(no);
@@ -2862,21 +2862,49 @@ async function buildAdminPrintSheet(){
     }
     return perStudent.get(key);
   };
-  const hourLabel = (h)=> `${h}. saat`;
+
+  // Saat etiketi: önce kayıt içindeki saatNo; yoksa saatKodu'ndan rakam
+  const labelFrom = (saatKodu, rec) => {
+    const n = rec?.saatNo ?? (String(saatKodu||'').match(/\d+/)?.[0] ?? '').toString();
+    return n ? `${n}. saat` : 'Saat';
+  };
+
+  // Hem eski (var/yok) hem yeni (saatKodu->ogretmenId->ogrNo->rec) şemayı destekle
   const scanClassNode = (sinif, node) => {
     if(!node) return;
-    Object.entries(node).forEach(([hour, recs])=>{
-      const h = safe(hour);
-      Object.keys(recs?.var || {}).forEach(no => ensure(sinif, safe(no))?.present.add(hourLabel(h)));
-      Object.keys(recs?.yok || {}).forEach(no => ensure(sinif, safe(no))?.absent.add(hourLabel(h)));
+
+    // Eski şema tespiti
+    const isLegacy = Object.values(node||{}).some(v => v && typeof v === 'object' && ('var' in v || 'yok' in v));
+    if (isLegacy) {
+      Object.entries(node).forEach(([hour, recs])=>{
+        const label = `${String(hour)}. saat`;
+        Object.keys(recs?.var || {}).forEach(no => ensure(sinif, safe(no))?.present.add(label));
+        Object.keys(recs?.yok || {}).forEach(no => ensure(sinif, safe(no))?.absent.add(label));
+      });
+      return;
+    }
+
+    // Yeni şema
+    Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
+      Object.values(byTeacher || {}).forEach(byStudent=>{
+        Object.entries(byStudent || {}).forEach(([ogrNo, rec])=>{
+          const s = ensure(sinif, safe(ogrNo));
+          if(!s) return;
+          const label = labelFrom(saatKodu, rec);
+          if(rec?.durum === 'var') s.present.add(label);
+          else if(rec?.durum === 'yok') s.absent.add(label);
+        });
+      });
     });
   };
+
   if (cls === 'hepsi') {
     Object.entries(dayData || {}).forEach(([sinif, node]) => scanClassNode(safe(sinif), node));
   } else {
     scanClassNode(cls, dayData);
   }
-  // Çakışma temizliği (neden: aynı saat hem var hem yoksa "var" öncelikli)
+
+  // Çakışma temizliği: aynı saat hem var hem yoksa "var" öncelikli
   for (const s of perStudent.values()) {
     s.absent = new Set([...s.absent].filter(h => !s.present.has(h)));
   }
