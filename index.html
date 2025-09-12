@@ -3892,115 +3892,91 @@ async function openAdminQuizzes(){
 
 // Veli: ödev ve quiz listelerini yazdırma
 function printParentHomeworks(){
-  // 1) Veri kontrolü
-  if(!Array.isArray(parentHwDisplayed) || parentHwDisplayed.length === 0){
-    if(typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak ödev yok.','warning');
+  if (!Array.isArray(parentHwDisplayed) || parentHwDisplayed.length === 0) {
+    if (typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak ödev yok.','warning');
     return;
   }
 
-  // 2) Pencereyi KULLANICI TIKLAMASIYLA anında aç (popup engelleyici dostu)
-  const w = window.open('', '_blank', 'noopener,noreferrer');
-  if(!w){ alert('Tarayıcı açılır pencereyi engelledi. Lütfen bu site için açılır pencerelere izin verin.'); return; }
+  // HTML kaçışı (neden: hücrelerde özel karakterler çıktıyı bozmasın)
+  const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
 
-  // 3) Güvenli metin
-  const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  // Geçici içerik
+  const tmp = document.createElement('div');
+  tmp.id = 'print-parent-homeworks';
+  tmp.innerHTML = `
+    <div>
+      <h2 style="margin:0 0 6px 0;">${esc(COMPANY_NAME || 'Fenomen Çocuk Kulübü')} — Ödevler</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th><th>Kalan Süre</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${parentHwDisplayed.map(item => `
+            <tr>
+              <td>${esc(item.title)}</td>
+              <td>${esc(item.subject)}</td>
+              <td>${esc(item.due)}</td>
+              <td>${esc(item.teacherName)}</td>
+              <td>${esc(item.statusText)}</td>
+              <td>${esc(item.timeLeft)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
 
-  // 4) Satırlar
-  const rowsHtml = parentHwDisplayed.map(item => (
-    `<tr>
-      <td>${esc(item.title)}</td>
-      <td>${esc(item.subject)}</td>
-      <td>${esc(item.due)}</td>
-      <td>${esc(item.teacherName)}</td>
-      <td>${esc(item.statusText)}</td>
-      <td>${esc(item.timeLeft)}</td>
-    </tr>`
-  )).join('');
-
-  // 5) Basit stiller
-  const styleStr = `
-    <style>
-      body{ font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#111; margin:12mm; }
-      h2{ text-align:center; margin:0 0 10px; font-size:20px; font-weight:700; }
-      table{ width:100%; border-collapse:collapse; }
-      th,td{ border:1px solid #e6e6e6; padding:6px 8px; text-align:left; }
-      thead th{ background:#fafafa; position:sticky; top:0; }
-      @page{ size:auto; margin:12mm; } 
-      @media print { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    </style>`;
-
-  const headerHtml = `<h2>${esc(COMPANY_NAME)} — Ödevler</h2>`;
-  const tableHead = `<table>
-    <thead>
-      <tr><th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th><th>Kalan Süre</th></tr>
-    </thead><tbody>`;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Ödevler</title>${styleStr}</head>
-    <body>${headerHtml}${tableHead}${rowsHtml}</tbody></table></body></html>`;
-
-  // 6) İçeriği yaz ve yazdır
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-
-  const goPrint = () => { try { w.focus(); w.print(); } finally { w.close(); } };
-  // Safari/Chromium farklılıkları için ufak gecikme güvenliği
-  if ('onload' in w) w.onload = () => setTimeout(goPrint, 50);
-  else setTimeout(goPrint, 200);
+  document.body.appendChild(tmp);
+  try {
+    // Öğrenci raporundaki aynı yazdırma fonksiyonunu kullan
+    printDivAsA4(tmp, 'Odevler.pdf');
+  } finally {
+    tmp.remove(); // Neden: DOM’u kirletmemek
+  }
 }
 
 function printParentQuizzes(){
-  // 1) Veri kontrolü
-  if(!Array.isArray(parentQzDisplayed) || parentQzDisplayed.length === 0){
-    if(typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak quiz yok.','warning');
+  if (!Array.isArray(parentQzDisplayed) || parentQzDisplayed.length === 0) {
+    if (typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak quiz yok.','warning');
     return;
   }
 
-  // 2) Pencereyi TIKLAMA ile anında aç
-  const w = window.open('', '_blank', 'noopener,noreferrer');
-  if(!w){ alert('Tarayıcı açılır pencereyi engelledi. Lütfen bu site için açılır pencerelere izin verin.'); return; }
+  const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
 
-  // 3) Güvenli metin
-  const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const tmp = document.createElement('div');
+  tmp.id = 'print-parent-quizzes';
+  tmp.innerHTML = `
+    <div>
+      <h2 style="margin:0 0 6px 0;">${esc(COMPANY_NAME || 'Fenomen Çocuk Kulübü')} — Quizler</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th>Quiz</th><th>Ders</th><th>Tarih</th><th>Öğretmen</th><th>Sonuç</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${parentQzDisplayed.map(item => `
+            <tr>
+              <td>${esc(item.title)}</td>
+              <td>${esc(item.subject)}</td>
+              <td>${esc(item.date)}</td>
+              <td>${esc(item.teacherName)}</td>
+              <td>${esc(item.resultText)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
 
-  // 4) Satırlar
-  const rowsHtml = parentQzDisplayed.map(item => (
-    `<tr>
-      <td>${esc(item.title)}</td>
-      <td>${esc(item.subject)}</td>
-      <td>${esc(item.date)}</td>
-      <td>${esc(item.teacherName)}</td>
-      <td>${esc(item.resultText)}</td>
-    </tr>`
-  )).join('');
-
-  // 5) Basit stiller
-  const styleStr = `
-    <style>
-      body{ font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#111; margin:12mm; }
-      h2{ text-align:center; margin:0 0 10px; font-size:20px; font-weight:700; }
-      table{ width:100%; border-collapse:collapse; }
-      th,td{ border:1px solid #e6e6e6; padding:6px 8px; text-align:left; }
-      thead th{ background:#fafafa; position:sticky; top:0; }
-      @page{ size:auto; margin:12mm; } 
-      @media print { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    </style>`;
-
-  const headerHtml = `<h2>${esc(COMPANY_NAME)} — Quizler</h2>`;
-  const tableHead = `<table>
-    <thead>
-      <tr><th>Quiz</th><th>Ders</th><th>Tarih</th><th>Öğretmen</th><th>Sonuç</th></tr>
-    </thead><tbody>`;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Quizler</title>${styleStr}</head>
-    <body>${headerHtml}${tableHead}${rowsHtml}</tbody></table></body></html>`;
-
-  // 6) İçeriği yaz ve yazdır
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-
-  const goPrint = () => { try { w.focus(); w.print(); } finally { w.close(); } };
-  if ('onload' in w) w.onload = () => setTimeout(goPrint, 50);
-  else setTimeout(goPrint, 200);
+  document.body.appendChild(tmp);
+  try {
+    printDivAsA4(tmp, 'Quizler.pdf');
+  } finally {
+    tmp.remove();
+  }
 }
 
     // Boot
