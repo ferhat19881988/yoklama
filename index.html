@@ -975,12 +975,13 @@ div.admin-filters .button-row {
 
     // State
     let appFB, db;
-    let teachers=[], students=[], schedule=[], slots=[];
-    let slotOrderMap = new Map();
-    let session=null;
-    let currentLesson=null;
-    let tempAtt={};
-    let teacherRefreshTimer=null;
+let teachers=[], students=[], schedule=[], slots=[];
+let slotOrderMap = new Map();                 // legacy (tek program)
+let slotOrderMapByProgram = new Map();        // NEW: program -> Map(kod -> no)
+let session=null;
+let currentLesson=null;
+let tempAtt={};
+let teacherRefreshTimer=null;
 
     // Parent filters and displayed lists (for homework & quizzes)
     // parentHwFilter and parentQzFilter control which items are shown in the parent view.
@@ -994,15 +995,13 @@ div.admin-filters .button-row {
     // Helpers
     
     const nowTR = () => dayjs.tz();
-    const toDateStr = (dy) => dy.format('YYYY-MM-DD');
-    const turkishDays = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
-    const todayNameTR = () => turkishDays[nowTR().day()];
-    const safe = (v)=> (v??'').toString().trim();
-    const ordinal = (n)=> `${n}. Saat`;
-    function parseTime(hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return nowTR().hour(h).minute(m).second(0).millisecond(0); }
-    // >>> yeni: belirtilen tarihteki hh:mm'i oluştur
-    function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return dayjs.tz(dateStr).hour(h).minute(m).second(0).millisecond(0); }
-    const getSlotByCode = (code) => slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim()===String(code).trim())||null;
+const toDateStr = (dy) => dy.format('YYYY-MM-DD');
+const turkishDays = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+const todayNameTR = () => turkishDays[nowTR().day()];
+const safe = (v)=> (v??'').toString().trim();
+const ordinal = (n)=> `${n}. Saat`;
+function parseTime(hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return nowTR().hour(h).minute(m).second(0).millisecond(0); }
+function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return dayjs.tz(dateStr).hour(h).minute(m).second(0).millisecond(0); }
 
     function teacherById(id){
       const t = teachers.find(t=> safe(t.ID)===safe(id));
@@ -1321,6 +1320,43 @@ async function showTeacherToday(){
   UI.parentView.classList.add('hidden');
   UI.adminView.classList.add('hidden');
 
+  // --- yerel yardımcılar (neden: programa göre slot bulma/sıra numarası) ---
+  const slotByCodeProg = (code, program) => {
+    const key = String(code||'').trim();
+    const p   = (program??'').toString().trim();
+    if (!key) return null;
+    // önce code+program tam eşleşme
+    let hit = slots.find(r =>
+      String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key &&
+      (r.PROGRAM??'').toString().trim()===p
+    );
+    if (hit) return hit;
+    // yoksa sadece code ile (geriye uyum)
+    return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key) || null;
+  };
+  const slotNoProg = (() => {
+    const cache = new Map(); // program -> Map(kod->no)
+    return (code, program) => {
+      const p = (program??'').toString().trim() || 'GENEL';
+      if (!cache.has(p)) {
+        const arr = slots
+          .filter(s => ((s.PROGRAM??'').toString().trim() || 'GENEL') === p)
+          .map(s => ({
+            kod: (s.SAAT_KODU||s.KOD||s.ID||'').toString().trim(),
+            bas: (s.BASLANGIC||'23:59').toString()
+          }))
+          .filter(x => x.kod);
+        arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+        const m = new Map();
+        arr.forEach((x,i)=> m.set(x.kod, i+1));
+        cache.set(p, m);
+      }
+      const key = (code??'').toString().trim();
+      return cache.get(p).get(key) || null;
+    };
+  })();
+  // -------------------------------------------------------------------------
+
   const t = nowTR();
   const AY = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
   UI.todayInfo.textContent = `Bugün: ${t.date()} ${AY[t.month()]} ${t.year()} • ${todayNameTR()}`;
@@ -1330,162 +1366,92 @@ async function showTeacherToday(){
     .filter(r => safe(r.OGRETMEN_ID) === safe(session.ogretmenId))
     .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR') === today)
     .map(r=>{
-      const slot = getSlotByCode(r.SAAT_KODU) || {};
+      const prog = safe(r.PROGRAM);
+      const slot = slotByCodeProg(r.SAAT_KODU, prog) || {};
       const tInfo = teacherById(r.OGRETMEN_ID);
       return {
-        gun: r.GUN, saatKodu: safe(r.SAAT_KODU),
+        gun: safe(r.GUN),
+        saatKodu: safe(r.SAAT_KODU),
         sinif: safe(r.SINIF),
-        bas: safe(slot.BASLANGIC), bit: safe(slot.BITIS),
+        bas: safe(slot.BASLANGIC),
+        bit: safe(slot.BITIS),
         dersName: lessonNameFromRow(r, tInfo),
-        ogretmenId: tInfo?.id, ogretmenAd: tInfo?.name, ogretmenBrans: tInfo?.branch,
-        saatNo: slotOrderMap.get(safe(r.SAAT_KODU)) || null
+        ogretmenId: tInfo?.id,
+        ogretmenAd: tInfo?.name,
+        ogretmenBrans: tInfo?.branch,
+        program: prog || '',
+        saatNo: slotNoProg(safe(r.SAAT_KODU), prog)
       };
     })
     .sort((a,b)=> (a.bas||'23:59').localeCompare(b.bas||'23:59','tr'));
 
-  const takenSet = await getTakenSetTodayForTeacher();
+  if (mine.length === 0){
+    UI.lessonsGrid.innerHTML = '';
+    UI.noLesson?.classList.remove('hidden');
+    return;
+  }
+  UI.noLesson?.classList.add('hidden');
 
-  // Geciken yoklamaları toplamak için liste
+  const takenSet = await getTakenSetTodayForTeacher();
   const gecikenYoklamalar = [];
 
   UI.lessonsGrid.innerHTML = mine.map((m,i)=>{
     const hasTaken = takenSet.has(`${m.sinif}|${m.saatKodu}`);
     const st = lessonStatusInfo(m, hasTaken);
 
-    // Saat kontrolü
     const now = nowTR();
     const basSaati = parseOnDate(toDateStr(now), m.bas);
     const bitSaati = parseOnDate(toDateStr(now), m.bit);
 
-    // Başlangıca 5 dk kala ve bitişten 3 saat sonra kısıt
-    let canTake = true;
-    if (now.isBefore(basSaati.subtract(5, 'minute'))) {
-      canTake = false; // neden: erken yoklama engeli
-    }
-    if (now.isAfter(bitSaati.add(3, 'hour'))) {
-      canTake = false; // neden: geç yoklama engeli (3 saat)
-    }
+    let canTake = true;                         // neden: zaman penceresi kısıtı
+    if (now.isBefore(basSaati.subtract(5, 'minute'))) canTake = false;
+    if (now.isAfter(bitSaati.add(3, 'hour')))         canTake = false;
 
-    // Geciken yoklama listesi (başladı +5 dk geçmiş ve 3 saatlik pencerede alınmamış)
     if (!hasTaken && now.isAfter(basSaati.add(5, 'minute')) && now.isBefore(bitSaati.add(3, 'hour'))) {
       gecikenYoklamalar.push(`${m.sinif} • ${m.dersName} (${m.bas}-${m.bit})`);
     }
 
     return `
-      <div class="lesson" role="button" tabindex="0"
-           data-idx="${i}" data-taken="${hasTaken?1:0}"
-           data-cantake="${canTake?1:0}"
-           data-sinif="${m.sinif}" data-saatkodu="${m.saatKodu}"
-           data-bas="${m.bas||''}" data-bit="${m.bit||''}">
+      <div class="lesson ${st.chip}" role="button" tabindex="0"
+           data-idx="${i}" data-taken="${hasTaken?1:0}" data-cantake="${canTake?1:0}">
         <div>
           <div class="title">${m.sinif} • ${m.dersName}</div>
-          <div class="sub">${m.gun} • ${m.saatNo?ordinal(m.saatNo):('Saat '+m.saatKodu)} (${m.bas||''}-${m.bit||''}) • ${m.ogretmenAd}</div>
+          <div class="sub">
+            ${m.gun} • ${m.saatNo?`${m.saatNo}. Saat`:'Saat'} • ${m.bas||''}-${m.bit||''}${m.program?` • ${m.program}`:''}
+          </div>
         </div>
-        <div class="chip ${st.chip}" aria-label="Durum">${st.text}</div>
+        <div class="chip ${st.chip}">${st.text}</div>
       </div>`;
   }).join('');
 
-  UI.noLesson.classList.toggle('hidden', mine.length > 0);
-
-  Array.from(UI.lessonsGrid.querySelectorAll('.lesson')).forEach(el=>{
+  UI.lessonsGrid.querySelectorAll('.lesson').forEach(el=>{
     const activate = async ()=>{
-      const idx = Number(el.getAttribute('data-idx'));
-      const already = el.getAttribute('data-taken') === '1';
-      const canTake = el.getAttribute('data-cantake') === '1';
-
-      if (!canTake) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Yoklama Alınamaz',
-          text: 'Yoklama ders başlamadan 5 dakika önce veya ders bitiminden 3 saat sonra alınamaz.',
-        });
+      const idx = +el.dataset.idx;
+      const m = mine[idx];
+      const now = nowTR();
+      const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(5,'minute')) ||
+                        now.isAfter(parseOnDate(toDateStr(now), m.bit).add(3,'hour')));
+      if (!canTake){
+        await Swal.fire({icon:'error',title:'Zaman Kısıtı',text:'Yoklama penceresi dışında.',confirmButtonText:'Tamam'});
         return;
       }
-
-      if (already) {
-        const ok = await Swal.fire({title:'Bu yoklama daha önce alınmış.', text:'Tekrar almak istiyor musunuz?', icon:'question', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç'});
-        if(!ok.isConfirmed) return;
-      }
-      openLesson(mine[idx]);
+      openLesson(m);
     };
     el.addEventListener('click', activate);
     el.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); activate(); } });
   });
 
-  // === Uyarı ve 5 dk'lık yenileme mekanizması ===
-  UI._delayedAlertOpen = UI._delayedAlertOpen || false;
-  if (UI._delayedAlertTimer) clearInterval(UI._delayedAlertTimer);
+  restartTeacherAutoRefresh?.();
+  await refreshTeacherDailyKpis?.();
 
-  // İlk gösterim: yalnızca en az bir yoklama alınmışsa
-  if (takenSet.size > 0 && gecikenYoklamalar.length > 0 && !UI._delayedAlertOpen) {
-    Swal.fire({
-      icon: 'error',
-      title: 'Geciken Yoklamalar',
-      html: `Aşağıdaki derslerin yoklaması gecikmiş:<br><br>${gecikenYoklamalar.join('<br>')}`,
-      confirmButtonText: 'Tamam',
-      willOpen: () => { UI._delayedAlertOpen = true; },
-      didClose: () => { UI._delayedAlertOpen = false; }
-    });
-  }
-
-  // 5 dakikada bir yenile: ders bitişinden +3 saat sonrasına kadar
-  if (takenSet.size > 0) {
-    const nowForDeadline = nowTR();
-    const bitSaatleri = mine
-      .map(m => parseOnDate(toDateStr(nowForDeadline), m.bit))
-      .filter(x => x && typeof x.isValid === 'function' ? x.isValid() : true);
-    const maxDeadline = bitSaatleri.length
-      ? bitSaatleri.reduce((a,b)=> a.isAfter(b) ? a : b).add(3, 'hour')
-      : nowForDeadline;
-
-    UI._delayedAlertTimer = setInterval(async () => {
-      const tNow = nowTR();
-      if (tNow.isAfter(maxDeadline)) {
-        clearInterval(UI._delayedAlertTimer);
-        UI._delayedAlertTimer = null;
-        return;
-      }
-
-      // Güncel durumla tekrar hesapla
-      const freshTaken = await getTakenSetTodayForTeacher();
-      const delayedList = [];
-      for (const m of mine) {
-        const hasTaken = freshTaken.has(`${m.sinif}|${m.saatKodu}`);
-        const basSaati = parseOnDate(toDateStr(tNow), m.bas);
-        const bitSaati = parseOnDate(toDateStr(tNow), m.bit);
-        if (!hasTaken && tNow.isAfter(basSaati.add(5,'minute')) && tNow.isBefore(bitSaati.add(3,'hour'))) {
-          delayedList.push(`${m.sinif} • ${m.dersName} (${m.bas}-${m.bit})`);
-        }
-      }
-
-      if (delayedList.length > 0 && !UI._delayedAlertOpen) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Geciken Yoklamalar',
-          html: `Aşağıdaki derslerin yoklaması gecikmiş:<br><br>${delayedList.join('<br>')}`,
-          confirmButtonText: 'Tamam',
-          willOpen: () => { UI._delayedAlertOpen = true; },
-          didClose: () => { UI._delayedAlertOpen = false; }
-        });
-      }
-    }, 5 * 60 * 1000); // 5 dakika
-  }
-
-  restartTeacherAutoRefresh();
-  await refreshTeacherDailyKpis();
-
-  // Ödev ve Quiz panellerini hazırla
   try {
-    await loadTeacherClasses();
-    await loadTeacherHomeworks();
-    await loadTeacherQuizzes();
-    if (UI.homeworkCard) UI.homeworkCard.classList.remove('hidden');
-    if (UI.quizCard) UI.quizCard.classList.remove('hidden');
-  } catch(e) {
-    console.error(e);
-  }
+    await loadTeacherClasses?.();
+    await loadTeacherHomeworks?.();
+    await loadTeacherQuizzes?.();
+    UI.homeworkCard?.classList.remove('hidden');
+    UI.quizCard?.classList.remove('hidden');
+  } catch(e) { console.error(e); }
 }
-
 
     function restartTeacherAutoRefresh(){
       clearInterval(teacherRefreshTimer);
@@ -2119,35 +2085,73 @@ async function openTeacherReportModal(){
     <div class="tr-scroll">
       <section class="tr-sec">
         <h4 class="tr-head">🟢 Zamanında Alanlar</h4>
-        <table class="table" id="tblOnTime"><thead><tr><th>Öğretmen</th><th>Ders Sayısı</th><th>Detay</th></tr></thead><tbody></tbody></table>
+        <table class="table" id="tblOnTime">
+          <thead><tr><th>Öğretmen</th><th>Ders Sayısı</th><th>Detay</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </section>
-
       <section class="tr-sec">
         <h4 class="tr-subhead">🔴 Almayanlar</h4>
-        <table class="table" id="tblMissing"><thead><tr><th>Öğretmen</th><th>Eksik Ders</th><th>Detay</th></tr></thead><tbody></tbody></table>
+        <table class="table" id="tblMissing">
+          <thead><tr><th>Öğretmen</th><th>Eksik Ders</th><th>Detay</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </section>
     </div>
   </div>`;
+
   await Swal.fire({ title:'Öğretmen Uyum Raporu', html, width:900, showConfirmButton:false, showCloseButton:true, didOpen: bind });
+
   function bind(){
     const h = Swal.getHtmlContainer();
     const inpDate = h.querySelector('#trDate');
-    UI.admDate?.value && (inpDate.value = UI.admDate.value);
+    inpDate.value = UI.admDate?.value || toDateStr(nowTR());
+
+    // yerel yardımcılar
+    const slotByCodeProg = (code, program) => {
+      const key = String(code||'').trim();
+      const p   = (program??'').toString().trim();
+      if (!key) return null;
+      let hit = slots.find(r =>
+        String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key &&
+        (r.PROGRAM??'').toString().trim()===p
+      );
+      if (hit) return hit;
+      return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key) || null;
+    };
+    const slotNoProg = (() => {
+      const cache = new Map();
+      return (code, program) => {
+        const p = (program??'').toString().trim() || 'GENEL';
+        if (!cache.has(p)) {
+          const arr = slots
+            .filter(s => ((s.PROGRAM??'').toString().trim() || 'GENEL') === p)
+            .map(s => ({
+              kod: (s.SAAT_KODU||s.KOD||s.ID||'').toString().trim(),
+              bas: (s.BASLANGIC||'23:59').toString()
+            }))
+            .filter(x => x.kod);
+          arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+          const m = new Map(); arr.forEach((x,i)=> m.set(x.kod, i+1));
+          cache.set(p, m);
+        }
+        const key = (code??'').toString().trim();
+        return cache.get(p).get(key) || null;
+      };
+    })();
 
     const fmtSlot = (l)=> {
-      const no   = slotOrderMap.get((l.saatKodu||'').toString().trim()) || '-';
-      const slot = getSlotByCode(l.saatKodu) || {};
-      const saat = `${(slot.BASLANGIC||'').toString().trim()} - ${(slot.BITIS||'').toString().trim()}`;
-      return `${l.sinif} • ${no!=='-'?ordinal(no):'Saat'} (${saat})`;
+      const no   = slotNoProg(l.saatKodu, l.prog) || '-';
+      const slot = slotByCodeProg(l.saatKodu, l.prog) || {};
+      const saat = `${safe(slot.BASLANGIC)} - ${safe(slot.BITIS)}`;
+      return `${l.sinif} • ${no!=='-'?`${no}. Saat`:'Saat'} (${saat})${l.prog?` • ${l.prog}`:''}`;
     };
 
     const run = async ()=>{
       const date = inpDate.value || toDateStr(nowTR());
       const dayName = turkishDays[dayjs(date).day()].toLocaleLowerCase('tr-TR');
 
-      const rowsToday = schedule.filter(r =>
-        safe(r.GUN).toLocaleLowerCase('tr-TR') === dayName
-      );
+      const rowsToday = schedule.filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR') === dayName);
 
       const lessons = rowsToday.map(r=>{
         const tInfo = teacherById(r.OGRETMEN_ID);
@@ -2155,7 +2159,8 @@ async function openTeacherReportModal(){
           teacherId: safe(r.OGRETMEN_ID),
           teacherName: tInfo?.name || `Öğretmen #${r.OGRETMEN_ID}`,
           sinif: safe(r.SINIF),
-          saatKodu: safe(r.SAAT_KODU)
+          saatKodu: safe(r.SAAT_KODU),
+          prog: safe(r.PROGRAM) || ''
         };
       });
 
@@ -2168,15 +2173,13 @@ async function openTeacherReportModal(){
         t.total++; t.details.push(l);
       });
 
-      // v2: o gün ders yapılan sınıflar
       const classSet = Array.from(new Set(lessons.map(l=> l.sinif)));
       const classNodes = {};
       for(const c of classSet){
-        const s = await get(ref(db, attDayRoot(date, c))); // {saatKodu:{ogretmenId:{ogrNo:{...}}}}
+        const s = await get(ref(db, attDayRoot(date, c)));
         classNodes[c] = s.exists() ? s.val() : {};
       }
 
-      // Alınmış kabulü: ilgili sınıfta ilgili (saatKodu/teacherId) dalında EN AZ BİR öğrenci kaydı varsa
       for(const [, t] of byTeacher.entries()){
         for(const l of t.details){
           const node = classNodes[l.sinif]?.[l.saatKodu]?.[l.teacherId];
@@ -2185,8 +2188,8 @@ async function openTeacherReportModal(){
           if(hasTaken){
             t.taken++; t.takenList.push(l);
           }else{
-            // "geçti" kararı: geçmiş gün -> direkt; bugün -> ders bitiş +15 dk
-            const slot = getSlotByCode(l.saatKodu)||{};
+            // "geçti mi" — PROGRAM'a göre bitiş +15 dk
+            const slot = slotByCodeProg(l.saatKodu, l.prog) || {};
             const now = nowTR();
             const selectedDay = dayjs.tz(date);
             const isPast = selectedDay.isBefore(now, 'day');
@@ -2202,17 +2205,20 @@ async function openTeacherReportModal(){
         }
       }
 
-      // tabloya bas
       const tbOn   = h.querySelector('#tblOnTime tbody');
       const tbMiss = h.querySelector('#tblMissing tbody');
       tbOn.innerHTML = ''; tbMiss.innerHTML = '';
-      for(const [, t] of byTeacher.entries()){
-        if(t.taken > 0){
+
+      const sorted = Array.from(byTeacher.entries())
+        .sort((a,b)=> a[1].name.localeCompare(b[1].name,'tr',{sensitivity:'base'}));
+
+      for(const [, t] of sorted){
+        if((t.taken||0) > 0){
           const det = t.takenList.map(fmtSlot).join('<br>');
           tbOn.insertAdjacentHTML('beforeend', `<tr><td>${t.name}</td><td>${t.taken}</td><td>${det||'-'}</td></tr>`);
         }
       }
-      for(const [, t] of byTeacher.entries()){
+      for(const [, t] of sorted){
         if((t.missing||0) > 0){
           const det = t.missingList.map(fmtSlot).join('<br>');
           tbMiss.insertAdjacentHTML('beforeend', `<tr><td>${t.name}</td><td>${t.missing}</td><td>${det||'-'}</td></tr>`);
@@ -2224,6 +2230,8 @@ async function openTeacherReportModal(){
     inpDate.addEventListener('change', run);
   }
 }
+
+
 
 
     /* ---------- ADMIN: ÖĞRENCİ İSTATİSTİĞİ ---------- */
@@ -2539,11 +2547,13 @@ async function showStudentReport(no, name){
           ${clsOptions.map(c=> `<option value="${c}">${c}</option>`).join('')}
         </select>
       </label>
-      <button class="btn ghost" id="hReload" type="button">Yükle</button>
-      <button class="btn danger" id="hDelSel" type="button">Seçileni Sil</button>
-      <button class="btn danger" id="hDelAll" type="button">Hepsini Sil</button>
-      <button class="btn danger" id="hDelAllTime" type="button">Tüm Zamanları Sil</button>
+      <button id="hReload" class="btn" type="button">Yenile</button>
+      <div class="grow"></div>
+      <button id="hDelSel" class="btn danger" type="button">Seçilileri Sil</button>
+      <button id="hDelAll" class="btn danger" type="button">Bugünü Sil</button>
+      <button id="hDelAllTime" class="btn danger" type="button">Tüm Zamanı Sil</button>
     </div>
+
     <div style="max-height:60vh;overflow:auto;">
       <table class="table" id="hTable">
         <thead>
@@ -2574,11 +2584,34 @@ async function showStudentReport(no, name){
 
     UI.admDate?.value && (inpDate.value = UI.admDate.value);
 
-    const fmtSaat = (kodu)=>{
-      const no   = slotOrderMap.get((kodu||'').toString().trim());
-      const slot = getSlotByCode(kodu)||{};
-      const saat = `${(slot.BASLANGIC||'').toString().trim()} - ${(slot.BITIS||'').toString().trim()}`;
-      return `${no?ordinal(no):'Saat'} (${saat})`;
+    // WHY: Kayıttaki saat bilgilerini öncelikle kullan; global yardımcılar opsiyonel
+    const fmtSaat = (kodu, sampleRec)=>{
+      const noFromRec   = sampleRec?.saatNo != null ? Number(sampleRec.saatNo) : null;
+      const basFromRec  = (sampleRec?.saatBas || sampleRec?.bas || '').toString().trim();
+      const bitFromRec  = (sampleRec?.saatBit || sampleRec?.bit || '').toString().trim();
+
+      // Eğer kayıt komple bilgi sağlıyorsa direkt onu göster
+      if (noFromRec || (basFromRec && bitFromRec)) {
+        const saatTxt = (basFromRec && bitFromRec) ? `${basFromRec} - ${bitFromRec}` : '';
+        return `${noFromRec ? ordinal(noFromRec) : 'Saat'}${saatTxt ? ` (${saatTxt})` : ''}`;
+      }
+
+      // Fallback: slot tablosundan bulmayı dene (getSlotByCode/slotOrderMap yoksa güvenli davran)
+      let saatTxt = '';
+      try {
+        const slot = typeof getSlotByCode === 'function' ? (getSlotByCode(kodu) || {}) : {};
+        const bas  = (slot.BASLANGIC || '').toString().trim();
+        const bit  = (slot.BITIS || '').toString().trim();
+        if (bas || bit) saatTxt = ` (${bas} - ${bit})`;
+      } catch(_){ /* intentionally empty */ }
+
+      let noTxt = 'Saat';
+      try {
+        const no = (typeof slotOrderMap !== 'undefined') ? slotOrderMap.get((kodu||'').toString().trim()) : null;
+        if (no) noTxt = ordinal(no);
+      } catch(_){ /* intentionally empty */ }
+
+      return `${noTxt}${saatTxt}`;
     };
 
     const loadList = async ()=>{
@@ -2586,15 +2619,15 @@ async function showStudentReport(no, name){
       const cls  = selClass.value || 'hepsi';
       tbBody.innerHTML = '';
 
-      // v2: doğrudan saatKodu/ogretmenId düğümleri üzerinden sayımlar
-      const pushRow = (tarih, sinif, ogretmenAd, ogretmenId, saatKodu, varC, yokC, gecC)=>{
+      // v2: gün düğümleri üzerinden sayımlar
+      const pushRow = (tarih, sinif, ogretmenAd, ogretmenId, saatKodu, varC, yokC, gecC, sampleRec)=>{
         tbBody.insertAdjacentHTML('beforeend', `
           <tr data-date="${tarih}" data-sinif="${sinif}" data-oid="${ogretmenId}" data-saatk="${saatKodu}">
             <td><input type="checkbox" class="rowChk"/></td>
             <td>${tarih}</td>
             <td>${sinif}</td>
             <td>${ogretmenAd||'-'}</td>
-            <td>${fmtSaat(saatKodu)}</td>
+            <td>${fmtSaat(saatKodu, sampleRec)}</td>
             <td>${varC}</td>
             <td>${yokC}</td>
             <td>${gecC}</td>
@@ -2607,12 +2640,14 @@ async function showStudentReport(no, name){
         Object.entries(data).forEach(([saatKodu, byTeacher])=>{
           Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
             let varC=0,yokC=0,gecC=0, ogretmenAd='';
+            let sampleRec=null; // WHY: saat metni için bir örnek kayıt
             Object.values(byStudent||{}).forEach(rec=>{
               ogretmenAd = rec?.ogretmenAd || ogretmenAd;
+              if(!sampleRec) sampleRec = rec;
               if(rec?.durum==='var') varC++; else if(rec?.durum==='yok') yokC++;
               if(rec?.late) gecC++;
             });
-            if(varC+yokC+gecC>0) pushRow(date, sinif, ogretmenAd, ogretmenId, saatKodu, varC, yokC, gecC);
+            if(varC+yokC+gecC>0) pushRow(date, sinif, ogretmenAd, ogretmenId, saatKodu, varC, yokC, gecC, sampleRec);
           });
         });
       };
@@ -2653,43 +2688,31 @@ async function showStudentReport(no, name){
       if(!ok.isConfirmed) return;
 
       const updates = {};
-      rows.forEach(r=>{
-        updates[attPath(r.date, r.sinif, r.saatKodu, r.ogretmenId)] = null; // tüm öğrencileri barındıran düğümü komple sil
-      });
-
+      rows.forEach(r => updates[attPath(r.date, r.sinif, r.saatKodu, r.ogretmenId)] = null);
       try{
         if(navigator.onLine){ await update(ref(db), updates); await flushQueue(false); }
-        else{ queueOfflineWrite('/', updates); }
-        setStatus('Kayıtlar silindi.','ok');
-        await loadList();
-      }catch(e){
-        console.error(e);
-        Swal.fire('Hata','Silme sırasında sorun oluştu.','error');
-      }
+        else{ Object.entries(updates).forEach(([k,v])=> queueOfflineWrite(k,v)); }
+        setStatus(`${rows.length} kayıt silindi.`,'ok');
+        rows.forEach(tr => tbBody.querySelector(`tr[data-date="${tr.date}"][data-sinif="${tr.sinif}"][data-oid="${tr.ogretmenId}"][data-saatk="${tr.saatKodu}"]`)?.remove());
+        h.querySelector('#hEmpty').classList.toggle('hidden', tbBody.children.length>0);
+      }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
     });
 
     btnAll.addEventListener('click', async ()=>{
       const date = inpDate.value || toDateStr(nowTR());
-      const cls  = selClass.value || 'hepsi';
-      const ok = await Swal.fire({ title: cls==='hepsi'?'Seçili günün TÜM sınıfları silinsin mi?':'Seçili sınıfın tüm kayıtları silinsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç' });
+      const ok = await Swal.fire({ title:`${formatDateTR(date)} günündeki tüm kayıtlar silinsin mi?`, icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç' });
       if(!ok.isConfirmed) return;
-
-      const updates = (cls==='hepsi')
-        ? { [`${ATT_ROOT}/${date}`]: null }
-        : { [`${ATT_ROOT}/${date}/${cls}`]: null };
-
       try{
-        if(navigator.onLine){ await update(ref(db), updates); await flushQueue(false); }
-        else{ queueOfflineWrite('/', updates); }
-        setStatus('Kayıtlar silindi.','ok');
-        await loadList();
+        if(navigator.onLine){ await update(ref(db), { [attDayRoot(date)]: null }); await flushQueue(false); }
+        else{ queueOfflineWrite(`/${attDayRoot(date)}`, null); }
+        setStatus('Gün silindi.','ok');
+        tbBody.innerHTML=''; h.querySelector('#hEmpty').classList.remove('hidden');
       }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
     });
 
     btnAllTm.addEventListener('click', async ()=>{
-      const ok = await Swal.fire({ title:'Tüm zamanların yoklamaları silinsin mi?', text:'Bu işlem geri alınamaz.', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç' });
+      const ok = await Swal.fire({ title:'Tüm zamanlardaki kayıtlar silinsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç' });
       if(!ok.isConfirmed) return;
-
       try{
         if(navigator.onLine){ await update(ref(db), { [ATT_ROOT]: null }); await flushQueue(false); }
         else{ queueOfflineWrite('/', { [ATT_ROOT]: null }); }
@@ -2701,6 +2724,7 @@ async function showStudentReport(no, name){
     loadList();
   }
 }
+
 // Saat numarasını kayıttan çıkar (saatNo yoksa "S3" gibi anahtar adından al)
 function extractHour(rec, saatKodu){
   if (rec?.saatNo != null) return Number(rec.saatNo);
@@ -2723,25 +2747,45 @@ function formatDateTR(yyyymmdd){
 
 // Aynı gün + aynı öğretmen + aynı sınıf için, bu dersin hemen bir önceki saatini bul
 function findPrevConsecutiveSlot(lesson){
-  if(!lesson?.saatNo || lesson.saatNo <= 1) return null; // 1. derse klon yok
-  const hedefNo = lesson.saatNo - 1;
+  if(!lesson?.saatNo || lesson.saatNo <= 1) return null;
 
+  // yerel yardımcılar
+  const slotNoProg = (() => {
+    const cache = new Map();
+    return (code, program) => {
+      const p = (program??'').toString().trim() || 'GENEL';
+      if (!cache.has(p)) {
+        const arr = slots
+          .filter(s => ((s.PROGRAM??'').toString().trim() || 'GENEL') === p)
+          .map(s => ({
+            kod: (s.SAAT_KODU||s.KOD||s.ID||'').toString().trim(),
+            bas: (s.BASLANGIC||'23:59').toString()
+          }))
+          .filter(x => x.kod);
+        arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+        const m = new Map(); arr.forEach((x,i)=> m.set(x.kod, i+1));
+        cache.set(p, m);
+      }
+      const key = (code??'').toString().trim();
+      return cache.get(p).get(key) || null;
+    };
+  })();
+
+  const hedefNo = lesson.saatNo - 1;
   const today = todayNameTR().toLocaleLowerCase('tr-TR');
-  // Öğretmenin bugünkü programından, aynı sınıftaki dersleri saatNo ile eşle
+
   const candidates = schedule
     .filter(r => safe(r.OGRETMEN_ID)===safe(lesson.ogretmenId))
     .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR')===today)
     .filter(r => safe(r.SINIF).toLocaleLowerCase('tr-TR')===lesson.sinif.toLocaleLowerCase('tr-TR'))
     .map(r => {
       const sk = safe(r.SAAT_KODU);
-      return { saatKodu: sk, saatNo: slotOrderMap.get(sk) || null };
+      const p  = safe(r.PROGRAM);
+      return { saatKodu: sk, saatNo: slotNoProg(sk, p) || null };
     });
 
-  const prev = candidates.find(c => c.saatNo === hedefNo);
-  return prev || null;
+  return candidates.find(c => c.saatNo === hedefNo) || null;
 }
-
-
 
 // Admin: Yazdırmadan önce özet tabloyu hazırla
 async function buildAdminPrintSheet(){
@@ -3914,7 +3958,47 @@ if (UI?.admPrint) {
   color: var(--brand-2);
 }
 
-
  </style>
+<script>
+function getSlotByCode(code, program){
+  const key = String(code||'').trim(); if(!key) return null;
+  const p = safe(program);
+  if(p){
+    const hit = slots.find(r =>
+      String(r.SAAT_KODU??r.KOD??r.ID).trim()===key && safe(r.PROGRAM)===p
+    );
+    if(hit) return hit;
+  }
+  return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim()===key) || null;
+}
+function slotOrderGet(code, program){
+  const key = String(code||'').trim();
+  const p = safe(program) || 'GENEL';
+  const m = slotOrderMapByProgram.get(p);
+  if(m && m.has(key)) return m.get(key);
+  return slotOrderMap.get(key) || null; // fallback (eski tek program)
+}
+function buildSlotOrder(){
+  slotOrderMapByProgram = new Map();
+  const groups = new Map(); // program -> [{kod, bas}]
+  for(const s of slots){
+    const prog = safe(s.PROGRAM) || 'GENEL';
+    const kod  = safe(s.SAAT_KODU||s.KOD||s.ID);
+    const bas  = (s.BASLANGIC||'23:59').toString();
+    if(!kod) continue;
+    if(!groups.has(prog)) groups.set(prog, []);
+    groups.get(prog).push({kod, bas});
+  }
+  groups.forEach((arr, prog) => {
+    arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+    const m = new Map();
+    arr.forEach((x,i)=> m.set(x.kod, i+1));
+    slotOrderMapByProgram.set(prog, m);
+  });
+  // legacy haritayı ilk programla doldur (bazı admin görünümleri kullanıyor)
+  const first = Array.from(slotOrderMapByProgram.values())[0] || new Map();
+  slotOrderMap = new Map(first);
+}
+</script>
 </body>
 </html>
