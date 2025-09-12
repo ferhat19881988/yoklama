@@ -2787,17 +2787,17 @@ function findPrevConsecutiveSlot(lesson){
   return candidates.find(c => c.saatNo === hedefNo) || null;
 }
 
-function formatDateTRLong(dateInput){
-  try{
-    const s = String(dateInput || '').replaceAll('-', '');
-    if(/^\d{8}$/.test(s)){ // yyyymmdd
-      const y = s.slice(0,4), m = s.slice(4,6), d = s.slice(6,8);
-      const dy = dayjs(`${y}-${m}-${d}`);
-      return dy.isValid() ? dy.format('D MMMM YYYY') : String(dateInput||'');
+function formatDateTRLong(input) {
+  try {
+    let d = (input instanceof Date) ? input : new Date(input);
+    if (Number.isNaN(d.getTime())) {
+      const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(input || '')); // gg.aa.yyyy desteği
+      if (m) d = new Date(`${m[3]}-${m[2]}-${m[1]}`);
     }
-    const dy = dayjs(dateInput);
-    return dy.isValid() ? dy.format('D MMMM YYYY') : String(dateInput||'');
-  }catch(e){ return String(dateInput||''); }
+    return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch {
+    return String(input || '');
+  }
 }
 
 if (UI?.admPrint) {
