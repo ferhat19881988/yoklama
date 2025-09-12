@@ -2787,24 +2787,64 @@ function findPrevConsecutiveSlot(lesson){
   return candidates.find(c => c.saatNo === hedefNo) || null;
 }
 
+function formatDateTRLong(input) {
+  try {
+    let d = (input instanceof Date) ? input : new Date(input);
+    if (Number.isNaN(d.getTime())) {
+      // gg.aa.yyyy girdisi gelirse düzelt
+      const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(input || ''));
+      if (m) d = new Date(`${m[3]}-${m[2]}-${m[1]}`);
+    }
+    return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch {
+    return String(input || '');
+  }
+}
+
 // Admin: Yazdırmadan önce özet tabloyu hazırla
 async function buildAdminPrintSheet(){
   const { date, cls } = getAdminFilters();
-  const d = date || toDateStr(nowTR());
+  const dStr = date || toDateStr(nowTR());
 
   const psDateText = document.getElementById('psDateText');
-  if (psDateText) psDateText.textContent = formatDateTR(d);
+  if (psDateText) psDateText.textContent = formatDateTRLong(dStr); // uzun TR tarih
+
+  // Tablo genişlikleri ve yazı tipi
+  const table = document.getElementById('admPrintTable');
+  if (table) {
+    table.style.font = '13px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif';
+    table.style.color = '#111';
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    if (!table.querySelector('colgroup')) {
+      table.insertAdjacentHTML('afterbegin', `
+        <colgroup>
+          <col style="width:10%">
+          <col style="width:32%">
+          <col style="width:12%">
+          <col style="width:23%">
+          <col style="width:23%">
+        </colgroup>
+      `); // Neden: No/Ad/Sınıf/Var/Yok dağılımını sabitlemek
+    }
+    table.querySelectorAll('th,td').forEach(cell=>{
+      cell.style.border = '1px solid #e6e6e6';
+      cell.style.padding = '6px 8px';
+      cell.style.verticalAlign = 'top';
+      cell.style.wordBreak = 'break-word';
+    });
+  }
 
   // Kapsamdaki öğrenciler
   const studentPool = (cls && cls !== 'hepsi') ? students.filter(s => safe(s.SINIF) === cls) : students;
   const byNo = new Map(studentPool.map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
 
   // Günlük veriyi çek
-  const rootPath = attDayRoot(d, cls);
+  const rootPath = attDayRoot(dStr, cls);
   const snap = await get(ref(db, rootPath));
   const dayData = snap.exists() ? snap.val() : {};
 
-  // Saat etiketleri
+  // Saat etiketi
   const hourLabel = (h)=> `${h}. saat`;
 
   // Derlemeler
@@ -2832,13 +2872,14 @@ async function buildAdminPrintSheet(){
     scanClassNode(cls, dayData);
   }
 
-  // Aynı saat hem var hem yoksa "var" öncelikli — yok listesinden çıkar
+  // Çakışma temizliği
   for (const s of perStudent.values()) {
     s.absent = new Set([...s.absent].filter(h => !s.present.has(h)));
   }
 
-  // Tablo gövdesini yaz
+  // Gövdeyi yaz
   const tbody = document.querySelector('#admPrintTable tbody');
+  if (!tbody) return;
   tbody.innerHTML = [...perStudent.values()]
     .sort((a,b)=>(a.sinif+a.ad).localeCompare(b.sinif+b.ad,'tr',{numeric:true,sensitivity:'base'}))
     .map(s => `
@@ -3703,8 +3744,6 @@ function openAdminHomeworks(){
       <button class="btn" id="admHwPrint" type="button">Yazdır</button>
     </div>
 
-    <div class="muted" style="margin-top:6px">Toplu ödev sayımı. Tarihsiz bırakırsanız tüm tarihler listelenir.</div>
-
     <table class="table" style="margin-top:8px;">
       <thead>
         <tr>
@@ -3717,7 +3756,7 @@ function openAdminHomeworks(){
   </div>
   `;
   Swal.fire({
-    title: 'Ödev Raporu',
+    title: 'Ödev Raporları',
     html,
     width: Math.min(innerWidth-40, 1000),
     showConfirmButton: false,
@@ -3772,7 +3811,7 @@ function openAdminHomeworks(){
             <td>${r.subject}</td>
             <td>${r.cls}</td>
             <td>${r.teacher}</td>
-            <td>${r.due || '-'}</td>
+            <td>${r.due ? formatDateTRLong(r.due) : '-'}</td>
             <td>${r.counts.yapti}</td>
             <td>${r.counts.yapmadi}</td>
             <td>${r.counts.eksik}</td>
@@ -3785,14 +3824,36 @@ function openAdminHomeworks(){
     };
 
     loadBtn.addEventListener('click', run);
-    // YAZDIR: Öğrenci raporundaki akışla aynı (A4, yeni pencere)
+
+    // YAZDIR: A4 + sabit sütun genişlikleri + uzun tarih
     printBtn.addEventListener('click', () => {
-      const rowsHtml = h.querySelector('#admHwBody').innerHTML;
+      const rowsHtml = h.querySelector('#admHwBody').innerHTML || `<tr><td colspan="10">Kayıt bulunamadı</td></tr>`;
+      const selDate = dateInput.value ? formatDateTRLong(dateInput.value) : 'Tümü';
+      const selClass = classSelect.value || 'hepsi';
+
       const container = document.createElement('div');
       container.innerHTML = `
         <div>
-          <h2 style="margin:0 0 6px 0;">${COMPANY_NAME || 'Fenomen Çocuk Kulübü'} — Ödev Raporları</h2>
-          <table style="width:100%;border-collapse:collapse;">
+          <style>
+            *{box-sizing:border-box}
+            body{font:13px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif; color:#111; margin:0}
+            h2{margin:0 0 6px 0; text-align:center; font-size:18px}
+            .meta{display:flex; justify-content:space-between; margin:0 0 8px 0; font-size:12px; color:#444}
+            table{width:100%; border-collapse:collapse; table-layout:fixed}
+            th,td{border:1px solid #e6e6e6; padding:6px 8px; vertical-align:top; word-break:break-word}
+            thead th{background:#fafafa}
+            col.title{width:26%} col.subject{width:14%} col.class{width:8%} col.teacher{width:14%} col.date{width:12%}
+            col.cnt{width:5%}
+            @page{size:A4 portrait; margin:12mm}
+            @media print{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
+          </style>
+          <h2>${(COMPANY_NAME || 'Fenomen Çocuk Kulübü')} — Ödev Raporları</h2>
+          <div class="meta"><div>Tarih: <strong>${selDate}</strong></div><div>Sınıf: <strong>${selClass}</strong></div></div>
+          <table>
+            <colgroup>
+              <col class="title"><col class="subject"><col class="class"><col class="teacher"><col class="date">
+              <col class="cnt"><col class="cnt"><col class="cnt"><col class="cnt"><col class="cnt">
+            </colgroup>
             <thead>
               <tr>
                 <th>Ödev</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Teslim</th>
@@ -3803,11 +3864,13 @@ function openAdminHomeworks(){
           </table>
         </div>`;
       document.body.appendChild(container);
-      try { printDivAsA4(container, 'Odev Raporlari'); } finally { container.remove(); }
+      try { printDivAsA4(container, 'Odev_Raporlari'); } finally { container.remove(); }
     });
+
     run();
   }
 }
+
 
 // Admin: quiz raporları
 function openAdminQuizzes(){
@@ -3827,8 +3890,6 @@ function openAdminQuizzes(){
       <button class="btn" id="admQzPrint" type="button">Yazdır</button>
     </div>
 
-    <div class="muted" style="margin-top:6px">Toplu quiz istatistiği. Tarihsiz bırakırsanız tüm tarihler listelenir.</div>
-
     <table class="table" style="margin-top:8px;">
       <thead>
         <tr>
@@ -3841,7 +3902,7 @@ function openAdminQuizzes(){
   </div>
   `;
   Swal.fire({
-    title: 'Quiz Raporu',
+    title: 'Quiz Raporları',
     html,
     width: Math.min(innerWidth-40, 1000),
     showConfirmButton: false,
@@ -3900,7 +3961,7 @@ function openAdminQuizzes(){
             <td>${r.subject}</td>
             <td>${r.cls}</td>
             <td>${r.teacher}</td>
-            <td>${r.date || '-'}</td>
+            <td>${r.date ? formatDateTRLong(r.date) : '-'}</td>
             <td>${r.avg ?? '-'}</td>
             <td>${r.count}</td>
           </tr>`).join('');
@@ -3910,14 +3971,35 @@ function openAdminQuizzes(){
     };
 
     loadBtn.addEventListener('click', run);
-    // YAZDIR: Öğrenci raporundaki akışla aynı (A4, yeni pencere)
+
+    // YAZDIR: A4 + sabit sütun genişlikleri + uzun tarih
     printBtn.addEventListener('click', () => {
-      const rowsHtml = h.querySelector('#admQzBody').innerHTML;
+      const rowsHtml = h.querySelector('#admQzBody').innerHTML || `<tr><td colspan="7">Kayıt bulunamadı</td></tr>`;
+      const selDate = dateInput.value ? formatDateTRLong(dateInput.value) : 'Tümü';
+      const selClass = classSelect.value || 'hepsi';
+
       const container = document.createElement('div');
       container.innerHTML = `
         <div>
-          <h2 style="margin:0 0 6px 0;">${COMPANY_NAME || 'Fenomen Çocuk Kulübü'} — Quiz Raporları</h2>
-          <table style="width:100%;border-collapse:collapse;">
+          <style>
+            *{box-sizing:border-box}
+            body{font:13px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif; color:#111; margin:0}
+            h2{margin:0 0 6px 0; text-align:center; font-size:18px}
+            .meta{display:flex; justify-content:space-between; margin:0 0 8px 0; font-size:12px; color:#444}
+            table{width:100%; border-collapse:collapse; table-layout:fixed}
+            th,td{border:1px solid #e6e6e6; padding:6px 8px; vertical-align:top; word-break:break-word}
+            thead th{background:#fafafa}
+            col.title{width:28%} col.subject{width:16%} col.class{width:10%} col.teacher{width:18%} col.date{width:12%}
+            col.avg{width:8%} col.n{width:8%}
+            @page{size:A4 portrait; margin:12mm}
+            @media print{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
+          </style>
+          <h2>${(COMPANY_NAME || 'Fenomen Çocuk Kulübü')} — Quiz Raporları</h2>
+          <div class="meta"><div>Tarih: <strong>${selDate}</strong></div><div>Sınıf: <strong>${selClass}</strong></div></div>
+          <table>
+            <colgroup>
+              <col class="title"><col class="subject"><col class="class"><col class="teacher"><col class="date"><col class="avg"><col class="n">
+            </colgroup>
             <thead>
               <tr>
                 <th>Quiz</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Tarih</th>
@@ -3928,8 +4010,9 @@ function openAdminQuizzes(){
           </table>
         </div>`;
       document.body.appendChild(container);
-      try { printDivAsA4(container, 'Quiz Raporlari'); } finally { container.remove(); }
+      try { printDivAsA4(container, 'Quiz_Raporlari'); } finally { container.remove(); }
     });
+
     run();
   }
 }
