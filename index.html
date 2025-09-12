@@ -2804,31 +2804,25 @@ async function buildAdminPrintSheet(){
   const snap = await get(ref(db, rootPath));
   const dayData = snap.exists() ? snap.val() : {};
 
-  // Öğrenci bazında: geldi/gelemedi saat setleri
-  const perStudent = new Map(); // key: sinif#no -> { no, ad, sinif, present:Set, absent:Set }
-  const ensure = (sinif, no) => {
-    const k = `${sinif}#${no}`;
-    if (!perStudent.has(k)) {
-      const stu = byNo.get(no);
-      if (!stu) return null;
-      perStudent.set(k, { no, ad: stu.ad, sinif, present: new Set(), absent: new Set() });
-    }
-    return perStudent.get(k);
+  // Saat etiketleri
+  const hourLabel = (h)=> `${h}. saat`;
+
+  // Derlemeler
+  const perStudent = new Map();
+  const ensure = (no) => {
+    if(!perStudent.has(no)) perStudent.set(no, { no, ad: byNo.get(no)?.ad || '', sinif: byNo.get(no)?.sinif || '', present:new Set(), absent:new Set() });
+    return perStudent.get(no);
   };
 
   const scanClassNode = (sinif, node) => {
-    Object.entries(node || {}).forEach(([saatKodu, byTeacher]) => {
-      Object.entries(byTeacher || {}).forEach(([_, byStudent]) => {
-        Object.entries(byStudent || {}).forEach(([ogrNo, rec]) => {
-          const no = safe(ogrNo);
-          const s = ensure(safe(sinif), no);
-          if (!s) return;
+    if(!node) return;
+    Object.entries(node).forEach(([hour, recs])=>{
+      const h = safe(hour);
+      const varlar = Object.entries(recs?.var || {}).map(([no])=>safe(no));
+      const yoklar = Object.entries(recs?.yok || {}).map(([no])=>safe(no));
 
-          const h = extractHour(rec, saatKodu);
-          if (rec?.durum === 'var') s.present.add(h);
-          else if (rec?.durum === 'yok') s.absent.add(h);
-        });
-      });
+      varlar.forEach(no => ensure(no).present.add(hourLabel(h)));
+      yoklar.forEach(no => ensure(no).absent.add(hourLabel(h)));
     });
   };
 
@@ -2852,10 +2846,11 @@ async function buildAdminPrintSheet(){
         <td>${s.no}</td>
         <td>${s.ad}</td>
         <td>${s.sinif}</td>
-        <td>${hoursText(s.present)}</td>
-        <td>${hoursText(s.absent)}</td>
+        <td>${[...s.present].join(', ')}</td>
+        <td>${[...s.absent].join(', ')}</td>
       </tr>`).join('') || `<tr><td colspan="5" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
 }
+
 
 /* ---------- Ödev & Quiz Fonksiyonları ---------- */
 
@@ -3691,7 +3686,7 @@ async function loadParentQuizzes(){
 }
 
 // Admin: ödev raporları
-async function openAdminHomeworks(){
+function openAdminHomeworks(){
   const classSet = new Set(students.map(s => safe(s.SINIF)).filter(Boolean));
   const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
   const html = `
@@ -3707,15 +3702,29 @@ async function openAdminHomeworks(){
       <button class="btn" id="admHwLoad" type="button">Yükle</button>
       <button class="btn" id="admHwPrint" type="button">Yazdır</button>
     </div>
-    <div style="max-height:60vh;overflow:auto;">
-      <table class="table">
-        <thead><tr><th>Ödev</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Teslim</th><th>Yaptı</th><th>Yapmadı</th><th>Eksik</th><th>Kitap Yok</th><th>Gelmedi</th></tr></thead>
-        <tbody id="admHwBody"></tbody>
-      </table>
-      <div id="admHwEmpty" class="muted">Kayıt bulunamadı.</div>
-    </div>
-  </div>`;
-  await Swal.fire({ title:'Ödev Raporları', html, width:1100, showConfirmButton:false, showCloseButton:true, didOpen: bind });
+
+    <div class="muted" style="margin-top:6px">Toplu ödev sayımı. Tarihsiz bırakırsanız tüm tarihler listelenir.</div>
+
+    <table class="table" style="margin-top:8px;">
+      <thead>
+        <tr>
+          <th>Ödev</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Teslim</th>
+          <th>Yaptı</th><th>Yapmadı</th><th>Eksik</th><th>Kitap Yok</th><th>Gelmedi</th>
+        </tr>
+      </thead>
+      <tbody id="admHwBody"></tbody>
+    </table>
+  </div>
+  `;
+  Swal.fire({
+    title: 'Ödev Raporu',
+    html,
+    width: Math.min(innerWidth-40, 1000),
+    showConfirmButton: false,
+    showCloseButton: true,
+    didOpen: bind
+  });
+
   function bind(){
     const h = Swal.getHtmlContainer();
     const dateInput = h.querySelector('#admHwDate');
@@ -3723,6 +3732,7 @@ async function openAdminHomeworks(){
     const loadBtn = h.querySelector('#admHwLoad');
     const printBtn = h.querySelector('#admHwPrint');
     dateInput.value = '';
+
     const run = async () => {
       const date = dateInput.value || '';
       const cls = classSelect.value || 'hepsi';
@@ -3735,7 +3745,6 @@ async function openAdminHomeworks(){
         for(const id in classData){
           const hw = classData[id];
           if(date && hw.dueDate){
-            // Tarih filtresi: seçilen tarihle tam aynı gün değilse atla
             const sel = dayjs(date);
             const dueDt = dayjs(hw.dueDate);
             if(!dueDt.isSame(sel, 'day')) continue;
@@ -3743,54 +3752,65 @@ async function openAdminHomeworks(){
           const statuses = hw.statuses || {};
           const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
           Object.values(statuses).forEach(rec=>{ const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++; });
-          rows.push({ id: id, title: hw.title || '', subject: hw.subject || '', cls: classKey, teacher: hw.teacherName || '', due: hw.dueDate || '', counts });
+          rows.push({
+            id,
+            title: hw.title || '',
+            subject: hw.subject || '',
+            teacher: hw.teacherName || '',
+            due: hw.dueDate || '',
+            counts,
+            cls: classKey
+          });
         }
       }
       const tbody = h.querySelector('#admHwBody');
       if(rows.length){
-        // Sırala ve tablo gövdesini oluştur
-        const sortedRows = rows.sort((a,b)=> ((a.due||'').localeCompare(b.due||'','tr')));
-        tbody.innerHTML = sortedRows.map(r=>{
-          const dueStr = r.due ? dayjs(r.due).locale('tr').format('D MMMM YYYY') : '';
-          return `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.cls}</td><td>${r.teacher}</td><td>${dueStr}</td><td>${r.counts.yapti}</td><td>${r.counts.yapmadi}</td><td>${r.counts.eksik}</td><td>${r.counts.kitap}</td><td>${r.counts.gelmedi}</td></tr>`;
-        }).join('');
-        // Her satıra id ve class ekle ve tıklama olayı bağla
-        sortedRows.forEach((r,i) => {
-          const tr = tbody.rows[i];
-          if(tr){
-            tr.setAttribute('data-id', r.id);
-            tr.setAttribute('data-class', r.cls);
-            tr.style.cursor = 'pointer';
-            tr.addEventListener('click', () => {
-              showAdminHomeworkDetail(r.cls, r.id);
-            });
-          }
-        });
-      } else {
-        tbody.innerHTML = '';
+        const sorted = rows.sort((a,b)=> ((a.due||'').localeCompare(b.due||'','tr')));
+        tbody.innerHTML = sorted.map(r=>`
+          <tr>
+            <td>${r.title}</td>
+            <td>${r.subject}</td>
+            <td>${r.cls}</td>
+            <td>${r.teacher}</td>
+            <td>${r.due || '-'}</td>
+            <td>${r.counts.yapti}</td>
+            <td>${r.counts.yapmadi}</td>
+            <td>${r.counts.eksik}</td>
+            <td>${r.counts.kitap}</td>
+            <td>${r.counts.gelmedi}</td>
+          </tr>`).join('');
+      }else{
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
       }
-      h.querySelector('#admHwEmpty').classList.toggle('hidden', rows.length>0);
     };
+
     loadBtn.addEventListener('click', run);
+    // YAZDIR: Öğrenci raporundaki akışla aynı (A4, yeni pencere)
     printBtn.addEventListener('click', () => {
       const rowsHtml = h.querySelector('#admHwBody').innerHTML;
-      const styleStr = '<style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:6px;text-align:left;} h2{text-align:center;margin-bottom:10px;}</style>';
-      const headerHtml = '<h2>Fenomen Çocuk Kulübü — Ödev Raporu</h2>';
-      const tableHead = '<table><thead><tr><th>Ödev</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Teslim</th><th>Yaptı</th><th>Yapmadı</th><th>Eksik</th><th>Kitap Yok</th><th>Gelmedi</th></tr></thead><tbody>';
-      const htmlDoc = '<html><head><title>Ödev Raporu</title>' + styleStr + '</head><body>' + headerHtml + tableHead + rowsHtml + '</tbody></table></body></html>';
-      const w = window.open('', '_blank');
-      w.document.write(htmlDoc);
-      w.document.close();
-      w.focus();
-      w.print();
-      w.close();
+      const container = document.createElement('div');
+      container.innerHTML = `
+        <div>
+          <h2 style="margin:0 0 6px 0;">${COMPANY_NAME || 'Fenomen Çocuk Kulübü'} — Ödev Raporları</h2>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th>Ödev</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Teslim</th>
+                <th>Yaptı</th><th>Yapmadı</th><th>Eksik</th><th>Kitap Yok</th><th>Gelmedi</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>`;
+      document.body.appendChild(container);
+      try { printDivAsA4(container, 'Odev Raporlari'); } finally { container.remove(); }
     });
     run();
   }
 }
 
 // Admin: quiz raporları
-async function openAdminQuizzes(){
+function openAdminQuizzes(){
   const classSet = new Set(students.map(s => safe(s.SINIF)).filter(Boolean));
   const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
   const html = `
@@ -3806,15 +3826,29 @@ async function openAdminQuizzes(){
       <button class="btn" id="admQzLoad" type="button">Yükle</button>
       <button class="btn" id="admQzPrint" type="button">Yazdır</button>
     </div>
-    <div style="max-height:60vh;overflow:auto;">
-      <table class="table">
-        <thead><tr><th>Quiz</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Tarih</th><th>Ortalama %</th><th>Öğrenci Sayısı</th></tr></thead>
-        <tbody id="admQzBody"></tbody>
-      </table>
-      <div id="admQzEmpty" class="muted">Kayıt bulunamadı.</div>
-    </div>
-  </div>`;
-  await Swal.fire({ title:'Quiz Raporları', html, width:1000, showConfirmButton:false, showCloseButton:true, didOpen: bind });
+
+    <div class="muted" style="margin-top:6px">Toplu quiz istatistiği. Tarihsiz bırakırsanız tüm tarihler listelenir.</div>
+
+    <table class="table" style="margin-top:8px;">
+      <thead>
+        <tr>
+          <th>Quiz</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Tarih</th>
+          <th>Ortalama %</th><th>Öğrenci Sayısı</th>
+        </tr>
+      </thead>
+      <tbody id="admQzBody"></tbody>
+    </table>
+  </div>
+  `;
+  Swal.fire({
+    title: 'Quiz Raporu',
+    html,
+    width: Math.min(innerWidth-40, 1000),
+    showConfirmButton: false,
+    showCloseButton: true,
+    didOpen: bind
+  });
+
   function bind(){
     const h = Swal.getHtmlContainer();
     const dateInput = h.querySelector('#admQzDate');
@@ -3822,6 +3856,7 @@ async function openAdminQuizzes(){
     const loadBtn = h.querySelector('#admQzLoad');
     const printBtn = h.querySelector('#admQzPrint');
     dateInput.value = '';
+
     const run = async () => {
       const date = dateInput.value || '';
       const cls = classSelect.value || 'hepsi';
@@ -3844,47 +3879,56 @@ async function openAdminQuizzes(){
             const p=rec?.percent; if(typeof p==='number'){ sum += p; count++; }
           });
           const avg = count>0 ? Math.round(sum / count) : null;
-          rows.push({ id: id, title: q.title || '', subject: q.subject || '', cls: classKey, teacher: q.teacherName || '', date: q.date || '', avg: avg, count: count });
+          rows.push({
+            id,
+            title: q.title || '',
+            subject: q.subject || '',
+            teacher: q.teacherName || '',
+            date: q.date || '',
+            avg,
+            count,
+            cls: classKey
+          });
         }
       }
       const tbody = h.querySelector('#admQzBody');
       if(rows.length){
         const sortedRows = rows.sort((a,b)=> ((a.date||'').localeCompare(b.date||'','tr')));
-        tbody.innerHTML = sortedRows.map(r=>{
-          const avgTxt = (r.avg===null) ? '—' : `${r.avg}%`;
-          const dateStr = r.date ? dayjs(r.date).locale('tr').format('D MMMM YYYY') : '';
-          return `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.cls}</td><td>${r.teacher}</td><td>${dateStr}</td><td>${avgTxt}</td><td>${r.count}</td></tr>`;
-        }).join('');
-        // Satırlara id ve class ekle ve tıklama olayı bağla
-        sortedRows.forEach((r,i) => {
-          const tr = tbody.rows[i];
-          if(tr){
-            tr.setAttribute('data-id', r.id);
-            tr.setAttribute('data-class', r.cls);
-            tr.style.cursor = 'pointer';
-            tr.addEventListener('click', () => {
-              showAdminQuizDetail(r.cls, r.id);
-            });
-          }
-        });
-      } else {
-        tbody.innerHTML = '';
+        tbody.innerHTML = sortedRows.map(r=>`
+          <tr>
+            <td>${r.title}</td>
+            <td>${r.subject}</td>
+            <td>${r.cls}</td>
+            <td>${r.teacher}</td>
+            <td>${r.date || '-'}</td>
+            <td>${r.avg ?? '-'}</td>
+            <td>${r.count}</td>
+          </tr>`).join('');
+      }else{
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
       }
-      h.querySelector('#admQzEmpty').classList.toggle('hidden', rows.length>0);
     };
+
     loadBtn.addEventListener('click', run);
+    // YAZDIR: Öğrenci raporundaki akışla aynı (A4, yeni pencere)
     printBtn.addEventListener('click', () => {
       const rowsHtml = h.querySelector('#admQzBody').innerHTML;
-      const styleStr = '<style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:6px;text-align:left;} h2{text-align:center;margin-bottom:10px;}</style>';
-      const headerHtml = '<h2>Fenomen Çocuk Kulübü — Quiz Raporu</h2>';
-      const tableHead = '<table><thead><tr><th>Quiz</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Tarih</th><th>Ortalama %</th><th>Öğrenci Sayısı</th></tr></thead><tbody>';
-      const htmlDoc = '<html><head><title>Quiz Raporu</title>' + styleStr + '</head><body>' + headerHtml + tableHead + rowsHtml + '</tbody></table></body></html>';
-      const w = window.open('', '_blank');
-      w.document.write(htmlDoc);
-      w.document.close();
-      w.focus();
-      w.print();
-      w.close();
+      const container = document.createElement('div');
+      container.innerHTML = `
+        <div>
+          <h2 style="margin:0 0 6px 0;">${COMPANY_NAME || 'Fenomen Çocuk Kulübü'} — Quiz Raporları</h2>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th>Quiz</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Tarih</th>
+                <th>Ortalama %</th><th>Öğrenci Sayısı</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>`;
+      document.body.appendChild(container);
+      try { printDivAsA4(container, 'Quiz Raporlari'); } finally { container.remove(); }
     });
     run();
   }
