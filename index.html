@@ -3892,49 +3892,115 @@ async function openAdminQuizzes(){
 
 // Veli: ödev ve quiz listelerini yazdırma
 function printParentHomeworks(){
-  // Use the filtered homework list for printing
-  if(!parentHwDisplayed || parentHwDisplayed.length === 0){
+  // 1) Veri kontrolü
+  if(!Array.isArray(parentHwDisplayed) || parentHwDisplayed.length === 0){
     if(typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak ödev yok.','warning');
     return;
   }
-  const rowsHtml = parentHwDisplayed.map(item => `<tr><td>${item.title}</td><td>${item.subject}</td><td>${item.due}</td><td>${item.teacherName}</td><td>${item.statusText}</td><td>${item.timeLeft}</td></tr>`).join('');
-  const styleStr = '<style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:6px;text-align:left;} h2{text-align:center;margin-bottom:10px;font-size:20px;}</style>';
-  const headerHtml = '<h2>Fenomen Çocuk Kulübü — Ödevler</h2>';
-  const tableHead = '<table><thead><tr><th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th><th>Kalan Süre</th></tr></thead><tbody>';
-  const htmlDoc = '<html><head><title>Ödevler</title>' + styleStr + '</head><body>' + headerHtml + tableHead + rowsHtml + '</tbody></table></body></html>';
-  const w = window.open('', '_blank');
-  w.document.write(htmlDoc);
+
+  // 2) Pencereyi KULLANICI TIKLAMASIYLA anında aç (popup engelleyici dostu)
+  const w = window.open('', '_blank', 'noopener,noreferrer');
+  if(!w){ alert('Tarayıcı açılır pencereyi engelledi. Lütfen bu site için açılır pencerelere izin verin.'); return; }
+
+  // 3) Güvenli metin
+  const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  // 4) Satırlar
+  const rowsHtml = parentHwDisplayed.map(item => (
+    `<tr>
+      <td>${esc(item.title)}</td>
+      <td>${esc(item.subject)}</td>
+      <td>${esc(item.due)}</td>
+      <td>${esc(item.teacherName)}</td>
+      <td>${esc(item.statusText)}</td>
+      <td>${esc(item.timeLeft)}</td>
+    </tr>`
+  )).join('');
+
+  // 5) Basit stiller
+  const styleStr = `
+    <style>
+      body{ font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#111; margin:12mm; }
+      h2{ text-align:center; margin:0 0 10px; font-size:20px; font-weight:700; }
+      table{ width:100%; border-collapse:collapse; }
+      th,td{ border:1px solid #e6e6e6; padding:6px 8px; text-align:left; }
+      thead th{ background:#fafafa; position:sticky; top:0; }
+      @page{ size:auto; margin:12mm; } 
+      @media print { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    </style>`;
+
+  const headerHtml = `<h2>${esc(COMPANY_NAME)} — Ödevler</h2>`;
+  const tableHead = `<table>
+    <thead>
+      <tr><th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th><th>Kalan Süre</th></tr>
+    </thead><tbody>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Ödevler</title>${styleStr}</head>
+    <body>${headerHtml}${tableHead}${rowsHtml}</tbody></table></body></html>`;
+
+  // 6) İçeriği yaz ve yazdır
+  w.document.open();
+  w.document.write(html);
   w.document.close();
-  w.focus();
-  w.print();
-  w.close();
+
+  const goPrint = () => { try { w.focus(); w.print(); } finally { w.close(); } };
+  // Safari/Chromium farklılıkları için ufak gecikme güvenliği
+  if ('onload' in w) w.onload = () => setTimeout(goPrint, 50);
+  else setTimeout(goPrint, 200);
 }
 
 function printParentQuizzes(){
-  // Use the filtered quiz list for printing
-  if(!parentQzDisplayed || parentQzDisplayed.length === 0){
+  // 1) Veri kontrolü
+  if(!Array.isArray(parentQzDisplayed) || parentQzDisplayed.length === 0){
     if(typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak quiz yok.','warning');
     return;
   }
-  const rowsHtml = parentQzDisplayed.map(item => `<tr><td>${item.title}</td><td>${item.subject}</td><td>${item.date}</td><td>${item.teacherName}</td><td>${item.resultText}</td></tr>`).join('');
-  const styleStr = '<style>table{width:100%;border-collapse:collapse;} th,td{border:1px solid #000;padding:6px;text-align:left;} h2{text-align:center;margin-bottom:10px;font-size:20px;}</style>';
-  const headerHtml = '<h2>Fenomen Çocuk Kulübü — Quizler</h2>';
-  const tableHead = '<table><thead><tr><th>Quiz</th><th>Ders</th><th>Tarih</th><th>Öğretmen</th><th>Sonuç</th></tr></thead><tbody>';
-  const htmlDoc = '<html><head><title>Quizler</title>' + styleStr + '</head><body>' + headerHtml + tableHead + rowsHtml + '</tbody></table></body></html>';
-  const w = window.open('', '_blank');
-  w.document.write(htmlDoc);
-  w.document.close();
-  w.focus();
-  w.print();
-  w.close();
-}
 
-// Yazdır düğmesi: önce özet tabloyu kur, sonra yazdır
-if (UI?.admPrint) {
-  UI.admPrint.addEventListener('click', async () => {
-    await buildAdminPrintSheet();
-    setTimeout(()=>window.print(), 20);
-  }, { passive:true });
+  // 2) Pencereyi TIKLAMA ile anında aç
+  const w = window.open('', '_blank', 'noopener,noreferrer');
+  if(!w){ alert('Tarayıcı açılır pencereyi engelledi. Lütfen bu site için açılır pencerelere izin verin.'); return; }
+
+  // 3) Güvenli metin
+  const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  // 4) Satırlar
+  const rowsHtml = parentQzDisplayed.map(item => (
+    `<tr>
+      <td>${esc(item.title)}</td>
+      <td>${esc(item.subject)}</td>
+      <td>${esc(item.date)}</td>
+      <td>${esc(item.teacherName)}</td>
+      <td>${esc(item.resultText)}</td>
+    </tr>`
+  )).join('');
+
+  // 5) Basit stiller
+  const styleStr = `
+    <style>
+      body{ font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#111; margin:12mm; }
+      h2{ text-align:center; margin:0 0 10px; font-size:20px; font-weight:700; }
+      table{ width:100%; border-collapse:collapse; }
+      th,td{ border:1px solid #e6e6e6; padding:6px 8px; text-align:left; }
+      thead th{ background:#fafafa; position:sticky; top:0; }
+      @page{ size:auto; margin:12mm; } 
+      @media print { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    </style>`;
+
+  const headerHtml = `<h2>${esc(COMPANY_NAME)} — Quizler</h2>`;
+  const tableHead = `<table>
+    <thead>
+      <tr><th>Quiz</th><th>Ders</th><th>Tarih</th><th>Öğretmen</th><th>Sonuç</th></tr>
+    </thead><tbody>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Quizler</title>${styleStr}</head>
+    <body>${headerHtml}${tableHead}${rowsHtml}</tbody></table></body></html>`;
+
+  // 6) İçeriği yaz ve yazdır
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+
+  const goPrint = () => { try { w.focus(); w.print(); } finally { w.close(); } };
+  if ('onload' in w) w.onload = () => setTimeout(goPrint, 50);
+  else setTimeout(goPrint, 200);
 }
 
     // Boot
