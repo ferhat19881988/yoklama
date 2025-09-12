@@ -2803,119 +2803,84 @@ function formatDateTRLong(dateInput){
 if (UI?.admPrint) {
   UI.admPrint.addEventListener('click', async () => {
     await buildAdminPrintSheet();
-    setTimeout(()=>window.print(), 30);
+    setTimeout(()=>window.print(), 20);
   }, { passive:true });
 }
 
 // Admin: Yazdırmadan önce özet tabloyu hazırla
 async function buildAdminPrintSheet(){
   const { date, cls } = getAdminFilters();
-  const dStr = date || toDateStr(nowTR());
+  const d = date || toDateStr(nowTR());
 
-  // Başlıktaki uzun tarih
   const psDateText = document.getElementById('psDateText');
-  if (psDateText) psDateText.textContent = formatDateTRLong(dStr);
+  if (psDateText) psDateText.textContent = formatDateTRLong(d); // uzun TR tarih
 
-  // Filtre normalizasyonu (neden: "Hepsi", "HEPSİ", boş vb.)
-  const clsRaw = String(cls ?? '').trim();
-  const isAll  = clsRaw === '' || /^hepsi$/i.test(clsRaw);
-  const clsKey = isAll ? 'hepsi' : safe(clsRaw);
+  // Kapsamdaki öğrenciler
+  const studentPool = (cls && cls !== 'hepsi') ? students.filter(s => safe(s.SINIF) === cls) : students;
+  const byNo = new Map(studentPool.map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
 
-  // Tablo tipografi ve kolon genişlikleri (A4 hizası için)
-  const table = document.getElementById('admPrintTable');
-  if (table) {
-    table.style.font = '13px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif';
-    table.style.color = '#111';
-    table.style.width = '100%';
-    table.style.borderCollapse = 'collapse';
-    if (!table.querySelector('colgroup')) {
-      table.insertAdjacentHTML('afterbegin', `
-        <colgroup>
-          <col style="width:80px">
-          <col style="width:32%">
-          <col style="width:110px">
-          <col style="width:24%">
-          <col style="width:24%">
-        </colgroup>
-      `);
-    }
-    table.querySelectorAll('th,td').forEach(cell=>{
-      cell.style.border = '1px solid #e6e6e6';
-      cell.style.padding = '6px 8px';
-      cell.style.verticalAlign = 'top';
-      cell.style.wordBreak = 'break-word';
-    });
-  }
-
-  // Öğrenci havuzu (Hepsi ise tüm öğrenciler)
-  const studentPool = isAll ? students : students.filter(s => safe(s.SINIF) === clsKey);
-  const byNo = new Map(
-    (studentPool || []).map(s => [String(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }])
-  );
-
-  // Günlük veriyi çek (hepsi/sınıf path'ini doğru kur)
-  const rootPath = attDayRoot(dStr, clsKey);
+  // Günlük veriyi çek
+  const rootPath = attDayRoot(d, cls);
   const snap = await get(ref(db, rootPath));
   const dayData = snap.exists() ? snap.val() : {};
 
-  // Saat etiketi
-  const hourLabel = (h)=> `${h}. saat`;
-
-  // Öğrenci derleme
-  const perStudent = new Map(); // key: sinif#no
+  // Öğrenci bazında: geldi/gelemedi saat setleri
+  const perStudent = new Map(); // key: sinif#no -> { no, ad, sinif, present:Set, absent:Set }
   const ensure = (sinif, no) => {
-    const _no = String(no);
-    const key = `${sinif}#${_no}`;
-    if (!perStudent.has(key)) {
-      const stu = byNo.get(_no) || {};
-      // Neden: Öğrenci havuzunda olmasa da (filtre/numara tür uyumsuzluğu) satırı yazalım
-      perStudent.set(key, {
-        no: _no,
-        ad: stu.ad || '',
-        sinif: stu.sinif || sinif,
-        present: new Set(),
-        absent: new Set()
-      });
+    const k = `${sinif}#${no}`;
+    if (!perStudent.has(k)) {
+      const stu = byNo.get(no);
+      if (!stu) return null;
+      perStudent.set(k, { no, ad: stu.ad, sinif, present:new Set(), absent:new Set() });
     }
-    return perStudent.get(key);
+    return perStudent.get(k);
   };
+
+  const hourLabel = (h)=> `${h}. saat`;
 
   const scanClassNode = (sinif, node) => {
     if(!node) return;
     Object.entries(node).forEach(([hour, recs])=>{
       const h = safe(hour);
-      Object.keys(recs?.var || {}).forEach(no => ensure(safe(sinif), String(no)).present.add(hourLabel(h)));
-      Object.keys(recs?.yok || {}).forEach(no => ensure(safe(sinif), String(no)).absent.add(hourLabel(h)));
+      const varlar = Object.entries(recs?.var || {}).map(([no])=>safe(no));
+      const yoklar = Object.entries(recs?.yok || {}).map(([no])=>safe(no));
+
+      varlar.forEach(no => {
+        const s = ensure(sinif, no); if(!s) return;
+        s.present.add(hourLabel(h));
+      });
+      yoklar.forEach(no => {
+        const s = ensure(sinif, no); if(!s) return;
+        s.absent.add(hourLabel(h));
+      });
     });
   };
 
-  if (isAll) {
+  if (cls === 'hepsi') {
     Object.entries(dayData || {}).forEach(([sinif, node]) => scanClassNode(safe(sinif), node));
   } else {
-    scanClassNode(clsKey, dayData);
+    scanClassNode(cls, dayData);
   }
 
-  // Çakışma temizliği (aynı saat hem var hem yoksa "var" öncelikli)
+  // Çakışma: aynı saat hem var hem yoksa "var" öncelikli
   for (const s of perStudent.values()) {
     s.absent = new Set([...s.absent].filter(h => !s.present.has(h)));
   }
 
-  // Gövdeyi yaz
-  const tbody = document.querySelector('#admPrintTable tbody');
-  if (!tbody) return;
+  const hoursText = (set)=> [...set].join(', ');
 
-  const rowsHtml = [...perStudent.values()]
+  // Tablo gövdesini yaz
+  const tbody = document.querySelector('#admPrintTable tbody');
+  tbody.innerHTML = [...perStudent.values()]
     .sort((a,b)=>(a.sinif+a.ad).localeCompare(b.sinif+b.ad,'tr',{numeric:true,sensitivity:'base'}))
     .map(s => `
       <tr>
         <td>${s.no}</td>
         <td>${s.ad}</td>
         <td>${s.sinif}</td>
-        <td>${[...s.present].join(', ')}</td>
-        <td>${[...s.absent].join(', ')}</td>
-      </tr>`).join('');
-
-  tbody.innerHTML = rowsHtml || `<tr><td colspan="5" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
+        <td>${hoursText(s.present)}</td>
+        <td>${hoursText(s.absent)}</td>
+      </tr>`).join('') || `<tr><td colspan="5" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
 }
 
 /* ---------- Ödev & Quiz Fonksiyonları ---------- */
