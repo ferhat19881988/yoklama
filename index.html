@@ -3132,34 +3132,49 @@ async function openHomeworkControl(cls,id){
         sel.addEventListener('change', syncBtn);
 
         // WhatsApp yönlendirme
-        btn.addEventListener('click', () => {
-          const stKey = sel.value;
-          if(!stKey || stKey === 'yapti') return;
+       function formatDateTR(dateInput) {
+  try {
+    const d = new Date(dateInput);
+    if (Number.isNaN(d.getTime())) return '—';
+    return new Intl.DateTimeFormat('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(d); // Örn: 8 Mayıs 2025
+  } catch {
+    return '—';
+  }
+}
 
-          const studentName = li.getAttribute('data-name') || '';
-          const teacherName = session?.teacherName || '';
-          const statusText  = (typeof HW_STATUSES !== 'undefined' && HW_STATUSES[stKey]) ? HW_STATUSES[stKey] : stKey;
-          const statusIcon  = STATUS_EMOJI[stKey] || 'ℹ️';
-          const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
-          const title = hw?.title ? hw.title : 'Ödev';
+// WhatsApp yönlendirme
+btn.addEventListener('click', () => {
+  const stKey = sel.value;
+  if (!stKey || stKey === 'yapti') return;
 
-          // WhatsApp biçimlendirme: *kalın*, satır kırımları, basit Unicode emojiler
-          const msg =
+  const studentName = li.getAttribute('data-name') || '';
+  const teacherName = session?.teacherName || '';
+  const statusText  = (typeof HW_STATUSES !== 'undefined' && HW_STATUSES[stKey]) ? HW_STATUSES[stKey] : stKey;
+  const statusIcon  = STATUS_EMOJI?.[stKey] || 'ℹ️';
+  const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
+  const title       = hw?.title || 'Ödev';
+  const dueStr      = hw?.dueDate ? formatDateTR(hw.dueDate) : '—';
+
+  // WhatsApp biçimlendirme: *kalın*, satır kırımları, basit Unicode emojiler
+  const msg =
 `*${companyName} Bilgilendirmesi* 📣
 
 👤 *Öğrenci:* ${studentName}
 👤 *Öğretmen:* ${teacherName}
 📘 *Ödev:* ${title}
 ${statusIcon} *Durum:* ${statusText}
-
-📝 *Not:* Öğrencimizin akademik takibinin düzenli ilerlemesi için gerekli tedbirlerin alınmasını rica ederiz. Sorularınız için bizimle iletişime geçebilirsiniz.
+📅 *Teslim Tarihi:* ${dueStr}
 
 — *Saygılarımızla*  
 ${companyName} 🏫`;
 
-          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
-          location.href = url; // tek tıkta yönlendirme (popup engeline takılmaz)
-        });
+  const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
+  location.href = url; // Neden: Tek tıkla yönlendirme, popup engelini tetiklemez
+});
       });
     }
 
