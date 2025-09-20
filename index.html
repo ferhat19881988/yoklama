@@ -3003,7 +3003,20 @@ async function loadTeacherHomeworks(){
       items.push({id, class: cls, ...hw});
     }
   }
-  items.sort((a,b) => ((a.dueDate||'').localeCompare(b.dueDate||'','tr')));
+
+  // SIRALAMA: (1) Güncel/gelecek öne (yakın üstte) (2) Geçmiş en altta
+  const today = dayjs().startOf('day');
+  items.sort((a, b) => {
+    const aHas = !!a.dueDate, bHas = !!b.dueDate;
+    const aDiff = aHas ? dayjs(a.dueDate).endOf('day').diff(today, 'day') : Number.POSITIVE_INFINITY;
+    const bDiff = bHas ? dayjs(b.dueDate).endOf('day').diff(today, 'day') : Number.POSITIVE_INFINITY;
+    const aGroup = (aDiff < 0) ? 1 : 0; // 0: bugün/gelecek, 1: geçmiş
+    const bGroup = (bDiff < 0) ? 1 : 0;
+    if (aGroup !== bGroup) return aGroup - bGroup;
+    if (aGroup === 0) return aDiff - bDiff;           // yakına öncelik
+    return Math.abs(aDiff) - Math.abs(bDiff);         // geçmişteyse daha az geciken üstte
+  });
+
   if(UI.hwList){
     if(items.length){
       UI.hwList.innerHTML = items.map(hw => {
@@ -3020,57 +3033,62 @@ async function loadTeacherHomeworks(){
             else if(diff===2){ timeLeft='2 gün kaldı'; leftClass='warn'; }
             else { timeLeft=`${diff} gün kaldı`; leftClass='ok'; }
           }
-        }catch(_){ }
+        }catch(_){}
+
         const statuses = hw.statuses || {};
         const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
         Object.values(statuses).forEach(rec=>{
           const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++;
         });
-        const summary = Object.entries(counts).filter(([k,v])=>v>0).map(([k,v])=>`${HW_STATUSES[k]}: ${v}`).join(', ') || 'Henüz kontrol edilmedi';
+        const summary = Object
+          .entries(counts)
+          .filter(([_,v])=>v>0)
+          .map(([k,v])=>`${HW_STATUSES[k]}: ${v}`)
+          .join(', ') || 'Henüz kontrol edilmedi';
+
         return `<div class="lesson hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" role="button" tabindex="0">
-  <div>
-    <div class="title">${hw.class} • ${hw.title||''}</div>
-    <div class="muted">Ders: ${hw.subject||''}</div>
-    <div class="muted">Teslim: ${dueDate}</div>
-    <div class="row" style="gap:6px;align-items:center;">
-      <div class="chip ${leftClass}">${timeLeft}</div>
-      <div class="muted" style="font-size:0.75rem;">${summary}</div>
-    </div>
-  </div>
-  <div class="row" style="gap:6px;align-items:center;">
-    <div class="chip future">Kontrol</div>
-    <button class="btn ghost small edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">✏️</button>
-    <button class="btn ghost danger small delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">🗑️</button>
-  </div>
-</div>`;
+          <div>
+            <div class="title">${hw.class} • ${hw.title||''}</div>
+            <div class="muted">Ders: ${hw.subject||''}</div>
+            <div class="muted">Teslim: ${dueDate}</div>
+            <div class="muted">${summary}</div>
+          </div>
+          <div class="row" style="gap:6px;align-items:center;">
+            <div class="chip ${leftClass}">${timeLeft || '—'}</div>
+            <button class="btn ghost small edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">✏️</button>
+            <button class="btn ghost danger small delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">🗑️</button>
+          </div>
+        </div>`;
       }).join('');
+
+      // Olay bağlama (mevcut davranışı korur)
+      Array.from(UI.hwList.querySelectorAll('button.edit-hw')).forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const id  = btn.getAttribute('data-hw-id');
+          const cls = btn.getAttribute('data-hw-class');
+          if(id && cls){ editHomework(cls,id); }
+        });
+      });
+      Array.from(UI.hwList.querySelectorAll('button.delete-hw')).forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const id  = btn.getAttribute('data-hw-id');
+          const cls = btn.getAttribute('data-hw-class');
+          if(id && cls){ deleteHomework(cls,id); }
+        });
+      });
       Array.from(UI.hwList.querySelectorAll('[data-hw-id]')).forEach(el=>{
-        const open = ()=>{
-          const id = el.getAttribute('data-hw-id');
+        const open = () => {
+          const id  = el.getAttribute('data-hw-id');
           const cls = el.getAttribute('data-hw-class');
           openHomeworkControl(cls,id);
         };
         el.addEventListener('click', open);
         el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
       });
-      // Düzenle ve sil butonları için olay bağlama
-      Array.from(UI.hwList.querySelectorAll('button.edit-hw')).forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.getAttribute('data-hw-id');
-          const cls = btn.getAttribute('data-hw-class');
-          if(id && cls){ editHomework(cls,id); }
-        });
-      });
-      Array.from(UI.hwList.querySelectorAll('button.delete-hw')).forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.getAttribute('data-hw-id');
-          const cls = btn.getAttribute('data-hw-class');
-          if(id && cls){ deleteHomework(cls,id); }
-        });
-      });
-    }else{
+
+    } else {
       UI.hwList.innerHTML = '<div class="muted">Ödev yok.</div>';
     }
   }
