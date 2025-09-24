@@ -1761,39 +1761,104 @@ async function undoAttendance(){
       return dates;
     }
 async function loadParentRange(kind){
-  const no = safe(session?.ogrNo); const st = students.find(s => safe(s.NO)===no); if (!st) return;
+  const no = safe(session?.ogrNo);
+  if (!no) return;
+
+  // Tarih aralığı
   const dates = (kind === 'today') ? [toDateStr(nowTR())] : rangeDates(kind);
   const rows = [];
 
-  // Neden: Öğrencinin sınıfındaki tüm saat/öğretmen dallarını tarıyoruz
   for (const t of dates) {
-    const dayRootSnap = await get(ref(db, `${ATT_ROOT}/${t}/${st.SINIF}`));
-    if (!dayRootSnap.exists()) continue;
-    const bySaat = dayRootSnap.val(); // {saatKodu:{ogretmenId:{ogrNo:{...}}}}
-    for (const sk of Object.keys(bySaat||{})){
-      const byTeacher = bySaat[sk]||{};
-      for (const ogretmenId of Object.keys(byTeacher)){
-        const rec = byTeacher[ogretmenId]?.[no];
-        if(rec){
-          rows.push({
-            tarih:t, durum:rec.durum, late:!!rec.late, ogretmenAd:rec.ogretmenAd||'',
-            ders:rec.ders||'', saatNo:rec.saatNo||null, saatBas:rec.saatBas||'', saatBit:rec.saatBit||''
-          });
+    try{
+      // Günün TÜM sınıfları
+      const daySnap = await get(ref(db, attDayRoot(t, 'hepsi')));
+      if (!daySnap.exists()) continue;
+      const dayData = daySnap.val() || {};
+
+      // Her sınıfı tara
+      for (const [sinif, node] of Object.entries(dayData)) {
+        if (!node) continue;
+
+        // Eski şema: hour -> { var: {...}, yok: {...} }
+        const entries = Object.entries(node || {});
+        const isOld = entries.some(([, v]) => v && typeof v === 'object' && ('var' in v || 'yok' in v));
+
+        if (isOld) {
+          for (const [hour, recs] of entries) {
+            // VAR
+            if (recs?.var && Object.prototype.hasOwnProperty.call(recs.var, no)) {
+              const r = recs.var[no] || {};
+              rows.push({
+                tarih: t, sinif,
+                durum: 'var', late: !!r.late,
+                ogretmenAd: r.ogretmenAd || '', ders: r.ders || '',
+                saatNo: Number(String(hour).match(/\d+/)?.[0] ?? hour) || null,
+                saatBas: r.saatBas || '', saatBit: r.saatBit || ''
+              });
+            }
+            // YOK
+            if (recs?.yok && Object.prototype.hasOwnProperty.call(recs.yok, no)) {
+              const r = recs.yok[no] || {};
+              rows.push({
+                tarih: t, sinif,
+                durum: 'yok', late: !!r.late,
+                ogretmenAd: r.ogretmenAd || '', ders: r.ders || '',
+                saatNo: Number(String(hour).match(/\d+/)?.[0] ?? hour) || null,
+                saatBas: r.saatBas || '', saatBit: r.saatBit || ''
+              });
+            }
+          }
+          continue;
+        }
+
+        // Yeni şema: saatKodu -> ogretmenId -> ogrNo -> rec
+        for (const [saatKodu, byTeacher] of Object.entries(node || {})) {
+          for (const [, byStudent] of Object.entries(byTeacher || {})) {
+            const rec = byStudent?.[no];
+            if (!rec) continue;
+            rows.push({
+              tarih: t, sinif,
+              durum: rec.durum, late: !!rec.late,
+              ogretmenAd: rec.ogretmenAd || '', ders: rec.ders || '',
+              saatNo: rec.saatNo ?? (Number(String(saatKodu).match(/\d+/)?.[0] ?? '') || null),
+              saatBas: rec.saatBas || '', saatBit: rec.saatBit || ''
+            });
+          }
         }
       }
+    }catch(e){
+      console.error('loadParentRange error', t, e); // Neden: üretimde sessiz kalmamak
     }
   }
 
-  const top=rows.length, v=rows.filter(r=>r.durum==='var').length, y=rows.filter(r=>r.durum==='yok').length;
-  UI.kpiTop.textContent=String(top); UI.kpiVar.textContent=String(v); UI.kpiYok.textContent=String(y);
+  // KPI
+  const top = rows.length;
+  const v = rows.filter(r => r.durum === 'var').length;
+  const y = rows.filter(r => r.durum === 'yok').length;
+  UI.kpiTop.textContent = String(top);
+  UI.kpiVar.textContent = String(v);
+  UI.kpiYok.textContent = String(y);
 
+  // Liste
   const fmt = new Intl.DateTimeFormat('tr-TR',{ day:'numeric', month:'long', year:'numeric' });
-  UI.parentList.innerHTML = rows.sort((a,b)=> b.tarih.localeCompare(a.tarih)).map(r=>{
-    const [Y,M,D]=r.tarih.split('-').map(Number); const tarihStr = fmt.format(new Date(Y,M-1,D));
-    const detail = [r.ders||'Ders','•',r.ogretmenAd||'Öğretmen','•',r.saatNo?ordinal(r.saatNo):'Saat',`(${r.saatBas||''}-${r.saatBit||''})`].join(' ');
-    const chipClass = r.durum==='var'?'ok':'bad'; const chipText = r.durum==='var'?(r.late?'VAR • GEÇ':'VAR'):'YOK';
-    return `<li class="student"><div class="stack"><div>${tarihStr}</div><div class="muted">${detail}</div></div><div class="chip ${chipClass}">${chipText}</div></li>`;
-  }).join('');
+  UI.parentList.innerHTML = rows
+    .sort((a,b)=> b.tarih.localeCompare(a.tarih) || (b.saatNo??0)-(a.saatNo??0))
+    .map(r=>{
+      const [Y,M,D] = r.tarih.split('-').map(Number);
+      const tarihStr = fmt.format(new Date(Y, M-1, D));
+      const detail = [r.sinif, '•', (r.ders||'Ders'), '•', (r.ogretmenAd||'Öğretmen'), r.saatNo ? `• ${r.saatNo}. saat` : '']
+        .filter(Boolean).join(' ');
+      const chipClass = r.durum === 'var' ? 'ok' : 'bad';
+      const chipText  = r.durum === 'var' ? (r.late ? 'VAR • GEÇ' : 'VAR') : 'YOK';
+      return `<li class="student">
+        <div class="stack">
+          <div>${tarihStr}</div>
+          <div class="muted">${detail}</div>
+        </div>
+        <div class="chip ${chipClass}">${chipText}</div>
+      </li>`;
+    }).join('');
+
   UI.noParentData.classList.toggle('hidden', rows.length > 0);
 }
 
