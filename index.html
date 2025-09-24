@@ -3247,10 +3247,9 @@ async function createQuiz(){
   const title = safe(UI.qzTitle?.value);
   const date = UI.qzDate?.value;
   const total = parseInt(UI.qzTotal?.value || '0',10);
-  // Çoklu sınıf seçimi: checkboxlar üzerinden seçili sınıfları al
   const selected = Array.from(UI.qzClassSelect?.querySelectorAll('input[type="checkbox"]:checked') || []);
   const classes = selected.map(el => el.value).filter(Boolean);
-  if(!title || !date || !total || classes.length === 0){
+  if(!title || !date || !total || total<=0 || classes.length === 0){
     Swal.fire('Eksik','Lütfen tüm alanları doldurunuz ve sınıf seçiniz.','warning');
     return;
   }
@@ -3262,7 +3261,8 @@ async function createQuiz(){
     teacherId: session?.ogretmenId || '',
     teacherName: session?.teacherName || '',
     subject: session?.teacherBranch || '',
-    created: ts
+    created: ts,
+    groupId: ts // neden: sonuçları sınıftan bağımsız saklamak
   };
   const updates = {};
   classes.forEach((cls,i) => {
@@ -3284,7 +3284,6 @@ async function createQuiz(){
 async function loadTeacherQuizzes(){
   if(!session || session.role !== 'ogretmen') return;
   const teacherId = session.ogretmenId;
-  // Tüm sınıfların listesi: checkbox'ların value değerleri
   const classes = Array.from(UI.qzClassSelect?.querySelectorAll('input[type="checkbox"]') || []).map(el => el.value);
   const items = [];
   for(const cls of classes){
@@ -3296,57 +3295,83 @@ async function loadTeacherQuizzes(){
       items.push({ id, class: cls, ...q });
     }
   }
+
+  // Tarihe göre (yakın gelecek/son eklenen) sırala
   items.sort((a,b) => ((a.date||'').localeCompare(b.date||'','tr')));
+
+  // Global sonuçları (varsa) önceden çek
+  const gidSet = new Set(items.map(q => q.groupId ?? (String(q.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(q.id).split('-')[0]) : null)).filter(Boolean));
+  const gidMap = new Map();
+  for(const gid of gidSet){
+    try{
+      const sSnap = await get(ref(db, `qzResults/${gid}`));
+      gidMap.set(gid, sSnap.exists() ? (sSnap.val()||{}) : {});
+    }catch{ gidMap.set(gid, {}); }
+  }
+
   if(UI.qzList){
     if(items.length){
       UI.qzList.innerHTML = items.map(q => {
         const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
-        const results = q.results || {};
-        let sum=0, count=0;
-        Object.values(results).forEach(rec=>{ const p=rec?.percent; if(typeof p==='number'){ sum += p; count++; } });
-        const avg = count>0 ? Math.round(sum / count) : null;
-        const participants = count;
-        const summary = (avg!==null) ? `Ortalama: ${avg}% • Katılan: ${participants}` : 'Henüz kontrol edilmedi';
+        // Sadece bu sınıfın öğrencilerini say
+        const classSet = new Set(students.filter(s=> safe(s.SINIF)===safe(q.class)).map(s=>safe(s.NO)));
+        const results = (() => {
+          const gid = q.groupId ?? (String(q.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(q.id).split('-')[0]) : null);
+          const g = gid ? (gidMap.get(gid)||{}) : null;
+          return g || (q.results || {});
+        })();
+
+        // Özet: bu sınıfa ait kayıtlar üzerinden ortalama ve adet
+        let count = 0, sumPct = 0;
+        Object.entries(results).forEach(([sid,rec])=>{
+          if(!classSet.has(sid)) return;
+          const pct = Number(rec?.percent);
+          if(Number.isFinite(pct)){ count++; sumPct += pct; }
+        });
+        const avg = count>0 ? Math.round(sumPct / count) : null;
+        const summary = (count>0) ? `Ortalama %${avg} • ${count} öğrenci` : 'Henüz sonuç yok';
+
         return `<div class="lesson hover-raise" data-qz-id="${q.id}" data-qz-class="${q.class}" role="button" tabindex="0">
           <div>
             <div class="title">${q.class} • ${q.title||''}</div>
             <div class="muted">Ders: ${q.subject||''}</div>
-            <div class="muted">Tarih: ${dateStr} • Toplam: ${q.totalQuestions||0}</div>
+            <div class="muted">Tarih: ${dateStr}</div>
             <div class="muted">${summary}</div>
           </div>
           <div class="row" style="gap:6px;align-items:center;">
-            <div class="chip future">Kontrol</div>
             <button class="btn ghost small edit-qz" data-qz-id="${q.id}" data-qz-class="${q.class}" type="button">✏️</button>
             <button class="btn ghost danger small delete-qz" data-qz-id="${q.id}" data-qz-class="${q.class}" type="button">🗑️</button>
           </div>
         </div>`;
       }).join('');
-      Array.from(UI.qzList.querySelectorAll('[data-qz-id]')).forEach(el => {
+
+      // Olaylar
+      Array.from(UI.qzList.querySelectorAll('button.edit-qz')).forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const id  = btn.getAttribute('data-qz-id');
+          const cls = btn.getAttribute('data-qz-class');
+          if(id && cls){ editQuiz(cls,id); }
+        });
+      });
+      Array.from(UI.qzList.querySelectorAll('button.delete-qz')).forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const id  = btn.getAttribute('data-qz-id');
+          const cls = btn.getAttribute('data-qz-class');
+          if(id && cls){ deleteQuiz(cls,id); }
+        });
+      });
+      Array.from(UI.qzList.querySelectorAll('[data-qz-id]')).forEach(el=>{
         const open = () => {
-          const id = el.getAttribute('data-qz-id');
+          const id  = el.getAttribute('data-qz-id');
           const cls = el.getAttribute('data-qz-class');
           openQuizControl(cls,id);
         };
         el.addEventListener('click', open);
         el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
       });
-      // Düzenle ve sil butonları için olay bağla
-      Array.from(UI.qzList.querySelectorAll('button.edit-qz')).forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.getAttribute('data-qz-id');
-          const cls = btn.getAttribute('data-qz-class');
-          if(id && cls){ editQuiz(cls,id); }
-        });
-      });
-      Array.from(UI.qzList.querySelectorAll('button.delete-qz')).forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.getAttribute('data-qz-id');
-          const cls = btn.getAttribute('data-qz-class');
-          if(id && cls){ deleteQuiz(cls,id); }
-        });
-      });
+
     } else {
       UI.qzList.innerHTML = '<div class="muted">Quiz yok.</div>';
     }
@@ -3362,31 +3387,54 @@ async function openQuizControl(cls,id){
     if(!snap.exists()){ Swal.fire('Hata','Quiz bulunamadı.','error'); return; }
     const q = snap.val();
     if(UI.qzControlTitle) UI.qzControlTitle.textContent = `📝 Quiz Kontrol — ${cls} • ${q.title||''}`;
-    const list = students.filter(s => safe(s.SINIF) === safe(cls)).map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) })).sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
-    const results = q.results || {};
+
+    // Sınıf listesi
+    const list = students
+      .filter(s => safe(s.SINIF) === safe(cls))
+      .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) }))
+      .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+
+    // Legacy fallback: id "ts-i" ise ts'i groupId gibi kullan
+    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
+    const groupId = q.groupId ?? legacyGid ?? null;
+
+    // Sonuçları yükle: önce global, yoksa eski local
+    let results = {};
+    if(groupId){
+      try{
+        const rSnap = await get(ref(db, `qzResults/${groupId}`));
+        results = rSnap.exists() ? (rSnap.val()||{}) : {};
+      }catch{ results = {}; }
+    }else{
+      results = q.results || {};
+    }
+
     const totalQ = parseInt(q.totalQuestions||'0',10) || 0;
+
     if(UI.qzStudentList){
       UI.qzStudentList.innerHTML = list.map(s => {
         const rec = results[s.id] || {};
         const wrong = (typeof rec.wrong === 'number') ? rec.wrong : '';
         const correct = (typeof rec.correct === 'number') ? rec.correct : '';
         const pct = (typeof rec.percent === 'number') ? rec.percent : '';
-        const display = (typeof correct==='number' && typeof pct==='number') ? `${correct} Doğru • ${wrong} Yanlış • %${pct}` : '';
-        return `<li class="student" data-id="${s.id}">
-          <div class="stack"><div class="name">${s.ad}</div><div class="muted">No: ${s.no}</div></div>
-          <input type="number" class="input wrongInput" min="0" max="${totalQ}" value="${wrong}" placeholder="Yanlış" />
-          <div class="muted result">${display}</div>
-        </li>`;
+        const display = (wrong==='' || correct==='') ? '' : `${correct} Doğru • ${wrong} Yanlış • %${pct}`;
+        return `<li class="student" data-id="${s.id}" data-name="${s.ad}">
+  <div class="stack">
+    <div class="name">${s.ad}</div>
+    <div class="muted">No: ${s.no}</div>
+  </div>
+  <input class="input wrongInput" type="number" min="0" max="${totalQ}" step="1" placeholder="Yanlış" value="${wrong}"/>
+  <div class="muted result">${display}</div>
+</li>`;
       }).join('');
+
+      // Hesaplamayı canlı güncelle (neden: öğretmene anlık geri bildirim)
       Array.from(UI.qzStudentList.querySelectorAll('li')).forEach(li => {
         const input = li.querySelector('input.wrongInput');
         const resDiv = li.querySelector('.result');
         input.addEventListener('input', () => {
           const val = input.value;
-          if(val === ''){
-            resDiv.textContent = '';
-            return;
-          }
+          if(val === ''){ resDiv.textContent = ''; return; }
           let wNum = parseInt(val,10);
           if(isNaN(wNum) || wNum < 0) wNum = 0;
           if(wNum > totalQ) wNum = totalQ;
@@ -3397,22 +3445,25 @@ async function openQuizControl(cls,id){
         });
       });
     }
+
+    // Kaydet: groupId varsa globale, yoksa eski path'e
     if(UI.qzSaveBtn){
       UI.qzSaveBtn.onclick = async () => {
+        const base = groupId ? `qzResults/${groupId}` : `quizzes/${cls}/${id}/results`;
         const updates2 = {};
         Array.from(UI.qzStudentList.querySelectorAll('li')).forEach(li => {
           const sid = li.getAttribute('data-id');
           const input = li.querySelector('input.wrongInput');
           const val = input.value;
           if(val === '' || val === null){
-            updates2[`quizzes/${cls}/${id}/results/${sid}`] = null;
+            updates2[`${base}/${sid}`] = null;
           } else {
             let wNum = parseInt(val,10);
             if(isNaN(wNum) || wNum < 0) wNum = 0;
             if(wNum > totalQ) wNum = totalQ;
             const c = totalQ - wNum;
             const pct2 = totalQ > 0 ? Math.round((c/totalQ)*100) : 0;
-            updates2[`quizzes/${cls}/${id}/results/${sid}`] = { wrong: wNum, correct: c, percent: pct2, ts: Date.now() };
+            updates2[`${base}/${sid}`] = { wrong: wNum, correct: c, percent: pct2, ts: Date.now() };
           }
         });
         try{
@@ -3425,9 +3476,7 @@ async function openQuizControl(cls,id){
       };
     }
     if(UI.qzCancelBtn){
-      UI.qzCancelBtn.onclick = () => {
-        UI.qzControlCard?.classList.add('hidden');
-      };
+      UI.qzCancelBtn.onclick = () => { UI.qzControlCard?.classList.add('hidden'); };
     }
   }catch(e){ console.error(e); Swal.fire('Hata','Quiz yüklenemedi.','error'); }
 }
@@ -3717,41 +3766,47 @@ async function showAdminQuizDetail(cls,id){
     const snap = await get(ref(db, `quizzes/${cls}/${id}`));
     if(!snap.exists()){ Swal.fire('Hata','Quiz bulunamadı.','error'); return; }
     const q = snap.val();
-    const results = q.results || {};
+
+    // groupId (legacy fallback: id = ts-i → ts)
+    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
+    const groupId = q.groupId ?? legacyGid ?? null;
+
+    let results = {};
+    if(groupId){
+      try{
+        const sSnap = await get(ref(db, `qzResults/${groupId}`));
+        results = sSnap.exists() ? (sSnap.val()||{}) : {};
+      }catch{ results = {}; }
+    }else{
+      results = q.results || {};
+    }
+
     const totalQ = parseInt(q.totalQuestions || '0', 10) || 0;
     const list = students
       .filter(s => safe(s.SINIF) === safe(cls))
       .map(s => ({ id: safe(s.NO), name: s.ADSOYAD || '', no: safe(s.NO) }))
       .sort((a,b) => a.name.localeCompare(b.name,'tr',{sensitivity:'base'}));
+
     const htmlList = '<ul class="list">' + list.map(st => {
       const rec = results[st.id] || {};
-      let display = '';
-      let chipClass = 'muted';
-      if(typeof rec.correct === 'number' && typeof rec.percent === 'number'){
-        display = `${rec.correct} Doğru • ${rec.wrong} Yanlış • %${rec.percent}`;
-        const pct = rec.percent;
-        if(pct >= 70) chipClass = 'ok';
-        else if(pct >= 40) chipClass = 'warn';
-        else chipClass = 'bad';
-      } else {
-        display = 'Katılmadı';
-        chipClass = 'bad';
+      const wrong = typeof rec.wrong === 'number' ? rec.wrong : null;
+      const correct = typeof rec.correct === 'number' ? rec.correct : (wrong!==null ? (totalQ - wrong) : null);
+      const pct = typeof rec.percent === 'number' ? rec.percent : (correct!==null && totalQ>0 ? Math.round((correct/totalQ)*100) : null);
+      let display = '—', chipClass = 'muted';
+      if(wrong!==null && correct!==null && pct!==null){
+        display = `${correct} Doğru • ${wrong} Yanlış • %${pct}`;
+        chipClass = (pct >= 70) ? 'ok' : (pct >= 40 ? 'warn' : 'bad');
       }
       return `<li class="student">
         <div class="stack"><div class="name">${st.name}</div><div class="muted">No: ${st.no}</div></div>
         <div class="chip ${chipClass}">${display}</div>
       </li>`;
     }).join('') + '</ul>';
+
     const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
     const titleHtml = `📝 Quiz Detayı — ${cls} • ${q.title || ''}`;
-    const subHtml = `<div class="muted" style="margin-bottom:10px;">Tarih: ${dateStr} • Toplam Soru: ${q.totalQuestions || 0} • Öğretmen: ${q.teacherName || ''} • Ders: ${q.subject || ''}</div>`;
-    await Swal.fire({
-      title: titleHtml,
-      html: subHtml + htmlList,
-      width: 600,
-      showConfirmButton: false,
-      showCloseButton: true
-    });
+    const subHtml = `<div class="muted" style="margin-bottom:10px;">Tarih: ${dateStr} • Öğretmen: ${q.teacherName || ''} • Ders: ${q.subject || ''}</div>`;
+    await Swal.fire({ title: titleHtml, html: subHtml + htmlList, width: 600, showConfirmButton: false, showCloseButton: true });
   }catch(err){ console.error(err); Swal.fire('Hata','Detaylar yüklenemedi.','error'); }
 }
 
@@ -3762,45 +3817,56 @@ async function loadParentQuizzes(){
   if(!st) return;
   const cls = safe(st.SINIF);
   if(!cls) return;
+
   const snap = await get(ref(db, `quizzes/${cls}`));
   const data = snap.exists() ? snap.val() : {};
   const items = [];
   for(const id in data){ items.push({ id, ...data[id] }); }
   items.sort((a,b) => ((b.date||'').localeCompare(a.date||'','tr')));
-  // Build display list based on the selected quiz filter
+
+  // groupId’leri topla ve global sonuçları çek
+  const gidList = Array.from(new Set(items.map(q => (q.groupId ?? (String(q.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(q.id).split('-')[0]) : null))).filter(Boolean)));
+  const gidMap = new Map();
+  for(const gid of gidList){
+    try{
+      const sSnap = await get(ref(db, `qzResults/${gid}`));
+      gidMap.set(gid, sSnap.exists() ? (sSnap.val()||{}) : {});
+    }catch{ gidMap.set(gid, {}); }
+  }
+
   const displayItems = [];
   const now = dayjs().startOf('day');
   for(const q of items){
+    // Filtre: current/past
     let include = true;
-    let qDate = null;
-    let diffDays = null;
     try{
       if(q.date){
-        qDate = dayjs(q.date);
-        diffDays = now.diff(qDate.startOf('day'), 'day');
-        if(parentQzFilter === 'current'){
-          include = (diffDays <= 30);
-        } else if(parentQzFilter === 'past'){
-          include = (diffDays > 30);
-        }
+        const d = dayjs(q.date).endOf('day');
+        const diff = d.diff(now,'day');
+        if(parentQzFilter === 'current'){ include = (diff >= -30); } // neden: son 1 ayı da göster
+        else if(parentQzFilter === 'past'){ include = (diff < -30); }
       } else {
-        // no date: treat as current
         include = (parentQzFilter === 'current');
       }
-    }catch(_){ }
+    }catch(_){}
     if(!include) continue;
+
     const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
-    const res = q.results || {};
-    const rec = res[no];
-    let resultText='Katılmadı';
-    let chipClass='bad';
-    if(rec && typeof rec.correct === 'number'){
-      const correct = rec.correct;
-      const wrong = rec.wrong;
-      const pct = rec.percent;
-      resultText = `${correct} Doğru • ${wrong} Yanlış • %${pct}`;
-      chipClass = (pct >= 70) ? 'ok' : (pct >= 40 ? 'warn' : 'bad');
+    const gid = q.groupId ?? (String(q.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(q.id).split('-')[0]) : null);
+    const globalResults = gid ? (gidMap.get(gid) || {}) : null;
+    const rec = globalResults ? globalResults[no] : (q.results || {})[no];
+
+    let resultText='—', chipClass='muted';
+    if(rec){
+      const wrong = typeof rec.wrong === 'number' ? rec.wrong : null;
+      const correct = typeof rec.correct === 'number' ? rec.correct : null;
+      const pct = typeof rec.percent === 'number' ? rec.percent : null;
+      if(wrong!==null && correct!==null && pct!==null){
+        resultText = `${correct} Doğru • ${wrong} Yanlış • %${pct}`;
+        chipClass = (pct >= 70) ? 'ok' : (pct >= 40 ? 'warn' : 'bad');
+      }
     }
+
     displayItems.push({
       title: q.title || '',
       subject: q.subject || '',
@@ -3810,6 +3876,7 @@ async function loadParentQuizzes(){
       resultClass: chipClass
     });
   }
+
   parentQzDisplayed = displayItems;
   if(UI.parentQuizList){
     if(displayItems.length){
