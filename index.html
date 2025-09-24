@@ -2957,7 +2957,6 @@ async function loadTeacherClasses(){
 async function createHomework(){
   const title = safe(UI.hwTitle?.value);
   const dueDate = UI.hwDueDate?.value;
-  // Çoklu sınıf seçimi: checkboxlar üzerinden seçili sınıfları al
   const selected = Array.from(UI.hwClassSelect?.querySelectorAll('input[type="checkbox"]:checked') || []);
   const classes = selected.map(el => el.value).filter(Boolean);
   if(!title || !dueDate || classes.length===0){
@@ -2966,6 +2965,7 @@ async function createHomework(){
   }
   const updates = {};
   const ts = Date.now();
+  const groupId = ts; // tüm sınıflar için ortak anahtar (neden: taşınabilir statü)
   classes.forEach((cls,i) => {
     const id = `${ts}-${i}`;
     updates[`homeworks/${cls}/${id}`] = {
@@ -2974,7 +2974,8 @@ async function createHomework(){
       teacherId: session?.ogretmenId || '',
       teacherName: session?.teacherName || '',
       subject: session?.teacherBranch || '',
-      created: ts
+      created: ts,
+      groupId: groupId
     };
   });
   try{
@@ -2991,7 +2992,8 @@ async function createHomework(){
 async function loadTeacherHomeworks(){
   if(!session || session.role !== 'ogretmen') return;
   const teacherId = session.ogretmenId;
-  // Tüm sınıfların listesi: checkbox'ların value değerleri
+
+  // Tüm sınıflar (checkbox'lardan)
   const classes = Array.from(UI.hwClassSelect?.querySelectorAll('input[type="checkbox"]') || []).map(el => el.value);
   const items = [];
   for(const cls of classes){
@@ -3004,29 +3006,56 @@ async function loadTeacherHomeworks(){
     }
   }
 
-  // SIRALAMA: (1) Güncel/gelecek öne (yakın üstte) (2) Geçmiş en altta
+  // Yakın/gelecek ödevler üstte
   const today = dayjs().startOf('day');
   items.sort((a, b) => {
     const aHas = !!a.dueDate, bHas = !!b.dueDate;
-    const aDiff = aHas ? dayjs(a.dueDate).endOf('day').diff(today, 'day') : Number.POSITIVE_INFINITY;
-    const bDiff = bHas ? dayjs(b.dueDate).endOf('day').diff(today, 'day') : Number.POSITIVE_INFINITY;
-    const aGroup = (aDiff < 0) ? 1 : 0; // 0: bugün/gelecek, 1: geçmiş
-    const bGroup = (bDiff < 0) ? 1 : 0;
-    if (aGroup !== bGroup) return aGroup - bGroup;
-    if (aGroup === 0) return aDiff - bDiff;           // yakına öncelik
-    return Math.abs(aDiff) - Math.abs(bDiff);         // geçmişteyse daha az geciken üstte
+    const aDiff = aHas ? dayjs(a.dueDate).endOf('day').diff(today, 'day') : null;
+    const bDiff = bHas ? dayjs(b.dueDate).endOf('day').diff(today, 'day') : null;
+    // current/upcoming first, then past
+    if(aDiff===null && bDiff!==null) return -1;
+    if(bDiff===null && aDiff!==null) return 1;
+    if(aDiff!==null && bDiff!==null){
+      if(aDiff>=0 && bDiff<0) return -1;
+      if(bDiff>=0 && aDiff<0) return 1;
+      return (a.dueDate||'').localeCompare(b.dueDate||'','tr');
+    }
+    return (a.dueDate||'').localeCompare(b.dueDate||'','tr');
   });
+
+  // Global statüleri (varsa) önceden çek
+  const gidSet = new Set(items.map(h => h.groupId ?? (String(h.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(h.id).split('-')[0]) : null)).filter(Boolean));
+  const gidMap = new Map();
+  for(const gid of gidSet){
+    try{
+      const sSnap = await get(ref(db, `hwStatus/${gid}`));
+      gidMap.set(gid, sSnap.exists() ? (sSnap.val()||{}) : {});
+    }catch{ gidMap.set(gid, {}); }
+  }
 
   if(UI.hwList){
     if(items.length){
       UI.hwList.innerHTML = items.map(hw => {
         const dueDate = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
-        let diff=null, timeLeft='', leftClass='ok';
+        // Özet: yalnız bu sınıfa ait öğrenciler
+        const classSet = new Set(students.filter(s=> safe(s.SINIF)===safe(hw.class)).map(s=>safe(s.NO)));
+        const statuses = (() => {
+          const gid = hw.groupId ?? (String(hw.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(hw.id).split('-')[0]) : null);
+          const g = gid ? (gidMap.get(gid)||{}) : null;
+          return g || (hw.statuses || {});
+        })();
+        const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
+        Object.entries(statuses).forEach(([sid,rec])=>{
+          if(!classSet.has(sid)) return;
+          const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++;
+        });
+        const summary = Object.entries(counts).filter(([_,v])=>v>0).map(([k,v])=>`${HW_STATUSES[k]}: ${v}`).join(', ') || 'Henüz kontrol edilmedi';
+
+        // Kalan süre etiketi
+        let leftClass='ok', timeLeft='—';
         try{
           if(hw.dueDate){
-            const now=dayjs().startOf('day');
-            const due=dayjs(hw.dueDate);
-            diff = due.endOf('day').diff(now,'day');
+            const diff = dayjs(hw.dueDate).endOf('day').diff(dayjs().startOf('day'),'day');
             if(diff < 0){ timeLeft='Süre doldu'; leftClass='bad'; }
             else if(diff===0){ timeLeft='Bugün teslim'; leftClass='bad'; }
             else if(diff===1){ timeLeft='1 gün kaldı'; leftClass='bad'; }
@@ -3034,17 +3063,6 @@ async function loadTeacherHomeworks(){
             else { timeLeft=`${diff} gün kaldı`; leftClass='ok'; }
           }
         }catch(_){}
-
-        const statuses = hw.statuses || {};
-        const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
-        Object.values(statuses).forEach(rec=>{
-          const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++;
-        });
-        const summary = Object
-          .entries(counts)
-          .filter(([_,v])=>v>0)
-          .map(([k,v])=>`${HW_STATUSES[k]}: ${v}`)
-          .join(', ') || 'Henüz kontrol edilmedi';
 
         return `<div class="lesson hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" role="button" tabindex="0">
           <div>
@@ -3054,14 +3072,14 @@ async function loadTeacherHomeworks(){
             <div class="muted">${summary}</div>
           </div>
           <div class="row" style="gap:6px;align-items:center;">
-            <div class="chip ${leftClass}">${timeLeft || '—'}</div>
+            <div class="chip ${leftClass}">${timeLeft}</div>
             <button class="btn ghost small edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">✏️</button>
             <button class="btn ghost danger small delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">🗑️</button>
           </div>
         </div>`;
       }).join('');
 
-      // Olay bağlama (mevcut davranışı korur)
+      // Olaylar
       Array.from(UI.hwList.querySelectorAll('button.edit-hw')).forEach(btn=>{
         btn.addEventListener('click', (e)=>{
           e.stopPropagation();
@@ -3093,7 +3111,6 @@ async function loadTeacherHomeworks(){
     }
   }
 }
-
 // Öğretmen: ödev kontrol panelini aç
 // /index.html — openHomeworkControl(cls,id) EMOJİLİ MESAJLA GÜNCELLENMİŞ
 async function openHomeworkControl(cls,id){
@@ -3106,12 +3123,27 @@ async function openHomeworkControl(cls,id){
 
     if(UI.hwControlTitle) UI.hwControlTitle.textContent = `📘 Ödev Kontrol — ${cls} • ${hw.title||''}`;
 
+    // Sınıf listesini hazırla
     const list = students
       .filter(s => safe(s.SINIF) === safe(cls))
       .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) }))
       .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
 
-    const statuses = hw.statuses || {};
+    // Legacy fallback: id "ts-i" ise ts'i groupId gibi kullan
+    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
+    const groupId = hw.groupId ?? legacyGid ?? null;
+
+    // Statüleri yükle: önce global, yoksa eski local
+    let statuses = {};
+    if(groupId){
+      try{
+        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
+        statuses = sSnap.exists() ? (sSnap.val()||{}) : {};
+      }catch{ statuses = {}; }
+    }else{
+      statuses = hw.statuses || {};
+    }
+
     const STATUS_EMOJI = { yapti:'✅', yapmadi:'❌', eksik:'⚠️', kitap:'📕', gelmedi:'🚫' }; // neden: platform uyumlu ikonlar
 
     if(UI.hwStudentList){
@@ -3133,52 +3165,40 @@ async function openHomeworkControl(cls,id){
 </li>`;
       }).join('');
 
+      // Satır başlatma + WhatsApp butonu
       Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
         const sid = li.getAttribute('data-id');
         const sel = li.querySelector('select.statusSelect');
         const btn = li.querySelector('button.whatsBtn');
 
-        // başlangıç
         sel.value = (statuses[sid]?.status) || '';
 
-        // 'yapti' harici seçimlerde butonu göster
         const syncBtn = () => {
           const v = sel.value;
-          btn.classList.toggle('hidden', !(v && v !== 'yapti'));
+          btn.classList.toggle('hidden', !(v && v !== 'yapti')); // neden: yalnız olumsuzlarda bildir
         };
         syncBtn();
         sel.addEventListener('change', syncBtn);
 
-        // WhatsApp yönlendirme
-       function formatDateTR(dateInput) {
-  try {
-    const d = new Date(dateInput);
-    if (Number.isNaN(d.getTime())) return '—';
-    return new Intl.DateTimeFormat('tr-TR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).format(d); // Örn: 8 Mayıs 2025
-  } catch {
-    return '—';
-  }
-}
-
-// WhatsApp yönlendirme
-btn.addEventListener('click', () => {
-  const stKey = sel.value;
-  if (!stKey || stKey === 'yapti') return;
-
-  const studentName = li.getAttribute('data-name') || '';
-  const teacherName = session?.teacherName || '';
-  const statusText  = (typeof HW_STATUSES !== 'undefined' && HW_STATUSES[stKey]) ? HW_STATUSES[stKey] : stKey;
-  const statusIcon  = STATUS_EMOJI?.[stKey] || 'ℹ️';
-  const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
-  const title       = hw?.title || 'Ödev';
-  const dueStr      = hw?.dueDate ? formatDateTR(hw.dueDate) : '—';
-
-  // WhatsApp biçimlendirme: *kalın*, satır kırımları, basit Unicode emojiler
-  const msg =
+        // WhatsApp yönlendirme (neden: hızlı veli bilgilendirme)
+        function formatDateTR(dateInput) {
+          try {
+            const d = new Date(dateInput);
+            if (Number.isNaN(d.getTime())) return '—';
+            return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
+          } catch { return '—'; }
+        }
+        btn.addEventListener('click', () => {
+          const stKey = sel.value;
+          if (!stKey || stKey === 'yapti') return;
+          const studentName = li.getAttribute('data-name') || '';
+          const teacherName = session?.teacherName || '';
+          const statusText  = (typeof HW_STATUSES !== 'undefined' && HW_STATUSES[stKey]) ? HW_STATUSES[stKey] : stKey;
+          const statusIcon  = STATUS_EMOJI?.[stKey] || 'ℹ️';
+          const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
+          const title       = hw?.title || 'Ödev';
+          const dueStr      = hw?.dueDate ? formatDateTR(hw.dueDate) : '—';
+          const msg =
 `*${companyName} Bilgilendirmesi* 📣
 
 👤 *Öğrenci:* ${studentName}
@@ -3189,21 +3209,22 @@ ${statusIcon} *Durum:* ${statusText}
 
 — *Saygılarımızla*  
 ${companyName} 🏫`;
-
-  const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
-  location.href = url; // Neden: Tek tıkla yönlendirme, popup engelini tetiklemez
-});
+          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
+          location.href = url;
+        });
       });
     }
 
+    // Kaydet: groupId varsa globale, yoksa eski path'e
     if(UI.hwSaveBtn){
       UI.hwSaveBtn.onclick = async () => {
+        const base = groupId ? `hwStatus/${groupId}` : `homeworks/${cls}/${id}/statuses`;
         const updates2 = {};
         Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
           const sid = li.getAttribute('data-id');
           const val = li.querySelector('select.statusSelect').value;
-          if(val){ updates2[`homeworks/${cls}/${id}/statuses/${sid}`] = { status: val, ts: Date.now() }; }
-          else { updates2[`homeworks/${cls}/${id}/statuses/${sid}`] = null; }
+          if(val){ updates2[`${base}/${sid}`] = { status: val, ts: Date.now() }; }
+          else   { updates2[`${base}/${sid}`] = null; }
         });
         try{
           if(navigator.onLine) await update(ref(db), updates2);
@@ -3214,15 +3235,11 @@ ${companyName} 🏫`;
         }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
       };
     }
-
     if(UI.hwCancelBtn){
-      UI.hwCancelBtn.onclick = () => {
-        UI.hwControlCard?.classList.add('hidden');
-      };
+      UI.hwCancelBtn.onclick = () => { UI.hwControlCard?.classList.add('hidden'); };
     }
   }catch(e){ console.error(e); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
 }
-
 
 
 // Öğretmen: Quiz oluştur
@@ -3422,46 +3439,52 @@ async function loadParentHomeworks(){
   if(!st) return;
   const cls = safe(st.SINIF);
   if(!cls) return;
+
   const snap = await get(ref(db, `homeworks/${cls}`));
   const data = snap.exists() ? snap.val() : {};
   const items = [];
-  for(const id in data){ items.push({ id, ...data[id] }); }
+  for(const id in data){ items.push({ id, ...data[id], class: cls }); }
+  // Yakın teslimler öne
   items.sort((a,b) => ((a.dueDate||'').localeCompare(b.dueDate||'','tr')));
-  // Build display list based on the selected homework filter
+
+  // groupId’leri topla ve global statüleri tek seferde çek
+  const gidList = Array.from(new Set(items.map(h => (h.groupId ?? (String(h.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(h.id).split('-')[0]) : null))).filter(Boolean)));
+  const gidMap = new Map();
+  for(const gid of gidList){
+    try{
+      const sSnap = await get(ref(db, `hwStatus/${gid}`));
+      gidMap.set(gid, sSnap.exists() ? (sSnap.val()||{}) : {});
+    }catch{ gidMap.set(gid, {}); }
+  }
+
+  // Filtre & gösterim
   const displayItems = [];
   const now = dayjs().startOf('day');
   for(const hw of items){
-    let dueDate = null;
-    let diff = null;
-    let timeLeft = '';
-    let leftClass = 'ok';
-    let include = true;
+    let dueDate = null, diff = null, timeLeft = '', leftClass = 'ok', include = true;
     try{
       if(hw.dueDate){
         dueDate = dayjs(hw.dueDate);
         diff = dueDate.endOf('day').diff(now,'day');
-        // Determine inclusion based on filter
-        if(parentHwFilter === 'current'){
-          include = (diff === null || diff >= 0);
-        } else if(parentHwFilter === 'past'){
-          include = (diff !== null && diff < 0);
-        }
+        if(parentHwFilter === 'current'){ include = (diff === null || diff >= 0); }
+        else if(parentHwFilter === 'past'){ include = (diff !== null && diff < 0); }
         if(diff < 0){ timeLeft='Süre doldu'; leftClass='bad'; }
         else if(diff===0){ timeLeft='Bugün teslim'; leftClass='bad'; }
         else if(diff===1){ timeLeft='1 gün kaldı'; leftClass='bad'; }
         else if(diff===2){ timeLeft='2 gün kaldı'; leftClass='warn'; }
         else { timeLeft=`${diff} gün kaldı`; leftClass='ok'; }
       } else {
-        // no due date: treat as always current
         include = (parentHwFilter === 'current');
       }
     }catch(_){ }
     if(!include) continue;
+
     const dueStr = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
-    const statuses = hw.statuses || {};
-    const rec = statuses[no];
-    let statusText='—';
-    let statusClass='';
+    const gid = hw.groupId ?? (String(hw.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(hw.id).split('-')[0]) : null);
+    const globalStatuses = gid ? (gidMap.get(gid) || {}) : null;
+    const rec = globalStatuses ? globalStatuses[no] : (hw.statuses || {})[no];
+
+    let statusText='—', statusClass='';
     if(rec && rec.status){
       const stKey = rec.status;
       statusText = HW_STATUSES[stKey] || stKey;
@@ -3478,6 +3501,7 @@ async function loadParentHomeworks(){
       leftClass
     });
   }
+
   parentHwDisplayed = displayItems;
   if(UI.parentHomeworkList){
     if(displayItems.length){
@@ -3645,12 +3669,27 @@ async function showAdminHomeworkDetail(cls,id){
     const snap = await get(ref(db, `homeworks/${cls}/${id}`));
     if(!snap.exists()){ Swal.fire('Hata','Ödev bulunamadı.','error'); return; }
     const hw = snap.val();
-    const statuses = hw.statuses || {};
-    // İlgili sınıftaki öğrencileri al ve alfabetik sırala
+
+    // groupId (legacy fallback: id = ts-i → ts)
+    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
+    const groupId = hw.groupId ?? legacyGid ?? null;
+
+    let statuses = {};
+    if(groupId){
+      try{
+        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
+        statuses = sSnap.exists() ? (sSnap.val()||{}) : {};
+      }catch{ statuses = {}; }
+    }else{
+      statuses = hw.statuses || {};
+    }
+
+    // Sadece bu sınıfın öğrencilerini listele
     const list = students
       .filter(s => safe(s.SINIF) === safe(cls))
       .map(s => ({ id: safe(s.NO), name: s.ADSOYAD || '', no: safe(s.NO) }))
       .sort((a,b) => a.name.localeCompare(b.name,'tr',{sensitivity:'base'}));
+
     const htmlList = '<ul class="list">' + list.map(st => {
       const rec = statuses[st.id] || {};
       const stKey = rec.status || '';
@@ -3664,16 +3703,11 @@ async function showAdminHomeworkDetail(cls,id){
         <div class="chip ${chipClass}">${statusText}</div>
       </li>`;
     }).join('') + '</ul>';
+
     const dueStr = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
     const titleHtml = `📘 Ödev Detayı — ${cls} • ${hw.title || ''}`;
     const subHtml = `<div class="muted" style="margin-bottom:10px;">Teslim: ${dueStr} • Öğretmen: ${hw.teacherName || ''} • Ders: ${hw.subject || ''}</div>`;
-    await Swal.fire({
-      title: titleHtml,
-      html: subHtml + htmlList,
-      width: 600,
-      showConfirmButton: false,
-      showCloseButton: true
-    });
+    await Swal.fire({ title: titleHtml, html: subHtml + htmlList, width: 600, showConfirmButton: false, showCloseButton: true });
   }catch(err){ console.error(err); Swal.fire('Hata','Detaylar yüklenemedi.','error'); }
 }
 
