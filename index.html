@@ -520,8 +520,34 @@ div.admin-filters .button-row {
 /* Çok dar ekranlarda biraz küçült */
 @media (max-width: 420px){
   #qzStudentList li .wrongInput{ width: 100px; }
+
 }
-  </style>
+  
+
+/* Öğretmen Ödev & Quiz kartları için açılır/kapanır tasarım */
+.collapsible-card h3{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:0.75rem;
+}
+.collapsible-card .card-toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:0.35rem;
+}
+.collapsible-card .card-toggle-icon{
+  font-size:0.8rem;
+  transition: transform .18s ease;
+}
+.collapsible-card.is-collapsed .card-toggle-icon{
+  transform: rotate(-90deg);
+}
+/* Güvenli olması için hidden gövdeyi tamamen gizle */
+.collapsible-body[hidden]{
+  display:none;
+}
+</style>
 </head>
 <body>
   <!-- Header -->
@@ -593,9 +619,19 @@ div.admin-filters .button-row {
       </div>
 
       <!-- ÖDEV YÖNETİMİ -->
-      <div id="homeworkCard" class="card hidden" role="region" aria-label="Ödev Yönetimi">
-        <h3>📘 Ödev Yönetimi</h3>
-        <div class="body stack">
+      <div id="homeworkCard" class="card collapsible-card is-collapsed hidden" role="region" aria-label="Ödev Yönetimi">
+        <h3>
+          <span>📘 Ödev Yönetimi</span>
+          <button type="button"
+                  class="btn ghost small card-toggle"
+                  id="hwToggle"
+                  aria-expanded="false"
+                  aria-controls="hwBody">
+            <span class="toggle-label">Aç</span>
+            <span class="card-toggle-icon">▾</span>
+          </button>
+        </h3>
+        <div class="body stack collapsible-body" id="hwBody" hidden>
           <div id="hwForm" class="stack">
             <h4>Yeni Ödev</h4>
             <div class="row" style="flex-wrap:wrap;gap:10px;">
@@ -623,9 +659,19 @@ div.admin-filters .button-row {
       </div>
 
       <!-- QUIZ YÖNETİMİ -->
-      <div id="quizCard" class="card hidden" role="region" aria-label="Quiz Yönetimi">
-        <h3>📝 Quiz Yönetimi</h3>
-        <div class="body stack">
+      <div id="quizCard" class="card collapsible-card is-collapsed hidden" role="region" aria-label="Quiz Yönetimi">
+        <h3>
+          <span>📝 Quiz Yönetimi</span>
+          <button type="button"
+                  class="btn ghost small card-toggle"
+                  id="qzToggle"
+                  aria-expanded="false"
+                  aria-controls="qzBody">
+            <span class="toggle-label">Aç</span>
+            <span class="card-toggle-icon">▾</span>
+          </button>
+        </h3>
+        <div class="body stack collapsible-body" id="qzBody" hidden>
           <div id="qzForm" class="stack">
             <h4>Yeni Quiz</h4>
             <div class="row" style="flex-wrap:wrap;gap:10px;">
@@ -1117,6 +1163,33 @@ function refreshVisibleView(){
       UI.parentHwPrintBtn?.addEventListener('click', printParentHomeworks);
       UI.parentQzPrintBtn?.addEventListener('click', printParentQuizzes);
 
+      // Homework & Quiz collapsible toggles (teacher view)
+      const hwToggle = document.getElementById('hwToggle');
+      const hwBody   = document.getElementById('hwBody');
+      if (hwToggle && hwBody && UI.homeworkCard) {
+        hwToggle.addEventListener('click', () => {
+          const collapsed = UI.homeworkCard.classList.toggle('is-collapsed');
+          const expanded  = !collapsed;
+          hwBody.hidden   = collapsed;
+          hwToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+          const lbl = hwToggle.querySelector('.toggle-label');
+          if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
+        });
+      }
+
+      const qzToggle = document.getElementById('qzToggle');
+      const qzBody   = document.getElementById('qzBody');
+      if (qzToggle && qzBody && UI.quizCard) {
+        qzToggle.addEventListener('click', () => {
+          const collapsed = UI.quizCard.classList.toggle('is-collapsed');
+          const expanded  = !collapsed;
+          qzBody.hidden   = collapsed;
+          qzToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+          const lbl = qzToggle.querySelector('.toggle-label');
+          if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
+        });
+      }
+
       // Parent filter buttons event binding
       if(UI.hwFilterCurrent && UI.hwFilterPast){
         const updateHwFilterBtns = ()=>{
@@ -1178,16 +1251,64 @@ function refreshVisibleView(){
     }
 
     async function loadSheets(){
-      const [tRes,sRes,pRes,slRes] = await Promise.all([
-        fetch(sheetUrl('Ogretmenler')),
-        fetch(sheetUrl('Ogrenciler')),
-        fetch(sheetUrl('DersProgrami')),
-        fetch(sheetUrl('DersSaatleri')),
-      ]);
-      teachers = await tRes.json();
-      students = await sRes.json();
-      schedule = await pRes.json();
-      slots    = await slRes.json();
+      const CACHE_KEY = 'fenomenSheetsCache_v1';
+
+      const useCache = () => {
+        try{
+          const raw = localStorage.getItem(CACHE_KEY);
+          if(!raw) return false;
+          const data = JSON.parse(raw);
+          if(!data || !data.teachers || !data.students || !data.schedule || !data.slots) return false;
+          teachers = data.teachers;
+          students = data.students;
+          schedule = data.schedule;
+          slots    = data.slots;
+          return true;
+        }catch(e){
+          console.error('Cache parse error', e);
+          return false;
+        }
+      };
+
+      // Offline ise önce cache dene
+      if(!navigator.onLine){
+        if(useCache()){
+          setStatus('Offline mod: Son kaydedilen ders programı kullanılıyor.', 'bad');
+          return;
+        }else{
+          setStatus('Offline: Ders listeleri için önce internetle en az bir kez açmalısınız.', 'bad');
+          return;
+        }
+      }
+
+      try{
+        const [tRes,sRes,pRes,slRes] = await Promise.all([
+          fetch(sheetUrl('Ogretmenler')),
+          fetch(sheetUrl('Ogrenciler')),
+          fetch(sheetUrl('DersProgrami')),
+          fetch(sheetUrl('DersSaatleri')),
+        ]);
+        teachers = await tRes.json();
+        students = await sRes.json();
+        schedule = await pRes.json();
+        slots    = await slRes.json();
+
+        // Başarılı yüklemeden sonra offline kullanım için önbelleğe kaydet
+        try{
+          const payload = JSON.stringify({teachers, students, schedule, slots, ts: Date.now()});
+          localStorage.setItem(CACHE_KEY, payload);
+        }catch(e){
+          console.error('Cache save error', e);
+        }
+      }catch(err){
+        console.error('loadSheets error', err);
+        // Online görünüyor ama sunucuya ulaşılamıyorsa son cache i dene
+        if(useCache()){
+          setStatus('Sunucuya ulaşılamıyor, önbellekteki son ders programı kullanılıyor.', 'bad');
+        }else{
+          throw err;
+        }
+      }
     }
     function buildSlotOrder(){
       const tmp = slots.map(s=>{
@@ -1448,8 +1569,33 @@ async function showTeacherToday(){
     await loadTeacherClasses?.();
     await loadTeacherHomeworks?.();
     await loadTeacherQuizzes?.();
-    UI.homeworkCard?.classList.remove('hidden');
-    UI.quizCard?.classList.remove('hidden');
+
+    // Öğretmenin ödev & quiz kartlarını aktif et, ancak varsayılan olarak kapalı getir
+    if (UI.homeworkCard) {
+      UI.homeworkCard.classList.remove('hidden');
+      UI.homeworkCard.classList.add('is-collapsed');
+      const hwBody   = document.getElementById('hwBody');
+      const hwToggle = document.getElementById('hwToggle');
+      if (hwBody) hwBody.hidden = true;
+      if (hwToggle) {
+        hwToggle.setAttribute('aria-expanded', 'false');
+        const lbl = hwToggle.querySelector('.toggle-label');
+        if (lbl) lbl.textContent = 'Aç';
+      }
+    }
+
+    if (UI.quizCard) {
+      UI.quizCard.classList.remove('hidden');
+      UI.quizCard.classList.add('is-collapsed');
+      const qzBody   = document.getElementById('qzBody');
+      const qzToggle = document.getElementById('qzToggle');
+      if (qzBody) qzBody.hidden = true;
+      if (qzToggle) {
+        qzToggle.setAttribute('aria-expanded', 'false');
+        const lbl2 = qzToggle.querySelector('.toggle-label');
+        if (lbl2) lbl2.textContent = 'Aç';
+      }
+    }
   } catch(e) { console.error(e); }
 }
 
