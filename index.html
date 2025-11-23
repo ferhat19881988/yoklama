@@ -235,6 +235,7 @@
       .badge{ width:32px; height:32px; font-size:16px }
       .btn{ padding:12px 14px; border-radius:14px }
       .lesson{ padding:12px }
+      .student{ padding:12px 4px; min-height:52px; } /* bigger tap row */
       .switch{ width:64px; height:36px } /* larger tap target */
       .switch::after{ width:30px; height:30px; top:3px }
       .late{ padding:8px 12px } /* larger tap */
@@ -430,6 +431,28 @@ div.admin-filters .button-row {
 }
 /* Hücre sınırlarını biraz belirgin yap */
 .table th,.table td{ border-bottom: 1px solid rgba(148,163,184,.22); }
+
+/* Admin: gelmeyen / geç gelen satırları vurgula */
+.table tbody tr.adm-row-absent td{
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
+}
+.table tbody tr.adm-row-absent td:nth-child(4){
+  color: var(--bad);
+  font-weight: 700;
+}
+.table tbody tr.adm-row-late td:nth-child(5){
+  color: var(--warn);
+  font-weight: 700;
+}
+.table tbody tr.adm-row-late td:nth-child(5) .late-label{
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
+  text-decoration-style: solid;
+  white-space: nowrap;
+}
 
 /* Öğretmen: ders kartları — hover & aktifken öne gelsin */
 .lesson{
@@ -1150,6 +1173,7 @@ function refreshVisibleView(){
       UI.admWhatsApp?.addEventListener('click', sendWhatsAppReport);
       UI.admClass?.addEventListener('change', refreshAdmin);
       UI.admStatus?.addEventListener('change', refreshAdmin);
+      UI.admDate?.addEventListener('change', refreshAdmin);
       UI.admTeacherReport?.addEventListener('click', openTeacherReportModal);
       UI.admStudentStats?.addEventListener('click', openStudentStatsModal);
       UI.admHistory?.addEventListener('click', openHistoryModal);
@@ -1174,6 +1198,11 @@ function refreshVisibleView(){
           hwToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           const lbl = hwToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
+
+          // Kart kapanırken alt detay kartını da kapat
+          if (collapsed && UI.hwControlCard) {
+            UI.hwControlCard.classList.add('hidden');
+          }
         });
       }
 
@@ -1187,6 +1216,11 @@ function refreshVisibleView(){
           qzToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           const lbl = qzToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
+
+          // Kart kapanırken quiz kontrol kartını da kapat
+          if (collapsed && UI.qzControlCard) {
+            UI.qzControlCard.classList.add('hidden');
+          }
         });
       }
 
@@ -1509,9 +1543,9 @@ async function showTeacherToday(){
   if (mine.length === 0){
     UI.lessonsGrid.innerHTML = '';
     UI.noLesson?.classList.remove('hidden');
-    return;
+  } else {
+    UI.noLesson?.classList.add('hidden');
   }
-  UI.noLesson?.classList.add('hidden');
 
   const takenSet = await getTakenSetTodayForTeacher();
   const gecikenYoklamalar = [];
@@ -1870,12 +1904,21 @@ async function undoAttendance(){
   }catch(e){ console.error(e); Swal.fire('Hata','Geri alırken sorun oluştu.','error'); }
 }
     /* ---------- PARENT VIEW ---------- */
-    function showParentView(){
+    async function showParentView(){
       UI.parentView.classList.remove('hidden');
       UI.teacherView.classList.add('hidden'); UI.adminView.classList.add('hidden');
       const st = students.find(s=> safe(s.NO)===safe(session.ogrNo));
       document.getElementById('pTitle').textContent = `📊 Yoklama Özeti — ${st ? `${st.ADSOYAD} (${st.NO})` : ''}`;
-      loadParentRange('today');
+
+      // Veli paneli ilk açıldığında: yoklaması son alınan günü göster
+      let initialKind = 'today';
+      try{
+        const lastDate = await findLastAttendanceDateForParent();
+        if(lastDate){ initialKind = lastDate; }
+      }catch(e){
+        console.error('lastAttendance lookup error', e);
+      }
+      await loadParentRange(initialKind);
 
       // Reset parent filters to show current items when opening the parent view
       parentHwFilter = 'current';
@@ -1891,14 +1934,60 @@ async function undoAttendance(){
       }
 
       // Ödev ve quiz listelerini yükle
-      loadParentHomeworks();
-      loadParentQuizzes();
+      await loadParentHomeworks();
+      await loadParentQuizzes();
 
       // Veli için "Detaylı Öğrenci Raporu" — Admin’deki birebir rapor
       UI.parentReportBtn?.addEventListener('click', ()=>{
         if(st){ showStudentReport(safe(st.NO), st.ADSOYAD||''); }
       });
     }
+
+    async function findLastAttendanceDateForParent(maxDays = 60){
+      const no = safe(session?.ogrNo);
+      if(!no) return null;
+
+      const today = nowTR().startOf('day');
+      for(let offset = 0; offset < maxDays; offset++){
+        const d = today.subtract(offset, 'day');
+        const t = toDateStr(d);
+        try{
+          const daySnap = await get(ref(db, attDayRoot(t, 'hepsi')));
+          if(!daySnap.exists()) continue;
+          const dayData = daySnap.val() || {};
+
+          // Her sınıfı tara (loadParentRange ile benzer mantık)
+          for(const [sinif, node] of Object.entries(dayData)){
+            if(!node) continue;
+
+            const entries = Object.entries(node || {});
+            const isOld = entries.some(([, v]) => v && typeof v === 'object' && ('var' in v || 'yok' in v));
+
+            if(isOld){
+              // Eski şema: hour -> { var: {...}, yok: {...} }
+              for(const [, recs] of entries){
+                if((recs?.var && Object.prototype.hasOwnProperty.call(recs.var, no)) ||
+                   (recs?.yok && Object.prototype.hasOwnProperty.call(recs.yok, no))){
+                  return t;
+                }
+              }
+              continue;
+            }
+
+            // Yeni şema: saatKodu -> ogretmenId -> ogrNo -> rec
+            for(const [, byTeacher] of Object.entries(node || {})){
+              for(const [, byStudent] of Object.entries(byTeacher || {})){
+                if(byStudent?.[no]) return t;
+              }
+            }
+          }
+        }catch(e){
+          console.error('findLastAttendanceDateForParent error', t, e);
+        }
+      }
+      return null;
+    }
+
     function rangeDates(kind){
       const end = nowTR().startOf('day'); let start=end;
       if(kind==='week') start = end.subtract(6,'day');
@@ -1911,7 +2000,13 @@ async function loadParentRange(kind){
   if (!no) return;
 
   // Tarih aralığı
-  const dates = (kind === 'today') ? [toDateStr(nowTR())] : rangeDates(kind);
+  let dates;
+  if (kind === 'today' || kind === 'week' || kind === 'month') {
+    dates = (kind === 'today') ? [toDateStr(nowTR())] : rangeDates(kind);
+  } else {
+    // YYYY-MM-DD şeklinde tek bir gün gönderildiyse
+    dates = [kind];
+  }
   const rows = [];
 
   for (const t of dates) {
@@ -2102,15 +2197,26 @@ async function refreshAdmin(){
   UI.admListBody.innerHTML = rows
     .sort((a, b) => (a.sinif + a.ad).localeCompare(b.sinif + b.ad, 'tr', { numeric: true, sensitivity: 'base' }))
     .map(r => {
+      const isAbsent = r.durum === 'yok';
+      const isLate   = (r.durum === 'var' && r.gec);
+
+      const rowClass = [
+        isAbsent ? 'adm-row-absent' : '',
+        isLate   ? 'adm-row-late'   : ''
+      ].filter(Boolean).join(' ');
+
       const dTxt = r.durum === 'var' ? 'GELDİ' : (r.durum === 'yok' ? 'GELMEDİ' : '—');
-      return `<tr>
+      const gecCell  = isLate ? '<span class="late-label">GEÇ GELDİ</span>' : '';
+      const saatCell = isLate ? '' : (r.saat || '');
+
+      return `<tr class="${rowClass}">
         <td>${r.no}</td>
         <td>${r.ad}</td>
         <td>${r.sinif}</td>
         <td>${dTxt}</td>
-        <td>${r.gec ? '⏰' : ''}</td>
+        <td>${gecCell}</td>
         <td>${r.ders || ''}</td>
-        <td>${r.saat || ''}</td>
+        <td>${saatCell}</td>
         <td>${r.ogretmen || ''}</td>
       </tr>`;
     }).join('');
