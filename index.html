@@ -2232,7 +2232,7 @@ async function refreshAdmin(){
 
       const dTxt = r.durum === 'var' ? 'GELDİ' : (r.durum === 'yok' ? 'GELMEDİ' : '—');
       const gecCell  = isLate ? '<span class="late-label">GEÇ GELDİ</span>' : '';
-      const saatCell = isLate ? '' : (r.saat || '');
+      const saatCell = r.saat || '';
 
       return `<tr class="${rowClass}">
         <td>${r.no}</td>
