@@ -2285,7 +2285,7 @@ async function refreshAdmin(){
   // - Tüm derslere giren → Gelen (+1)
   // - Herhangi bir derste "geç" → Geç (+1) ve Gelen (+1)
   // - Hiç derse girmeyen → Gelmeyen (+1)
-  // - En az 1 derse girip + en az 1 derse girmemiş (kısmi) → Geç (+1) ve Gelen (+1)
+  // - En az 1 derse girip + en az 1 derse girmemiş (kısmi) → Gelen (+1)  // Artık GEÇ saymıyoruz
   let tVar = 0, tYok = 0, tGec = 0;
   const classStats = {};
   const ensureClass = c => (classStats[c] ||= { var:0, yok:0, gec:0, top:0 });
@@ -2303,8 +2303,8 @@ async function refreshAdmin(){
       // Geldi kabul
       tVar++; classStats[sinif].var++; classStats[sinif].top++;
 
-      // Geç kriteri: (herhangi bir derste geç) veya (kısmi katılım: var && yok)
-      if (hasLateAny || (hasVarAny && hasYokAny)) {
+      // Geç kriteri: sadece herhangi bir derste "late" işaretlenmiş olanlar geç
+      if (hasLateAny) {
         tGec++; classStats[sinif].gec++;
       }
     }
