@@ -1579,6 +1579,7 @@ async function showTeacherToday(){
         gun: safe(r.GUN),
         saatKodu: safe(r.SAAT_KODU),
         sinif: safe(r.SINIF),
+        grup: safe(r.GRUP),
         bas: safe(slot.BASLANGIC),
         bit: safe(slot.BITIS),
         dersName: lessonNameFromRow(r, tInfo),
@@ -1740,8 +1741,16 @@ async function openLesson(lesson){
   UI.attCard.classList.remove('hidden');
   UI.attTitle.textContent = `📝 Yoklama — ${lesson.sinif} • ${lesson.dersName} • ${lesson.saatNo?ordinal(lesson.saatNo):('Saat '+lesson.saatKodu)} (${lesson.bas||''}-${lesson.bit||''}) • ${lesson.ogretmenAd}`;
 
+  const lessonGroup = safe(lesson.grup);
   const list = students
-    .filter(s=> safe(s.SINIF).toLocaleLowerCase('tr-TR')===lesson.sinif.toLocaleLowerCase('tr-TR'))
+    .filter(s=>{
+      // Grup dersi: sadece bu gruptaki öğrenciler (sınıf bağımsız)
+      if(lessonGroup){
+        return safe(s.GRUP).toLocaleLowerCase('tr-TR') === lessonGroup.toLocaleLowerCase('tr-TR');
+      }
+      // Normal ders: sadece ilgili sınıf
+      return safe(s.SINIF).toLocaleLowerCase('tr-TR') === lesson.sinif.toLocaleLowerCase('tr-TR');
+    })
     .map(s=>({id:safe(s.NO), ad:s.ADSOYAD||'', no:safe(s.NO)}))
     .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
 
