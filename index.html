@@ -163,6 +163,30 @@
     .btn.danger{ border-color:rgba(239,68,68,.35); box-shadow:none }
     .btn.danger:hover{ box-shadow:0 8px 24px rgba(239,68,68,.18) }
 
+    /* WhatsApp ikon butonu — öğretmen satırları + admin */
+    .btn.whatsBtn{
+      padding:6px;
+      border-radius:999px;
+      background:#25D366;
+      width:34px;
+      height:34px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 8px 20px rgba(37,211,102,.35);
+      color:#ffffff;
+    }
+    .btn.whatsBtn:hover{
+      background:#1ebe5d;
+      transform:translateY(-2px);
+      box-shadow:0 12px 28px rgba(37,211,102,.45);
+    }
+    .btn.whatsBtn img{
+      width:18px;
+      height:18px;
+      display:block;
+    }
+
     .pill{ display:inline-block; padding:4px 10px; border-radius:999px; border:var(--stroke); background:var(--glass); font-size:.9rem }
     .muted{ color:var(--muted) }
 
@@ -853,7 +877,9 @@ div.admin-filters .button-row {
         </div>
 
         <div class="button-row" role="group" aria-label="İşlem butonları">
-          <button class="btn" id="admWhatsApp" type="button">WhatsApp</button>
+          <button class="btn whatsBtn" id="admWhatsApp" type="button" title="WhatsApp raporu gönder">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+          </button>
           <button class="btn" id="admTeacherReport" type="button" title="Öğretmen uyum raporu">Öğrt. Uyum</button>
           <button class="btn" id="admStudentStats" type="button" title="Öğrenci istatistiği">Öğrenci İstatistiği</button>
           <button class="btn danger" id="admHistory" type="button" title="Eski kayıtları görüntüle/sil">Eski Kayıtlar</button>
@@ -2293,20 +2319,19 @@ async function refreshAdmin(){
   for (const { sinif, hasVarAny, hasYokAny, hasLateAny } of aggPerStudent.values()) {
     ensureClass(sinif);
 
-    if (!hasVarAny && hasYokAny) {
+    // Kategoriler birbirinden ayrıldı:
+    // - Geç gelen: en az bir derste VAR ve LATE
+    // - Hiç gelmeyen: hiç VAR yok, en az bir YOK var
+    // - Gelen: VAR var ve geç değil
+    if (hasVarAny && hasLateAny) {
+      // Geç gelen
+      tGec++; classStats[sinif].gec++; classStats[sinif].top++;
+    } else if (!hasVarAny && hasYokAny) {
       // Tamamen gelmeyen
       tYok++; classStats[sinif].yok++; classStats[sinif].top++;
-      continue;
-    }
-
-    if (hasVarAny) {
-      // Geldi kabul
+    } else if (hasVarAny) {
+      // Normal gelen
       tVar++; classStats[sinif].var++; classStats[sinif].top++;
-
-      // Geç kriteri: sadece herhangi bir derste "late" işaretlenmiş olanlar geç
-      if (hasLateAny) {
-        tGec++; classStats[sinif].gec++;
-      }
     }
     // hasVarAny=false & hasYokAny=false durumu (kayıt yok) sayma
   }
@@ -3495,7 +3520,9 @@ async function openHomeworkControl(cls,id){
     <div class="name">${s.ad}</div>
     <div class="muted">No: ${s.no}</div>
   </div>
-  <button type="button" class="btn whatsBtn hidden" title="Veliyi WhatsApp'ta bilgilendir">WhatsApp</button>
+  <button type="button" class="btn whatsBtn hidden" title="Veliyi WhatsApp'ta bilgilendir">
+   <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+   </button>
   <select class="input statusSelect" aria-label="Ödev durumu">
     <option value="">—</option>
     <option value="yapti">Yaptı</option>
