@@ -1120,6 +1120,39 @@ const turkishDays = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma'
 const todayNameTR = () => turkishDays[nowTR().day()];
 const safe = (v)=> (v??'').toString().trim();
 const ordinal = (n)=> `${n}. Saat`;
+
+// ----------------------------------------------
+// Program Label Mapping
+//
+// EĞİTİM PROGRAMI KODLARI VE GÖRSEL İSİMLERİ
+//
+// Excel'den gelen program kodlarının (örneğin "P3") anlamlı isimlerini
+// kullanıcıya göstermek için bu tabloyu kullanıyoruz. Eğer bir kod burada
+// tanımlıysa, ekranda bu isim gösterilir; aksi halde kod olduğu gibi
+// görüntülenir. Bu sayede "P3" gibi kodlar yerine "ETÜT" gibi açıklayıcı
+// metinler görünür. Dilerseniz ihtiyaçlarınıza göre yeni eşleştirmeler
+// ekleyebilirsiniz.
+const programLabels = {
+  // Örnek: "P3" kodu için açıklayıcı isim
+  'P3': 'ETÜT',
+  // Diğer program kodları eklemek için aşağıya benzer satırlar ekleyin:
+  // 'P1': 'Program 1',
+  // 'P2': 'Program 2',
+};
+
+/**
+ * Girilen program kodunu kullanıcıya gösterilecek etikete dönüştürür.
+ * Kod null veya boşsa boş string döner. Kod büyük/küçük harf duyarlı
+ * olmaksızın aranır.
+ *
+ * @param {string} prog Program kodu
+ * @returns {string} Program etiketi
+ */
+function labelProgram(prog){
+  const key = (prog || '').toString().trim().toUpperCase();
+  if(!key) return '';
+  return programLabels[key] || prog;
+}
 function parseTime(hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return nowTR().hour(h).minute(m).second(0).millisecond(0); }
 function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return dayjs.tz(dateStr).hour(h).minute(m).second(0).millisecond(0); }
 
@@ -1624,7 +1657,7 @@ async function showTeacherToday(){
         <div>
           <div class="title">${m.sinif} • ${m.dersName}</div>
           <div class="sub">
-            ${m.gun} • ${m.saatNo?`${m.saatNo}. Saat`:'Saat'} • ${m.bas||''}-${m.bit||''}${m.program?` • ${m.program}`:''}
+            ${m.gun} • ${m.saatNo?`${m.saatNo}. Saat`:'Saat'} • ${m.bas||''}-${m.bit||''}${labelProgram(m.program)?` • ${labelProgram(m.program)}`:''}
           </div>
         </div>
         <div class="chip ${st.chip}">${st.text}</div>
@@ -1910,9 +1943,17 @@ async function saveAttendance(){
     if(d.status){
       updates[`${pathBase}/${id}`] = {
         durum:d.status, late:!!d.late, ts:Date.now(),
-        ogretmenId:currentLesson.ogretmenId, ogretmenAd:currentLesson.ogretmenAd, ogretmenBrans:currentLesson.ogretmenBrans,
-        ders:currentLesson.dersName, saatKodu:currentLesson.saatKodu, saatNo:currentLesson.saatNo||null,
-        saatBas:currentLesson.bas||'', saatBit:currentLesson.bit||'', gun:currentLesson.gun
+        ogretmenId: currentLesson.ogretmenId,
+        ogretmenAd: currentLesson.ogretmenAd,
+        ogretmenBrans: currentLesson.ogretmenBrans,
+        ders: currentLesson.dersName,
+        saatKodu: currentLesson.saatKodu,
+        saatNo: currentLesson.saatNo || null,
+        saatBas: currentLesson.bas || '',
+        saatBit: currentLesson.bit || '',
+        gun: currentLesson.gun,
+        // Program bilgisini kayda ekle: boşsa boş string olarak sakla.
+        program: currentLesson.program || ''
       };
     }else{
       // Neden: Boş durumda bu öğrenciyi bu dersten sil
@@ -2094,7 +2135,9 @@ async function loadParentRange(kind){
                 durum: 'var', late: !!r.late,
                 ogretmenAd: r.ogretmenAd || '', ders: r.ders || '',
                 saatNo: Number(String(hour).match(/\d+/)?.[0] ?? hour) || null,
-                saatBas: r.saatBas || '', saatBit: r.saatBit || ''
+                saatBas: r.saatBas || '', saatBit: r.saatBit || '',
+                // Program bilgisi: eski şemada rec.program alanı varsa ekleyelim
+                prog: r.program || ''
               });
             }
             // YOK
@@ -2105,7 +2148,9 @@ async function loadParentRange(kind){
                 durum: 'yok', late: !!r.late,
                 ogretmenAd: r.ogretmenAd || '', ders: r.ders || '',
                 saatNo: Number(String(hour).match(/\d+/)?.[0] ?? hour) || null,
-                saatBas: r.saatBas || '', saatBit: r.saatBit || ''
+                saatBas: r.saatBas || '', saatBit: r.saatBit || '',
+                // Program bilgisi: eski şemada rec.program alanı varsa ekleyelim
+                prog: r.program || ''
               });
             }
           }
@@ -2122,7 +2167,9 @@ async function loadParentRange(kind){
               durum: rec.durum, late: !!rec.late,
               ogretmenAd: rec.ogretmenAd || '', ders: rec.ders || '',
               saatNo: rec.saatNo ?? (Number(String(saatKodu).match(/\d+/)?.[0] ?? '') || null),
-              saatBas: rec.saatBas || '', saatBit: rec.saatBit || ''
+              saatBas: rec.saatBas || '', saatBit: rec.saatBit || '',
+              // Program bilgisi: rec.program alanından al
+              prog: rec.program || ''
             });
           }
         }
@@ -2222,6 +2269,21 @@ async function refreshAdmin(){
       (status === 'gec'      && durum === 'var' && gec);
     if (!pass) return;
 
+    // Program etiketi (varsa)
+    const progLbl = labelProgram(rec?.program);
+    let saatText;
+    if (rec?.saatNo){
+      const timeRange = `${rec?.saatBas || ''}-${rec?.saatBit || ''}`;
+      saatText = `${ordinal(rec.saatNo)} (${timeRange})`;
+    } else if (rec?.saatBas || rec?.saatBit) {
+      const timeRange = `${rec?.saatBas || ''}-${rec?.saatBit || ''}`;
+      saatText = `(${timeRange})`;
+    } else {
+      saatText = '';
+    }
+    if (progLbl) {
+      saatText = saatText ? `${saatText} • ${progLbl}` : progLbl;
+    }
     rows.push({
       no: no,
       ad: stu.ad,
@@ -2229,9 +2291,7 @@ async function refreshAdmin(){
       durum,
       gec,
       ders: rec?.ders || '',
-      saat: rec?.saatNo
-        ? `${ordinal(rec.saatNo)} (${rec?.saatBas || ''}-${rec?.saatBit || ''})`
-        : (rec?.saatBas || rec?.saatBit ? `(${rec?.saatBas || ''}-${rec?.saatBit || ''})` : ''),
+      saat: saatText,
       ogretmen: rec?.ogretmenAd || ''
     });
   };
@@ -2520,7 +2580,9 @@ async function openTeacherReportModal(){
       const no   = slotNoProg(l.saatKodu, l.prog) || '-';
       const slot = slotByCodeProg(l.saatKodu, l.prog) || {};
       const saat = `${safe(slot.BASLANGIC)} - ${safe(slot.BITIS)}`;
-      return `${l.sinif} • ${no!=='-'?`${no}. Saat`:'Saat'} (${saat})${l.prog?` • ${l.prog}`:''}`;
+      // Etüt bilgisi: program kodunu etiketle
+      const progLbl = labelProgram(l.prog);
+      return `${l.sinif} • ${no!=='-'?`${no}. Saat`:'Saat'} (${saat})${progLbl?` • ${progLbl}`:''}`;
     };
 
     const run = async ()=>{
@@ -2675,14 +2737,17 @@ async function showStudentReport(no, name){
           const rec = byStudent?.[no];
           if(rec){
             attRows.push({
-              tarih, cls,
+              tarih,
+              cls,
               durum: rec.durum,
               late: !!rec.late,
               ogretmen: rec.ogretmenAd || '',
               ders: rec.ders || '',
               saatNo: rec.saatNo || null,
               saatBas: rec.saatBas || '',
-              saatBit: rec.saatBit || ''
+              saatBit: rec.saatBit || '',
+              // Program bilgisini aktar (yoksa boş string)
+              prog: rec.program || ''
             });
           }
         });
@@ -2702,7 +2767,14 @@ async function showStudentReport(no, name){
     const [Y,M,D] = ds.split('-').map(Number);
     return new Intl.DateTimeFormat('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(Y,M-1,D));
   };
-  const fmtSaat = (r)=> r.saatNo ? `${ordinal(r.saatNo)} (${r.saatBas||''}-${r.saatBit||''})` : `(${r.saatBas||''}-${r.saatBit||''})`;
+  const fmtSaat = (r)=> {
+    const progLbl = labelProgram(r.prog);
+    if(r.saatNo){
+      return `${ordinal(r.saatNo)} (${r.saatBas||''}-${r.saatBit||''})${progLbl?` • ${progLbl}`:''}`;
+    } else {
+      return `(${r.saatBas||''}-${r.saatBit||''})${progLbl?` • ${progLbl}`:''}`;
+    }
+  };
 
   // --- Fetch homework and quiz data for the student ---
   // Determine student's class
@@ -2965,11 +3037,13 @@ async function showStudentReport(no, name){
       const noFromRec   = sampleRec?.saatNo != null ? Number(sampleRec.saatNo) : null;
       const basFromRec  = (sampleRec?.saatBas || sampleRec?.bas || '').toString().trim();
       const bitFromRec  = (sampleRec?.saatBit || sampleRec?.bit || '').toString().trim();
+      const progLbl     = labelProgram(sampleRec?.program);
 
       // Eğer kayıt komple bilgi sağlıyorsa direkt onu göster
       if (noFromRec || (basFromRec && bitFromRec)) {
         const saatTxt = (basFromRec && bitFromRec) ? `${basFromRec} - ${bitFromRec}` : '';
-        return `${noFromRec ? ordinal(noFromRec) : 'Saat'}${saatTxt ? ` (${saatTxt})` : ''}`;
+        const base = `${noFromRec ? ordinal(noFromRec) : 'Saat'}${saatTxt ? ` (${saatTxt})` : ''}`;
+        return progLbl ? `${base} • ${progLbl}` : base;
       }
 
       // Fallback: slot tablosundan bulmayı dene (getSlotByCode/slotOrderMap yoksa güvenli davran)
@@ -2987,7 +3061,8 @@ async function showStudentReport(no, name){
         if (no) noTxt = ordinal(no);
       } catch(_){ /* intentionally empty */ }
 
-      return `${noTxt}${saatTxt}`;
+      const base = `${noTxt}${saatTxt}`;
+      return progLbl ? `${base} • ${progLbl}` : base;
     };
 
     const loadList = async ()=>{
