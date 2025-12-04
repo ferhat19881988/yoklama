@@ -750,7 +750,22 @@ div.admin-filters .button-row {
         <h3 id="hwControlTitle">📘 Ödev Kontrol</h3>
         <div class="body stack">
           <div class="row" style="gap:10px;">
+            <!-- Kaydet düğmesi: ödev durumlarını kaydeder -->
             <button class="btn" id="hwSaveBtn" type="button">Kaydet</button>
+            <!-- Toplu mesaj düğmesi: "yaptı" olan herkesi listeler ve mesaj linki oluşturur -->
+            <!--
+              Not: Önceki sürümde bu düğme WhatsApp yeşili bir daire olarak görünüyordu.
+              Bu tasarım, ana işlem düğmeleri (Kaydet/İptal) ile uyumlu olacak şekilde
+              yeniden düzenlendi. Şimdi tüm düğme arka planı marka rengindedir ve
+              sol tarafta küçük bir WhatsApp simgesi bulunur. Böylece hem
+              uygulama içinde tutarlılık sağlanır hem de buton metni okunur.
+            -->
+            <button class="btn" id="hwBulkWhatsBtn" type="button" title="Toplu mesaj gönder"
+              style="display:flex;align-items:center;gap:8px;padding:8px 14px;">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style="width:18px;height:18px;">
+              <span style="font-weight:600;font-size:0.9rem;">Toplu</span>
+            </button>
+            <!-- İptal düğmesi: paneli kapatır -->
             <button class="btn danger" id="hwCancelBtn" type="button">İptal</button>
           </div>
           <ul id="hwStudentList" class="list" aria-label="Ödev Öğrenci Listesi"></ul>
@@ -1094,6 +1109,8 @@ div.admin-filters .button-row {
       hwStudentList: document.getElementById('hwStudentList'),
       hwSaveBtn: document.getElementById('hwSaveBtn'),
       hwCancelBtn: document.getElementById('hwCancelBtn'),
+      // Yeni: toplu WhatsApp mesajı butonu
+      hwBulkWhatsBtn: document.getElementById('hwBulkWhatsBtn'),
 
       quizCard: document.getElementById('quizCard'),
       qzTitle: document.getElementById('qzTitle'),
@@ -3843,6 +3860,49 @@ ${companyName} 🏫`;
           UI.hwControlCard?.classList.add('hidden');
           await loadTeacherHomeworks();
         }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
+      };
+    }
+
+    // Toplu WhatsApp butonu: "yaptı" olan öğrencileri listele ve teşekkür mesajı gönder
+    if(UI.hwBulkWhatsBtn){
+      UI.hwBulkWhatsBtn.onclick = () => {
+        try{
+          // Öğrencilerden "yapti" statüsünde olanları topla
+          const done = [];
+          Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li => {
+            const name = li.getAttribute('data-name') || '';
+            const st  = li.querySelector('select.statusSelect').value;
+            if(st === 'yapti') done.push(name);
+          });
+          // Mesaj oluştur; liste boşsa uyarı ver
+          const teacherName = session?.teacherName || '';
+          const title       = hw?.title || 'Ödev';
+          const dueStr      = hw?.dueDate ? (()=>{
+            try{
+              const d = new Date(hw.dueDate);
+              return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
+            }catch{ return '—'; }
+          })() : '—';
+          let listLines = done.map((n,i) => `${i+1}. ${n}`).join('\n');
+          if(!listLines){
+            Swal.fire('Bilgi','Henüz "Yaptı" durumunda öğrenci yok.','info');
+            return;
+          }
+          // Mesaj şablonu: Profesyonel ve bilgilendirici bir teşekkür mesajı.
+          // Başlık ve açıklamalar güncellendi. Önceki sürüm "Ödev Teşekkür Mesajı" başlığını ve
+          // kutlama emojisini kullanıyordu. Bu artık işletmenin adı ve daha ciddi bir kitap
+          // emojisi ile değiştirildi. Sonunda "Bilginize" ifadesi eklendi.
+          const msg =
+`*Fenomen Çocuk Kulübü Bilgi Sistemi* 📚\n\n` +
+`👩‍🏫 *Öğretmen:* ${teacherName}\n` +
+`📘 *Ödev:* ${title}\n` +
+`📅 *Teslim Tarihi:* ${dueStr}\n\n` +
+`Aşağıdaki öğrenciler ödevlerini zamanında teslim etti:\n` +
+`${listLines}\n\n` +
+`Çalışmalarınız için teşekkür ederim. Bilginize\n`;
+          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
+          location.href = url;
+        }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
       };
     }
     if(UI.hwCancelBtn){
