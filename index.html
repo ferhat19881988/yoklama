@@ -3894,12 +3894,12 @@ ${companyName} 🏫`;
           // emojisi ile değiştirildi. Sonunda "Bilginize" ifadesi eklendi.
           const msg =
 `*Fenomen Çocuk Kulübü Bilgi Sistemi* 📚\n\n` +
-`👩‍🏫 *Öğretmen:* ${teacherName}\n` +
+`👤 *Öğretmen:* ${teacherName}\n` +
 `📘 *Ödev:* ${title}\n` +
 `📅 *Teslim Tarihi:* ${dueStr}\n\n` +
 `Aşağıdaki öğrenciler ödevlerini zamanında teslim etti:\n` +
 `${listLines}\n\n` +
-`Çalışmalarınız için teşekkür ederim. Bilginize\n`;
+`Öğrencilerimize teşekkür ederim. Bilginize\n`;
           const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
           location.href = url;
         }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
