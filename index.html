@@ -1184,6 +1184,26 @@ const todayNameTR = () => turkishDays[nowTR().day()];
 const safe = (v)=> (v??'').toString().trim();
 const ordinal = (n)=> `${n}. Saat`;
 
+const focusAndScroll = (cardEl, focusTarget) => {
+  if(!cardEl) return;
+  requestAnimationFrame(()=>{
+    try{
+      cardEl.scrollIntoView({ behavior:'smooth', block:'start' });
+    }catch(e){}
+    let el = null;
+    if(typeof focusTarget === 'string') el = cardEl.querySelector(focusTarget);
+    else if(focusTarget instanceof Element) el = focusTarget;
+    if(!el) el = cardEl;
+    // Make focusable if needed
+    if(el && !el.hasAttribute('tabindex')) el.setAttribute('tabindex','-1');
+    try{
+      el && el.focus({ preventScroll:true });
+    }catch(e){
+      try{ el && el.focus(); }catch(e2){}
+    }
+  });
+};
+
 // ----------------------------------------------
 // Program Label Mapping
 //
@@ -1976,6 +1996,8 @@ async function openLesson(lesson){
   document.getElementById('cancelBtn')?.addEventListener('click', ()=>{ closeAttendance(); });
 
   renderSummary();
+
+  focusAndScroll(UI.attCard, UI.studentList);
 }
 
 
@@ -3909,6 +3931,8 @@ ${companyName} 🏫`;
       UI.hwCancelBtn.onclick = () => { UI.hwControlCard?.classList.add('hidden'); };
     }
   }catch(e){ console.error(e); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
+
+  focusAndScroll(UI.hwControlCard, '#hwStudentList select, #hwStudentList');
 }
 
 
@@ -4149,6 +4173,8 @@ async function openQuizControl(cls,id){
       UI.qzCancelBtn.onclick = () => { UI.qzControlCard?.classList.add('hidden'); };
     }
   }catch(e){ console.error(e); Swal.fire('Hata','Quiz yüklenemedi.','error'); }
+
+  focusAndScroll(UI.qzControlCard, '#qzStudentList input, #qzStudentList');
 }
 
 // Veli: ödevleri yükle
