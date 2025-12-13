@@ -1386,6 +1386,7 @@ function refreshVisibleView(){
           if (collapsed && UI.hwControlCard) {
             UI.hwControlCard.classList.add('hidden');
           }
+            openHwCtx = null;
         });
       }
 
@@ -1404,6 +1405,7 @@ function refreshVisibleView(){
           if (collapsed && UI.qzControlCard) {
             UI.qzControlCard.classList.add('hidden');
           }
+            openQzCtx = null;
         });
       }
 
@@ -3583,6 +3585,11 @@ const HW_STATUSES = {
   gelmedi: 'Gelmedi'
 };
 
+// Açık kontrol panellerini takip et (neden: silinen ödev/quiz için paneli otomatik kapat)
+let openHwCtx = null; // { cls, id }
+let openQzCtx = null; // { cls, id }
+
+
 // Öğretmen: sınıf listesini yükle (ödev/quiz için)
 async function loadTeacherClasses(){
   if(!session || session.role !== 'ogretmen') return;
@@ -3762,6 +3769,7 @@ async function loadTeacherHomeworks(){
 // /index.html — openHomeworkControl(cls,id) EMOJİLİ MESAJLA GÜNCELLENMİŞ
 async function openHomeworkControl(cls,id){
   if(!cls || !id) return;
+  openHwCtx = { cls, id };
   UI.hwControlCard?.classList.remove('hidden');
   try{
     const snap = await get(ref(db, `homeworks/${cls}/${id}`));
@@ -3928,7 +3936,7 @@ ${companyName} 🏫`;
       };
     }
     if(UI.hwCancelBtn){
-      UI.hwCancelBtn.onclick = () => { UI.hwControlCard?.classList.add('hidden'); };
+      UI.hwCancelBtn.onclick = () => { UI.hwControlCard?.classList.add('hidden'); openHwCtx = null; };
     }
   }catch(e){ console.error(e); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
 
@@ -4075,6 +4083,7 @@ async function loadTeacherQuizzes(){
 // Öğretmen: quiz kontrol panelini aç
 async function openQuizControl(cls,id){
   if(!cls || !id) return;
+  openQzCtx = { cls, id };
   UI.qzControlCard?.classList.remove('hidden');
   try{
     const snap = await get(ref(db, `quizzes/${cls}/${id}`));
@@ -4170,7 +4179,7 @@ async function openQuizControl(cls,id){
       };
     }
     if(UI.qzCancelBtn){
-      UI.qzCancelBtn.onclick = () => { UI.qzControlCard?.classList.add('hidden'); };
+      UI.qzCancelBtn.onclick = () => { UI.qzControlCard?.classList.add('hidden'); openQzCtx = null; };
     }
   }catch(e){ console.error(e); Swal.fire('Hata','Quiz yüklenemedi.','error'); }
 
@@ -4325,6 +4334,11 @@ async function deleteHomework(cls,id){
     cancelButtonText:'İptal'
   });
   if(confirm.isConfirmed){
+    // Eğer silinen ödevin kontrol paneli açıksa kapat
+    if(openHwCtx && safe(openHwCtx.cls)===safe(cls) && safe(openHwCtx.id)===safe(id)){
+      UI.hwControlCard?.classList.add('hidden');
+      openHwCtx = null;
+    }
     const updates = {};
     updates[`homeworks/${cls}/${id}`] = null;
     try{
@@ -4391,6 +4405,11 @@ async function deleteQuiz(cls,id){
     cancelButtonText:'İptal'
   });
   if(confirm.isConfirmed){
+    // Eğer silinen quizin kontrol paneli açıksa kapat
+    if(openQzCtx && safe(openQzCtx.cls)===safe(cls) && safe(openQzCtx.id)===safe(id)){
+      UI.qzControlCard?.classList.add('hidden');
+      openQzCtx = null;
+    }
     const updates = {};
     updates[`quizzes/${cls}/${id}`] = null;
     try{
