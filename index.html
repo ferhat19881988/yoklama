@@ -647,6 +647,15 @@ div.admin-filters .button-row {
   display:none;
 }
 </style>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Yoklama">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <!-- /PWA -->
 </head>
 <body>
   <!-- Header -->
@@ -3168,7 +3177,16 @@ async function showStudentReport(no, name){
       th,td{ border:1px solid #000; padding:6px 8px; text-align:left; font-size:12px; }
       .no-print{ display:none !important; } /* Neden: yanlışlıkla yazdırılacak parçaları güvenceye al */
     </style>`;
-  w.document.write(`<html><head><title>${title||''}</title>${css}</head><body>${div.outerHTML}</body></html>`);
+  w.document.write(`<html><head><title>${title||''}</title>${css}  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Yoklama">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <!-- /PWA -->
+</head><body>${div.outerHTML}</body></html>`);
   w.document.close();
   w.focus();
   w.print();
@@ -5051,5 +5069,16 @@ function buildSlotOrder(){
   slotOrderMap = new Map(first);
 }
 </script>
+  <!-- PWA Service Worker -->
+  <script>
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('service-worker.js', { scope: './' })
+          .catch(function (err) { console.warn('SW registration failed:', err); });
+      });
+    })();
+  </script>
+  <!-- /PWA Service Worker -->
 </body>
 </html>
