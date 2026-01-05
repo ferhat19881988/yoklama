@@ -1596,15 +1596,122 @@ function refreshVisibleView(){
   // YENİ: Uygulamaya odaklanınca tazele
   window.addEventListener('focus', refreshVisibleView);
 
+  /* --------------------------------------------------------------------------
+     Scroll Persistence ("kaldığın yerden devam")
+     Neden: Mobil/PWA'da uygulama arka plana gidince tarayıcı sayfayı yeniden
+     yükleyebiliyor. Bu durumda kullanıcının sayfadaki konumunu (scroll)
+     saklayıp uygulamaya geri dönünce aynı yerden devam ettiriyoruz.
+  -------------------------------------------------------------------------- */
+
+  const SCROLL_STATE_KEY = 'fenomen_scroll_state_v1';
+  let _scrollSaveTimer = null;
+  let _didRestoreScroll = false;
+
+  function getScrollY(){
+    return Math.round(window.scrollY || document.documentElement.scrollTop || 0);
+  }
+
+  function canTrackScroll(){
+    // Login ekranında scroll saklamak istemiyoruz.
+    try{
+      return !!(UI && UI.app && !UI.app.classList.contains('hidden'));
+    }catch{ return true; }
+  }
+
+  function saveScrollState(force=false){
+    if(!force && !canTrackScroll()) return;
+    const y = getScrollY();
+    const payload = { y, ts: Date.now() };
+    const raw = JSON.stringify(payload);
+    try{ sessionStorage.setItem(SCROLL_STATE_KEY, raw); }catch{}
+    try{ localStorage.setItem(SCROLL_STATE_KEY, raw); }catch{}
+  }
+
+  function readScrollState(){
+    const parse = (raw)=>{
+      try{ return raw ? JSON.parse(raw) : null; }catch{ return null; }
+    };
+    const s1 = parse(sessionStorage.getItem(SCROLL_STATE_KEY));
+    const s2 = parse(localStorage.getItem(SCROLL_STATE_KEY));
+    const s = s1 || s2;
+    if(!s || typeof s.y !== 'number') return null;
+    // Çok eski kayıtları dikkate alma (48 saat)
+    if(typeof s.ts === 'number' && (Date.now() - s.ts) > (48*60*60*1000)) return null;
+    return s;
+  }
+
+  function scheduleRestoreScroll(){
+    if(_didRestoreScroll) return;
+    const st = readScrollState();
+    if(!st) return;
+
+    const targetY = Math.max(0, Math.round(st.y));
+    const maxTries = 24; // layout oturana kadar birkaç frame dene
+    let tries = 0;
+
+    const tryRestore = ()=>{
+      tries++;
+
+      const doc = document.documentElement;
+      const maxY = Math.max(0, (doc.scrollHeight || 0) - (window.innerHeight || 0));
+      const clamped = Math.min(targetY, maxY);
+      window.scrollTo(0, clamped);
+
+      const cur = getScrollY();
+      const done = Math.abs(cur - clamped) <= 2 || tries >= maxTries || maxY <= 0;
+      if(done){ _didRestoreScroll = true; return; }
+      requestAnimationFrame(tryRestore);
+    };
+
+    // 1) Birkaç frame içinde dene
+    requestAnimationFrame(tryRestore);
+    // 2) Asenkron render'lar (showTeacherToday vb.) sonrası için yedek denemeler
+    setTimeout(()=>{ if(!_didRestoreScroll) requestAnimationFrame(tryRestore); }, 600);
+    setTimeout(()=>{ if(!_didRestoreScroll) requestAnimationFrame(tryRestore); }, 1400);
+  }
+
+  function setupScrollPersistence(){
+    // Scroll olurken (throttle) kaydet
+    window.addEventListener('scroll', ()=>{
+      if(!canTrackScroll()) return;
+      if(_scrollSaveTimer) return;
+      _scrollSaveTimer = setTimeout(()=>{
+        _scrollSaveTimer = null;
+        saveScrollState(false);
+      }, 250);
+    }, { passive:true });
+
+    // Arka plana giderken / sayfa kapanırken son konumu mutlaka yaz
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.visibilityState === 'hidden') saveScrollState(true);
+      else scheduleRestoreScroll();
+    });
+
+    window.addEventListener('pagehide', ()=> saveScrollState(true));
+    window.addEventListener('beforeunload', ()=> saveScrollState(true));
+
+    // bfcache'den dönüş (özellikle iOS/Safari)
+    window.addEventListener('pageshow', (e)=>{
+      if(e.persisted) scheduleRestoreScroll();
+    });
+  }
+
     async function init(){
+      // Kaldığın yerden devam: scroll konumunu sakla/geri yükle
+      setupScrollPersistence();
       const app = initializeApp(firebaseConfig); appFB=app; db=getDatabase(appFB);
       await loadSheets(); buildSlotOrder();
 
       const cached = localStorage.getItem('session');
-      if(cached){ session = JSON.parse(cached); enterApp(); }
+      if(cached){ session = JSON.parse(cached); enterApp(); scheduleRestoreScroll(); }
 
       UI.btnLogin.onclick = validateLogin;
-      UI.btnLogout.onclick = ()=>{ localStorage.removeItem('session'); location.reload(); };
+      UI.btnLogout.onclick = ()=>{
+        localStorage.removeItem('session');
+        try{ sessionStorage.removeItem(SCROLL_STATE_KEY); }catch{}
+        try{ localStorage.removeItem(SCROLL_STATE_KEY); }catch{}
+        location.reload();
+      };
 
       UI.btnNotify && (UI.btnNotify.onclick = enableNotifications);
       setNotifyBtnState();
@@ -1889,6 +1996,9 @@ function refreshVisibleView(){
       showParentView();
       // veli görünümünde periyodik timer opsiyonel
     }
+
+    // Kaldığın yerden devam: görünüm/render tamamlanınca scroll konumunu geri al
+    scheduleRestoreScroll();
   }
 
 
