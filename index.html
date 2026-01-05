@@ -1670,6 +1670,11 @@ function refreshVisibleView(){
           const lbl = hwToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
 
+          // Persist collapsed state in localStorage
+          try{
+            localStorage.setItem('hwCollapsed', collapsed ? '1' : '0');
+          }catch(e){ console.warn('Could not persist hwCollapsed', e); }
+
           // Kart kapanırken alt detay kartını da kapat
           if (collapsed && UI.hwControlCard) {
             UI.hwControlCard.classList.add('hidden');
@@ -1689,12 +1694,48 @@ function refreshVisibleView(){
           const lbl = qzToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
 
+          // Persist collapsed state in localStorage
+          try{
+            localStorage.setItem('qzCollapsed', collapsed ? '1' : '0');
+          }catch(e){ console.warn('Could not persist qzCollapsed', e); }
+
           // Kart kapanırken quiz kontrol kartını da kapat
           if (collapsed && UI.qzControlCard) {
             UI.qzControlCard.classList.add('hidden');
           }
             openQzCtx = null;
         });
+      }
+
+      // Restore Homework and Quiz collapsible states from previous session
+      try {
+        const savedHwState = localStorage.getItem('hwCollapsed');
+        if (savedHwState !== null && hwToggle && hwBody && UI.homeworkCard) {
+          const isCollapsed = savedHwState === '1';
+          // Apply the stored state
+          UI.homeworkCard.classList.toggle('is-collapsed', isCollapsed);
+          hwBody.hidden = isCollapsed;
+          hwToggle.setAttribute('aria-expanded', (!isCollapsed).toString());
+          const _lbl = hwToggle.querySelector('.toggle-label');
+          if (_lbl) _lbl.textContent = (!isCollapsed) ? 'Kapat' : 'Aç';
+          if (isCollapsed && UI.hwControlCard) {
+            UI.hwControlCard.classList.add('hidden');
+          }
+        }
+        const savedQzState = localStorage.getItem('qzCollapsed');
+        if (savedQzState !== null && qzToggle && qzBody && UI.quizCard) {
+          const isCollapsedQz = savedQzState === '1';
+          UI.quizCard.classList.toggle('is-collapsed', isCollapsedQz);
+          qzBody.hidden = isCollapsedQz;
+          qzToggle.setAttribute('aria-expanded', (!isCollapsedQz).toString());
+          const _lbl2 = qzToggle.querySelector('.toggle-label');
+          if (_lbl2) _lbl2.textContent = (!isCollapsedQz) ? 'Kapat' : 'Aç';
+          if (isCollapsedQz && UI.qzControlCard) {
+            UI.qzControlCard.classList.add('hidden');
+          }
+        }
+      } catch(e) {
+        console.warn('Could not restore collapsible state', e);
       }
 
       // Parent filter buttons event binding
@@ -1751,6 +1792,24 @@ function refreshVisibleView(){
         updateQzFilterBtns();
       }
 
+      // Restore scroll position from previous session and set up persistence
+      {
+        const _savedScroll = localStorage.getItem('scrollY');
+        if (_savedScroll !== null) {
+          const y = parseInt(_savedScroll, 10);
+          if (!isNaN(y)) {
+            // Defer scrolling until layout/rendering is ready
+            setTimeout(() => { window.scrollTo(0, y); }, 0);
+          }
+        }
+        // Listen for pagehide and beforeunload to save current scroll position
+        window.addEventListener('pagehide', () => {
+          try { localStorage.setItem('scrollY', String(window.scrollY)); } catch(e) {}
+        });
+        window.addEventListener('beforeunload', () => {
+          try { localStorage.setItem('scrollY', String(window.scrollY)); } catch(e) {}
+        });
+      }
       setNetUI();
       window.addEventListener('online', async ()=>{ setNetUI(); await flushQueue(true); });
       window.addEventListener('offline', ()=> setNetUI());
