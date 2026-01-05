@@ -665,6 +665,7 @@ div.admin-filters .button-row {
         <img src="https://i.ibb.co/cS9PSRpq/Logo-Fenomen.jpg" alt="Fenomen Yoklama Logo" class="logo-img">
         <span class="logo-text">Yoklama</span>
       </div>
+      <button class="btn ghost hidden" id="btnNotify" type="button" title="Bildirim izni vererek yoklama durumlarını cihazınıza bildirim olarak alın">Bildirimleri Aç</button>
       <button class="btn ghost hidden" id="btnLogout" type="button">Çıkış</button>
     </div>
     <div class="head-session" role="group" aria-label="Oturum ve durum">
@@ -1052,6 +1053,7 @@ div.admin-filters .button-row {
       loginCode: document.getElementById('loginCode'),
       btnLogin: document.getElementById('btnLogin'),
       btnLogout: document.getElementById('btnLogout'),
+      btnNotify: document.getElementById('btnNotify'),
       userChip: document.getElementById('userChip'),
 
       teacherView: document.getElementById('teacherView'),
@@ -1174,6 +1176,9 @@ let session=null;
 let currentLesson=null;
 let tempAtt={};
 let teacherRefreshTimer=null;
+let teacherLessonsToday=[];
+let notifyTimers=[];
+
 
     // Parent filters and displayed lists (for homework & quizzes)
     // parentHwFilter and parentQzFilter control which items are shown in the parent view.
@@ -1272,7 +1277,277 @@ function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0)
       if(!online) setStatus('İnternet yok: kayıtlar geçici olarak cihazda saklanacak.', 'bad');
     }
 
-    function queueOfflineWrite(path, payload){
+    
+    // -----------------------------
+    // Bildirimler (PWA - Yerel Bildirim)
+    // Not: Uygulama tamamen kapalıyken/cihaz kilitliyken bildirim almak için Web Push + Service Worker + backend (FCM/Cloud Functions vb.) gerekir.
+    // Bu HTML; izin yönetimi + uygulama açıkken bildirim üretimi + veli/öğretmen izleme mantığını içerir.
+    // -----------------------------
+    const NOTIFY_CFG = {
+      enabledKey: 'notifyEnabled_v1',
+      seenKeyPrefix: 'notifySeen_v1'
+    };
+
+    function supportsNotifications(){
+      return ('Notification' in window);
+    }
+    function notifyPermission(){
+      try{ return Notification.permission; }catch(e){ return 'default'; }
+    }
+    function isNotifyEnabled(){
+      return localStorage.getItem(NOTIFY_CFG.enabledKey) === '1';
+    }
+    function setNotifyEnabled(on){
+      localStorage.setItem(NOTIFY_CFG.enabledKey, on ? '1' : '0');
+    }
+
+    function setNotifyBtnState(){
+      if(!UI.btnNotify) return;
+
+      if(!supportsNotifications()){
+        UI.btnNotify.classList.add('hidden');
+        return;
+      }
+      if(!session){
+        UI.btnNotify.classList.add('hidden');
+        return;
+      }
+      UI.btnNotify.classList.remove('hidden');
+
+      const perm = notifyPermission();
+      const enabled = isNotifyEnabled() && perm === 'granted';
+
+      if(perm === 'denied'){
+        UI.btnNotify.disabled = false;
+        UI.btnNotify.textContent = 'Bildirim Kapalı';
+        UI.btnNotify.title = 'Tarayıcı bildirim izni reddedildi. Tarayıcı ayarlarından izin verip tekrar deneyin.';
+        return;
+      }
+
+      if(enabled){
+        UI.btnNotify.disabled = true;
+        UI.btnNotify.textContent = 'Bildirimler Açık';
+        UI.btnNotify.title = 'Bildirimler aktif.';
+      }else{
+        UI.btnNotify.disabled = false;
+        UI.btnNotify.textContent = 'Bildirimleri Aç';
+        UI.btnNotify.title = 'Bildirim izni vererek yoklama durumlarını cihazınıza bildirim olarak alın.';
+      }
+    }
+
+    function clearNotifyTimers(){
+      notifyTimers.forEach(t=> clearInterval(t));
+      notifyTimers = [];
+    }
+
+    function seenKeyForRole(){
+      const role = session?.role || 'guest';
+      const today = toDateStr(nowTR());
+      if(role === 'veli') return `${NOTIFY_CFG.seenKeyPrefix}:veli:${safe(session?.ogrNo)}:${today}`;
+      if(role === 'ogretmen') return `${NOTIFY_CFG.seenKeyPrefix}:ogretmen:${safe(session?.ogretmenId)}:${today}`;
+      if(role === 'admin') return `${NOTIFY_CFG.seenKeyPrefix}:admin:${today}`;
+      return `${NOTIFY_CFG.seenKeyPrefix}:guest:${today}`;
+    }
+    function loadSeenSet(){
+      try{
+        const raw = localStorage.getItem(seenKeyForRole());
+        const arr = raw ? JSON.parse(raw) : [];
+        return new Set(Array.isArray(arr) ? arr : []);
+      }catch(e){ return new Set(); }
+    }
+    function saveSeenSet(setObj){
+      try{
+        localStorage.setItem(seenKeyForRole(), JSON.stringify(Array.from(setObj).slice(-500)));
+      }catch(e){}
+    }
+
+    function sendLocalNotification(title, body, tag){
+      if(!supportsNotifications()) return false;
+      if(notifyPermission() !== 'granted') return false;
+      try{
+        new Notification(title, { body: body || '', tag: tag || undefined, renotify: false });
+        return true;
+      }catch(e){
+        console.warn('Notification failed', e);
+        return false;
+      }
+    }
+
+    async function enableNotifications(){
+      if(!supportsNotifications()){
+        Swal.fire('Desteklenmiyor','Bu cihaz/tarayıcı bildirimleri desteklemiyor.','info');
+        return;
+      }
+
+      const perm = notifyPermission();
+      if(perm === 'denied'){
+        Swal.fire('İzin kapalı','Tarayıcı ayarlarından bildirim izni vermeniz gerekiyor.','warning');
+        setNotifyEnabled(false);
+        setNotifyBtnState();
+        return;
+      }
+
+      const res = await Notification.requestPermission();
+      if(res !== 'granted'){
+        Swal.fire('İzin verilmedi','Bildirim izni verilmedi.','info');
+        setNotifyEnabled(false);
+        setNotifyBtnState();
+        return;
+      }
+
+      setNotifyEnabled(true);
+      setNotifyBtnState();
+      Swal.fire('Aktif','Bildirimler açıldı.','success');
+      startNotificationWatchers();
+    }
+
+    async function collectParentTodayRecords(){
+      const no = safe(session?.ogrNo);
+      const t  = toDateStr(nowTR());
+      const rows = [];
+      if(!no) return rows;
+
+      const daySnap = await get(ref(db, attDayRoot(t, 'hepsi')));
+      if(!daySnap.exists()) return rows;
+      const dayData = daySnap.val() || {};
+
+      for(const [sinif, node] of Object.entries(dayData)){
+        if(!node) continue;
+
+        const entries = Object.entries(node || {});
+        const isOld = entries.some(([, v]) => v && typeof v === 'object' && ('var' in v || 'yok' in v));
+
+        if(isOld){
+          for(const [hour, recs] of entries){
+            if(recs?.var && Object.prototype.hasOwnProperty.call(recs.var, no)){
+              const r = recs.var[no] || {};
+              rows.push({
+                tarih:t, sinif,
+                durum:'var', late:!!r.late,
+                ogretmenAd:r.ogretmenAd||'', ders:r.ders||'',
+                saatNo: Number(String(hour).match(/\d+/)?.[0] ?? hour) || null,
+                saatBas:r.saatBas||'', saatBit:r.saatBit||'',
+                program:r.program||''
+              });
+            }
+            if(recs?.yok && Object.prototype.hasOwnProperty.call(recs.yok, no)){
+              const r = recs.yok[no] || {};
+              rows.push({
+                tarih:t, sinif,
+                durum:'yok', late:!!r.late,
+                ogretmenAd:r.ogretmenAd||'', ders:r.ders||'',
+                saatNo: Number(String(hour).match(/\d+/)?.[0] ?? hour) || null,
+                saatBas:r.saatBas||'', saatBit:r.saatBit||'',
+                program:r.program||''
+              });
+            }
+          }
+          continue;
+        }
+
+        for(const [saatKodu, byTeacher] of Object.entries(node || {})){
+          for(const [, byStudent] of Object.entries(byTeacher || {})){
+            const rec = byStudent?.[no];
+            if(!rec) continue;
+            rows.push({
+              tarih:t, sinif,
+              durum:rec.durum, late:!!rec.late,
+              ogretmenAd:rec.ogretmenAd||'', ders:rec.ders||'',
+              saatNo: rec.saatNo ?? (Number(String(saatKodu).match(/\d+/)?.[0] ?? '') || null),
+              saatBas:rec.saatBas||'', saatBit:rec.saatBit||'',
+              program:rec.program||''
+            });
+          }
+        }
+      }
+      return rows;
+    }
+
+    async function parentNotifyTick(){
+      if(!session || session.role !== 'veli') return;
+      if(!isNotifyEnabled() || notifyPermission() !== 'granted') return;
+
+      const seen = loadSeenSet();
+      let rows = [];
+      try{
+        rows = await collectParentTodayRecords();
+      }catch(e){
+        console.error('parentNotifyTick error', e);
+        return;
+      }
+
+      const toAlert = rows.filter(r => r.durum === 'yok' || (r.durum === 'var' && r.late));
+      for(const r of toAlert){
+        const key = `${r.tarih}|${r.sinif}|${r.saatNo||''}|${r.ders||''}|${r.ogretmenAd||''}|${r.durum}|${r.late?'1':'0'}`;
+        if(seen.has(key)) continue;
+
+        const timeRange = (r.saatBas || r.saatBit) ? `${r.saatBas||''}-${r.saatBit||''}` : '';
+        const saatTxt = r.saatNo ? `${r.saatNo}. Ders` : 'Ders';
+        const title = (r.durum === 'yok') ? 'Öğrenci GELMEDİ' : 'Öğrenci GEÇ GELDİ';
+
+        const body = [
+          r.sinif ? `${r.sinif}` : '',
+          r.ders ? `• ${r.ders}` : '',
+          timeRange ? `• ${saatTxt} (${timeRange})` : (r.saatNo ? `• ${saatTxt}` : ''),
+          r.ogretmenAd ? `• Öğretmen: ${r.ogretmenAd}` : ''
+        ].filter(Boolean).join(' ');
+
+        const sent = sendLocalNotification(title, body, `veli-${key}`);
+        if(sent) seen.add(key);
+      }
+
+      saveSeenSet(seen);
+    }
+
+    async function teacherNotifyOverdueTick(){
+      if(!session || session.role !== 'ogretmen') return;
+      if(!isNotifyEnabled() || notifyPermission() !== 'granted') return;
+
+      const today = toDateStr(nowTR());
+      const seen = loadSeenSet();
+
+      let takenSet = new Set();
+      try{ takenSet = await getTakenSetTodayForTeacher(); }catch(e){ console.error(e); }
+
+      const now = nowTR();
+      const lessons = Array.isArray(teacherLessonsToday) ? teacherLessonsToday : [];
+
+      for(const m of lessons){
+        if(takenSet.has(`${m.sinif}|${m.saatKodu}`)) continue;
+
+        const end = parseOnDate(today, m.bit);
+        if(!end.isValid()) continue;
+
+        // ders bitişinden 5 dakika sonra uyar
+        if(now.isBefore(end.add(5,'minute'))) continue;
+
+        const key = `MISS|${today}|${m.sinif}|${m.saatKodu}|${m.ogretmenId}`;
+        if(seen.has(key)) continue;
+
+        const title = 'Yoklama alınmadı';
+        const body = `${m.sinif} • ${m.dersName} • ${(m.saatNo?`${m.saatNo}. Ders`:'')} (${m.bas||''}-${m.bit||''})`;
+        const sent = sendLocalNotification(title, body, `ogrt-${key}`);
+        if(sent) seen.add(key);
+      }
+
+      saveSeenSet(seen);
+    }
+
+    function startNotificationWatchers(){
+      clearNotifyTimers();
+      if(!session) return;
+      if(!isNotifyEnabled() || notifyPermission() !== 'granted') return;
+
+      if(session.role === 'veli'){
+        parentNotifyTick();
+        notifyTimers.push(setInterval(parentNotifyTick, 45000));
+      }else if(session.role === 'ogretmen'){
+        teacherNotifyOverdueTick();
+        notifyTimers.push(setInterval(teacherNotifyOverdueTick, 60000));
+      }
+    }
+
+function queueOfflineWrite(path, payload){
       const key='offlineQueue';
       const q = JSON.parse(localStorage.getItem(key)||'[]');
       q.push({path, payload});
@@ -1330,6 +1605,10 @@ function refreshVisibleView(){
 
       UI.btnLogin.onclick = validateLogin;
       UI.btnLogout.onclick = ()=>{ localStorage.removeItem('session'); location.reload(); };
+
+      UI.btnNotify && (UI.btnNotify.onclick = enableNotifications);
+      setNotifyBtnState();
+
 
       document.querySelectorAll('[data-range]').forEach(b=>{
         b.addEventListener('click', ()=> loadParentRange(b.getAttribute('data-range')));
@@ -1580,6 +1859,11 @@ function refreshVisibleView(){
     // önce tüm zamanlayıcıyı sıfırla
     clearInterval(teacherRefreshTimer);
     teacherRefreshTimer = null;
+    clearNotifyTimers();
+
+    setNotifyBtnState();
+    startNotificationWatchers();
+
 
     if(session.role==='ogretmen'){
       UI.userChip.textContent = `🏫 ${session.teacherName||'Öğretmen'}`;
@@ -1735,6 +2019,8 @@ async function showTeacherToday(){
     })
     .sort((a,b)=> (a.bas||'23:59').localeCompare(b.bas||'23:59','tr'));
 
+  teacherLessonsToday = mine;
+
   if (mine.length === 0){
     UI.lessonsGrid.innerHTML = '';
     UI.noLesson?.classList.remove('hidden');
@@ -1763,7 +2049,8 @@ async function showTeacherToday(){
 
     return `
       <div class="lesson ${st.chip}" role="button" tabindex="0"
-           data-idx="${i}" data-taken="${hasTaken?1:0}" data-cantake="${canTake?1:0}">
+           data-idx="${i}" data-taken="${hasTaken?1:0}" data-cantake="${canTake?1:0}"
+           data-bas="${m.bas||''}" data-bit="${m.bit||''}" data-sinif="${m.sinif||''}" data-saatkodu="${m.saatKodu||''}" data-ders="${m.dersName||''}">
         <div>
           <div class="title">${m.sinif} • ${m.dersName}</div>
           <div class="sub">
@@ -2079,6 +2366,14 @@ async function saveAttendance(){
       await flushQueue(false);
       setStatus('Kaydedildi.', 'ok');
       Swal.fire('Kaydedildi','Yoklama kaydedildi.','success');
+      try{
+        if(session?.role==='ogretmen' && typeof isNotifyEnabled==='function' && isNotifyEnabled() && typeof notifyPermission==='function' && notifyPermission()==='granted'){
+          const title = 'Yoklama alındı';
+          const body = `${currentLesson?.sinif||''} • ${currentLesson?.dersName||''} • ${(currentLesson?.saatNo?`${currentLesson.saatNo}. Ders`:'')} (${currentLesson?.bas||''}-${currentLesson?.bit||''})`;
+          sendLocalNotification(title, body, `saved-${tarih}-${currentLesson?.sinif||''}-${currentLesson?.saatKodu||''}`);
+        }
+      }catch(e){}
+
     }else{
       // Offline kuyruk: çoklu yol güncellemesini tek paket sakla
       queueOfflineWrite('/', updates);
