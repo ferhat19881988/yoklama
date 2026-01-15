@@ -955,7 +955,7 @@ div.admin-filters .button-row {
 <!-- PRINT: Özet sayfa (sadece yazdırda görünür) -->
 <div id="admPrintSheet" class="print-sheet">
   <header class="ps-head">
-    <h2>Fenomen Çocuk Kulübü — Yoklama Listesi</h2>
+    <h2>Fenomen Eğitim Kurumları — Yoklama Listesi</h2>
     <div class="ps-date"><span id="psDateText"></span></div>
   </header>
 
@@ -1024,7 +1024,7 @@ div.admin-filters .button-row {
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-    const COMPANY_NAME = 'Fenomen Çocuk Kulübü';
+    const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
 
     const firebaseConfig = {
       apiKey: "AIzaSyA0jqzCSRFQYvLojoYEiBzfylXLqrL-NsQ",
@@ -3453,7 +3453,7 @@ async function showStudentReport(no, name){
   // Build HTML for each section (attendance, homeworks, quizzes)
   const attendanceSection = `
     <div id="tab-attendance" class="report-tab">
-      <h2 style="margin:0 0 6px 0;">Fenomen Çocuk Kulübü — Öğrenci Raporu</h2>
+      <h2 style="margin:0 0 6px 0;">Fenomen Eğitim Kurumları — Öğrenci Raporu</h2>
       <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
       <div class="grid cols-3" style="margin:8px 0;">
         <div class="kpi"><div class="muted">Toplam İşaretli</div><div style="font-weight:800;">${totalMarked}</div></div>
@@ -3480,7 +3480,7 @@ async function showStudentReport(no, name){
 
   const homeworksSection = `
     <div id="tab-homeworks" class="report-tab" style="display:none;">
-      <h2 style="margin:0 0 6px 0;">Fenomen Çocuk Kulübü — Öğrenci Ödevleri</h2>
+      <h2 style="margin:0 0 6px 0;">Fenomen Eğitim Kurumları — Öğrenci Ödevleri</h2>
       <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
       ${
         homeworkList.length
@@ -3493,7 +3493,7 @@ async function showStudentReport(no, name){
 
   const quizzesSection = `
     <div id="tab-quizzes" class="report-tab" style="display:none;">
-      <h2 style="margin:0 0 6px 0;">Fenomen Çocuk Kulübü — Öğrenci Quizleri</h2>
+      <h2 style="margin:0 0 6px 0;">Fenomen Eğitim Kurumları — Öğrenci Quizleri</h2>
       <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
       ${
         quizList.length
@@ -4346,7 +4346,7 @@ ${companyName} 🏫`;
           // kutlama emojisini kullanıyordu. Bu artık işletmenin adı ve daha ciddi bir kitap
           // emojisi ile değiştirildi. Sonunda "Bilginize" ifadesi eklendi.
           const msg =
-`*Fenomen Çocuk Kulübü Bilgi Sistemi* 📚\n\n` +
+`*Fenomen Eğitim Kurumları Bilgi Sistemi* 📚\n\n` +
 `👤 *Öğretmen:* ${teacherName}\n` +
 `📘 *Ödev:* ${title}\n` +
 `📅 *Teslim Tarihi:* ${dueStr}\n\n` +
@@ -5152,7 +5152,7 @@ function openAdminHomeworks(){
             @page{size:A4 portrait; margin:12mm}
             @media print{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
           </style>
-          <h2>${(COMPANY_NAME || 'Fenomen Çocuk Kulübü')} — Ödev Raporları</h2>
+          <h2>${(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Ödev Raporları</h2>
           <div class="meta"><div>Tarih: <strong>${selDate}</strong></div><div>Sınıf: <strong>${selClass}</strong></div></div>
           <table>
             <colgroup>
@@ -5299,7 +5299,7 @@ function openAdminQuizzes(){
             @page{size:A4 portrait; margin:12mm}
             @media print{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
           </style>
-          <h2>${(COMPANY_NAME || 'Fenomen Çocuk Kulübü')} — Quiz Raporları</h2>
+          <h2>${(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Quiz Raporları</h2>
           <div class="meta"><div>Tarih: <strong>${selDate}</strong></div><div>Sınıf: <strong>${selClass}</strong></div></div>
           <table>
             <colgroup>
@@ -5337,7 +5337,7 @@ function printParentHomeworks(){
   tmp.id = 'print-parent-homeworks';
   tmp.innerHTML = `
     <div>
-      <h2 style="margin:0 0 6px 0;">${esc(COMPANY_NAME || 'Fenomen Çocuk Kulübü')} — Ödevler</h2>
+      <h2 style="margin:0 0 6px 0;">${esc(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Ödevler</h2>
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr>
@@ -5381,7 +5381,7 @@ function printParentQuizzes(){
   tmp.id = 'print-parent-quizzes';
   tmp.innerHTML = `
     <div>
-      <h2 style="margin:0 0 6px 0;">${esc(COMPANY_NAME || 'Fenomen Çocuk Kulübü')} — Quizler</h2>
+      <h2 style="margin:0 0 6px 0;">${esc(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Quizler</h2>
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr>
