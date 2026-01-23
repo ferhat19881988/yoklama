@@ -1988,8 +1988,6 @@ await loadSheets(); buildSlotOrder();
           hwToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           const lbl = hwToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
-          const ic = qzToggle.querySelector('.card-toggle-icon');
-          if (ic) ic.textContent = expanded ? '▾' : '▸';
           const ic = hwToggle.querySelector('.card-toggle-icon');
           if (ic) ic.textContent = expanded ? '▾' : '▸';
 
