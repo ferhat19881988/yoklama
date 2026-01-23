@@ -731,7 +731,64 @@ div.admin-filters .button-row {
 }
 /* Güvenli olması için hidden gövdeyi tamamen gizle */
 .collapsible-body[hidden]{
-  display:none;
+  /*
+    Varsayılan olarak "hidden" niteliği bulunan açılır gövdeler display:none olur,
+    bu da yükseklik geçişlerinin çalışmasını engeller. Bu kuralı kaldırıp
+    display:block olarak zorla tanımlıyoruz ve yüksekliği 0 olarak ayarlıyoruz.
+    Böylece açılır kartların açılıp kapanırken yumuşak bir geçişi olur ve
+    kapalıyken içerik erişilemez kalır.  
+  */
+  display:block !important;
+  max-height:0;
+}
+
+/* === Kapsül kart animasyon ve mobil iyileştirmeler === */
+/*
+  Öğretmen ödev/quiz kartlarının açılır gövdeleri, istenildiğinde gizli
+  tutulmak için hidden niteliği kullanıyordu. Bu, display:none olduğu için
+  bir anda açılıp kapanmalarına sebep oluyor ve mobilde kayma hissi
+  yaratıyordu. Aşağıdaki kurallar, collapsible-body'yi animasyonla
+  yüksekliğini 0 ile 999px arasında değiştirerek yumuşak bir geçiş sağlar.
+  Ayrıca hidden niteliği olsa da display:block kalır.  
+*/
+.collapsible-card .collapsible-body{
+  max-height:999px;
+  overflow:hidden;
+  transition:max-height .3s ease;
+}
+.collapsible-card.is-collapsed .collapsible-body{
+  max-height:0;
+}
+
+/*
+  Arka plan radial gradyenlerinin sayfa boyu değişimlerinde yukarı-aşağı
+  kaymaması için arka planı sabitliyoruz. Bu, içerik artıp azalırken bile
+  arka planın yerinde kalmasını sağlar ve "arka plan kayması" şikayetini
+  giderir.  
+*/
+body{
+  background-attachment:fixed;
+  background-repeat:no-repeat;
+  background-size:cover;
+}
+
+/*
+  Mobil ekranlarda kartlar arasındaki boşlukları azaltıyor, KPI kartlarını
+  sarılabilir hale getiriyoruz. Öğretmen KPI satırları yan yana sığmadığı
+  durumlarda satırlar düzgün hizalanıyor.  
+*/
+@media (max-width:480px){
+  :root{
+    --gap:14px;
+  }
+  .teacher-kpis{
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .kpi-card{
+    flex:1 1 45%;
+    min-width:140px;
+  }
 }
 </style>
   <!-- PWA -->
