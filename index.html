@@ -2254,6 +2254,13 @@ await loadSheets(); buildSlotOrder();
     UI.app.classList.remove('hidden');
     UI.btnLogout.classList.remove('hidden');
 
+    // Fix: Admin yoklama anahtarı bazen ilk açılışta "donuk" kalabiliyordu.
+    // Neden: initAttendanceConfigListener(), session restore/login'den önce çalışıp
+    // applyAttendanceConfigToUI() içinde canAdmin=false ayarlıyor; bu da switch'e
+    // aria-disabled="true" verip pointer-events'i kapatıyor. Session sonradan gelince
+    // UI tekrar uygulanmadığı için switch kilitli kalıyordu.
+    try{ applyAttendanceConfigToUI(); }catch(e){}
+
     // önce tüm zamanlayıcıyı sıfırla
     clearInterval(teacherRefreshTimer);
     teacherRefreshTimer = null;
