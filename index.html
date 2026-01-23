@@ -933,6 +933,15 @@ div.admin-filters .button-row {
               <option value="hepsi">Hepsi</option>
             </select>
           </label>
+          <!-- Yeni: Yoklama aktif/pasif (Tatil Modu) -->
+          <label class="row" for="admAttendanceEnabled" title="Yoklama sistemini aktif/pasif yap">
+            <span class="muted">Yoklama:</span>
+            <span class="row" style="gap:10px;">
+              <input id="admAttendanceEnabled" type="checkbox" />
+              <span id="admAttendanceState" class="muted">Aktif</span>
+            </span>
+          </label>
+
         </div>
 
         <div class="button-row" role="group" aria-label="İşlem butonları">
@@ -1023,7 +1032,7 @@ div.admin-filters .button-row {
     dayjs.locale('tr');
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
 
     const firebaseConfig = {
@@ -1108,6 +1117,9 @@ div.admin-filters .button-row {
       admProgram: document.getElementById('admProgram'),
       admPagination: document.getElementById('admPagination'),
 
+      admAttendanceEnabled: document.getElementById('admAttendanceEnabled'),
+      admAttendanceState: document.getElementById('admAttendanceState'),
+
       // Homework & Quiz UI (teacher)
       homeworkCard: document.getElementById('homeworkCard'),
       hwTitle: document.getElementById('hwTitle'),
@@ -1178,6 +1190,120 @@ let tempAtt={};
 let teacherRefreshTimer=null;
 let teacherLessonsToday=[];
 let notifyTimers=[];
+
+
+// Attendance (Yoklama) enable/disable (Admin -> Firebase config)
+let attendanceEnabled = true;               // varsayılan: aktif
+let attendanceConfigReady = false;          // config okundu mu?
+let attendancePanelMode = 'normal';         // 'normal' | 'holiday'
+
+// Config path in RTDB
+const ATT_CFG_PATH = 'config/attendanceEnabled';
+
+function setAttendancePanelControlsVisible(visible){
+  const show = !!visible;
+  const elLabel = document.getElementById('cfgDefaultVarChk')?.closest('label');
+  [UI.allVar, UI.allYok, UI.undoBtn, UI.saveBtn, elLabel].forEach(el=>{
+    if(!el) return;
+    el.style.display = show ? '' : 'none';
+  });
+  if(UI.sumBar) UI.sumBar.style.display = show ? '' : 'none';
+}
+
+function showHolidayMode(lesson){
+  attendancePanelMode = 'holiday';
+  currentLesson = lesson || currentLesson;
+
+  UI.attCard.classList.remove('hidden');
+
+  const info = currentLesson
+    ? `${currentLesson.sinif} • ${currentLesson.dersName} • ${(currentLesson.saatNo?ordinal(currentLesson.saatNo):('Saat '+currentLesson.saatKodu))} (${currentLesson.bas||''}-${currentLesson.bit||''}) • ${currentLesson.ogretmenAd}`
+    : '';
+
+  UI.attTitle.textContent = `🛑 Tatil Modu — Yoklama Kapalı${info ? ' • '+info : ''}`;
+
+  // Kontrolleri gizle, yalnızca İptal görünsün
+  setAttendancePanelControlsVisible(false);
+
+  // Öğrenci/yoklama listesi görünmesin; yerine bilgilendirme yazısı
+  UI.studentList.innerHTML = `
+    <li class="muted" style="list-style:none;padding:14px;border:var(--stroke);border-radius:12px;background:rgba(2,6,23,.03);">
+      Yoklama şu anda <b>pasif</b>. Yönetici panelinden tekrar <b>aktif</b> edildiğinde yoklama ekranı normal şekilde çalışacaktır.
+    </li>
+  `;
+  // İptal butonu her zaman görünür kalsın
+  const cancelBtn = document.getElementById('cancelBtn');
+  if(cancelBtn) cancelBtn.style.display = '';
+  if(UI.sumBar) UI.sumBar.innerHTML = '';
+}
+
+function restoreNormalAttendanceUI(){
+  attendancePanelMode = 'normal';
+  setAttendancePanelControlsVisible(true);
+}
+
+function applyAttendanceConfigToUI(){
+  // Admin UI
+  if(UI.admAttendanceEnabled){
+    UI.admAttendanceEnabled.checked = !!attendanceEnabled;
+    UI.admAttendanceEnabled.disabled = !(session && session.role === 'admin');
+  }
+  if(UI.admAttendanceState){
+    UI.admAttendanceState.textContent = attendanceEnabled ? 'Aktif' : 'Pasif';
+  }
+
+  // Teacher: açık panel varsa, moda göre görünümü güncelle
+  if(!attendanceEnabled){
+    if(!UI.attCard.classList.contains('hidden')){
+      showHolidayMode(currentLesson);
+    }
+  }else{
+    // Eğer panel tatil modunda açık kaldıysa, kullanıcıyı yönlendir
+    if(!UI.attCard.classList.contains('hidden') && attendancePanelMode === 'holiday'){
+      UI.studentList.innerHTML = `
+        <li class="muted" style="list-style:none;padding:14px;border:var(--stroke);border-radius:12px;background:rgba(2,6,23,.03);">
+          Yoklama tekrar <b>aktif</b> edildi. Lütfen <b>İptal</b> ile çıkıp dersi yeniden açınız.
+        </li>
+      `;
+    }
+  }
+}
+
+function initAttendanceConfigListener(){
+  try{
+    onValue(ref(db, ATT_CFG_PATH), (snap)=>{
+      const v = snap.val();
+      attendanceEnabled = (v === null || v === undefined) ? true : !!v;
+      attendanceConfigReady = true;
+      applyAttendanceConfigToUI();
+      if(session?.role === 'ogretmen' && !UI.teacherView.classList.contains('hidden')){
+        refreshLessonChips?.();
+      }
+    }, (err)=>{
+      console.error('attendance cfg onValue error', err);
+      attendanceEnabled = true;
+      attendanceConfigReady = true;
+      applyAttendanceConfigToUI();
+    });
+  }catch(e){
+    console.error('initAttendanceConfigListener error', e);
+    attendanceEnabled = true;
+    attendanceConfigReady = true;
+  }
+}
+
+async function setAttendanceEnabledRemote(enabled){
+  const updates = {};
+  updates[ATT_CFG_PATH] = !!enabled;
+  updates['config/attendanceUpdatedAt'] = Date.now();
+  updates['config/attendanceUpdatedBy'] = safe(session?.role || '');
+  if(navigator.onLine){
+    await update(ref(db), updates);
+  }else{
+    queueOfflineWrite('/', updates);
+  }
+}
+
 
 
     // Parent filters and displayed lists (for homework & quizzes)
@@ -1700,7 +1826,10 @@ function refreshVisibleView(){
       // Kaldığın yerden devam: scroll konumunu sakla/geri yükle
       setupScrollPersistence();
       const app = initializeApp(firebaseConfig); appFB=app; db=getDatabase(appFB);
-      await loadSheets(); buildSlotOrder();
+      
+      // Yoklama aktif/pasif durumunu dinle (Admin -> Firebase)
+      initAttendanceConfigListener();
+await loadSheets(); buildSlotOrder();
 
       const cached = localStorage.getItem('session');
       if(cached){ session = JSON.parse(cached); enterApp(); scheduleRestoreScroll(); }
@@ -1743,7 +1872,29 @@ function refreshVisibleView(){
       UI.admHour?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       // Program filtresi değişikliği
       UI.admProgram?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
-      // Sayfalama düğmeleri tıklaması
+      
+
+      // Admin: Yoklama aktif/pasif (Tatil Modu)
+      UI.admAttendanceEnabled?.addEventListener('change', async ()=>{
+        if(!session || session.role !== 'admin'){
+          UI.admAttendanceEnabled.checked = !!attendanceEnabled;
+          return;
+        }
+        const enabled = !!UI.admAttendanceEnabled.checked;
+        attendanceEnabled = enabled; // UI anında güncellensin
+        applyAttendanceConfigToUI();
+        try{
+          await setAttendanceEnabledRemote(enabled);
+          Swal.fire('Kaydedildi', enabled ? 'Yoklama aktif edildi.' : 'Yoklama pasif edildi (Tatil Modu).', 'success');
+        }catch(e){
+          console.error(e);
+          Swal.fire('Hata','Ayar kaydedilemedi.','error');
+          UI.admAttendanceEnabled.checked = !enabled;
+          attendanceEnabled = !enabled;
+          applyAttendanceConfigToUI();
+        }
+      });
+// Sayfalama düğmeleri tıklaması
       UI.admPagination?.addEventListener('click', (e) => {
         const btn = e.target.closest('.page-btn');
         if(!btn) return;
@@ -2138,12 +2289,12 @@ async function showTeacherToday(){
     UI.noLesson?.classList.add('hidden');
   }
 
-  const takenSet = await getTakenSetTodayForTeacher();
+  const takenSet = attendanceEnabled ? await getTakenSetTodayForTeacher() : new Set();
   const gecikenYoklamalar = [];
 
   UI.lessonsGrid.innerHTML = mine.map((m,i)=>{
     const hasTaken = takenSet.has(`${m.sinif}|${m.saatKodu}`);
-    const st = lessonStatusInfo(m, hasTaken);
+        const st = attendanceEnabled ? lessonStatusInfo(m, hasTaken) : { chip:'future', text:'Tatil Modu' };
 
     const now = nowTR();
     const basSaati = parseOnDate(toDateStr(now), m.bas);
@@ -2236,7 +2387,7 @@ async function showTeacherToday(){
     }
 
     async function refreshLessonChips(){
-      const takenSet = await getTakenSetTodayForTeacher();
+      const takenSet = attendanceEnabled ? await getTakenSetTodayForTeacher() : new Set();
       const cards = Array.from(UI.lessonsGrid.querySelectorAll('.lesson'));
       cards.forEach(card=>{
         const bas = card.getAttribute('data-bas')||'';
@@ -2245,7 +2396,7 @@ async function showTeacherToday(){
         const saatKodu = card.getAttribute('data-saatkodu')||'';
         const hasTaken = takenSet.has(`${sinif}|${saatKodu}`);
         card.setAttribute('data-taken', hasTaken?'1':'0');
-        const st = lessonStatusInfo({ bas, bit }, hasTaken);
+                const st = attendanceEnabled ? lessonStatusInfo({ bas, bit }, hasTaken) : { chip:'future', text:'Tatil Modu' };
         const chip = card.querySelector('.chip'); chip.textContent = st.text; chip.className = 'chip '+st.chip;
       });
     }
@@ -2279,6 +2430,33 @@ async function refreshTeacherDailyKpis(dateStr){
 async function openLesson(lesson){
   currentLesson = lesson;
   UI.attCard.classList.remove('hidden');
+  // Config henüz gelmediyse: bir kez DB'den oku (race condition önle)
+  if(!attendanceConfigReady){
+    try{
+      const snapCfg = await get(ref(db, ATT_CFG_PATH));
+      const vCfg = snapCfg.val();
+      attendanceEnabled = (vCfg === null || vCfg === undefined) ? true : !!vCfg;
+      attendanceConfigReady = true;
+      applyAttendanceConfigToUI();
+    }catch(e){ console.error(e); }
+  }
+
+  // Yoklama pasifse: Tatil Modu ekranı (öğrenci/yoklama listesi görünmesin)
+  if(attendanceConfigReady && !attendanceEnabled){
+    showHolidayMode(lesson);
+    focusAndScroll(UI.attCard, UI.studentList);
+    return;
+  }
+  // Ek güvenlik
+  if(!attendanceEnabled){
+    showHolidayMode(lesson);
+    focusAndScroll(UI.attCard, UI.studentList);
+    return;
+  }
+
+  // Normal mod: kontrolleri geri getir
+  restoreNormalAttendanceUI();
+
   UI.attTitle.textContent = `📝 Yoklama — ${lesson.sinif} • ${lesson.dersName} • ${lesson.saatNo?ordinal(lesson.saatNo):('Saat '+lesson.saatKodu)} (${lesson.bas||''}-${lesson.bit||''}) • ${lesson.ogretmenAd}`;
 
   const lessonGroup = safe(lesson.grup);
@@ -2410,6 +2588,8 @@ async function openLesson(lesson){
 
 
   function closeAttendance(){
+      // bir sonraki açılış için UI'ı varsayılan hale getir
+      restoreNormalAttendanceUI();
       UI.attCard.classList.add('hidden');
       UI.studentList.innerHTML = '';
       currentLesson = null;
@@ -2443,6 +2623,11 @@ async function openLesson(lesson){
 
 async function saveAttendance(){
   if(!currentLesson) return;
+  if(attendanceConfigReady && !attendanceEnabled){
+    Swal.fire('Tatil Modu','Yoklama şu anda pasif. Yönetici panelinden aktif edildiğinde kayıt alabilirsiniz.','info');
+    showHolidayMode(currentLesson);
+    return;
+  }
   const tarih = toDateStr(nowTR());
   const sinif = currentLesson.sinif;
   const pathBase = attPath(tarih, sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
@@ -2499,6 +2684,11 @@ async function saveAttendance(){
 }
 async function undoAttendance(){
   if(!currentLesson) return;
+  if(attendanceConfigReady && !attendanceEnabled){
+    Swal.fire('Tatil Modu','Yoklama şu anda pasif.','info');
+    showHolidayMode(currentLesson);
+    return;
+  }
   const tarih = toDateStr(nowTR());
   const sinif = currentLesson.sinif;
   const base = attPath(tarih, sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
