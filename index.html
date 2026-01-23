@@ -733,6 +733,206 @@ div.admin-filters .button-row {
 .collapsible-body[hidden]{
   display:none;
 }
+
+/* === Mobile Alignment & Theme Patch (2026-01-24) === */
+/* Header: session texts should remain readable on orange gradient */
+header .muted{ color: rgba(255,255,255,.9) !important; }
+header #userChip{ color: rgba(255,255,255,.98) !important; font-weight:800; letter-spacing:.2px; }
+header #netText{ color: rgba(255,255,255,.92) !important; }
+header .dot{ box-shadow: 0 0 0 3px rgba(255,255,255,.10); }
+
+/* Logout button in header — match mobile pill style */
+header #btnLogout{
+  border:1px solid rgba(255,255,255,.38) !important;
+  background: rgba(255,255,255,.22) !important;
+  color: rgba(15,23,42,.95) !important;
+  padding: 10px 18px !important;
+  border-radius: 16px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.18) !important;
+}
+header #btnLogout:hover{ background: rgba(255,255,255,.28) !important; }
+
+/* Light theme: warmer background similar to screenshots */
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#fff7ed;
+    --panel:#fff;
+    --card:#fff;
+    --ink:#0f172a;
+    --muted:#667085;
+    --shadow:0 14px 34px rgba(2,6,23,.10);
+    --stroke:1px solid rgba(2,6,23,.08);
+    --glass:rgba(255,255,255,.92);
+  }
+  body{
+    background:
+      radial-gradient(1200px 700px at 20% -20%, rgba(249,115,22,.18), transparent 55%),
+      radial-gradient(1000px 520px at 110% 20%, rgba(251,146,60,.16), transparent 60%),
+      linear-gradient(180deg, rgba(251,146,60,.10), transparent 35%),
+      var(--bg);
+  }
+}
+
+/* Teacher KPI bars (Katılım/Yoklama/Geç) — mobile-first, full-width strips */
+.teacher-kpis{
+  display:grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+  margin: 12px 16px 6px 16px !important;
+}
+.kpi-card{
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(2,6,23,.10);
+  border-radius: 16px;
+  padding: 16px 16px;
+  min-width: 0 !important;
+  box-shadow: 0 12px 28px rgba(2,6,23,.08);
+}
+.kpi-card .kpi-label{ font-size: 1.05rem; font-weight: 600; }
+.kpi-card .kpi-value{ font-size: 1.9rem; font-weight: 800; letter-spacing: .2px; }
+.kpi-green{ border-top: 6px solid var(--ok) !important; }
+.kpi-red{ border-top: 6px solid var(--bad) !important; }
+.kpi-orange{ border-top: 6px solid var(--warn) !important; }
+/* Wider screens: allow 3 columns */
+@media (min-width: 860px){
+  .teacher-kpis{ grid-template-columns: repeat(3, minmax(0, 1fr)) !important; margin: 12px 16px 0 16px !important; }
+  .kpi-card .kpi-value{ font-size: 1.6rem; }
+}
+
+/* Lesson cards: clearer edges & chip like screenshot */
+.lesson{
+  border: 2px solid rgba(2,6,23,.08) !important;
+  background: rgba(255,255,255,.94) !important;
+  border-radius: 18px !important;
+}
+.lesson:hover{ border-color: rgba(249,115,22,.45) !important; }
+.chip{
+  background: rgba(148,163,184,.16);
+  border: 1px solid rgba(148,163,184,.28);
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+@media (prefers-color-scheme: light){
+  .chip{
+    background:#f3f4f6;
+    border-color:#e5e7eb;
+    color:#111827;
+  }
+}
+
+/* Collapsible cards (Ödev/Quiz Yönetimi): title row + pill toggle like screenshot */
+.collapsible-card h3{
+  padding: 16px 16px !important;
+  background: linear-gradient(90deg, rgba(251,146,60,.12), transparent 70%) !important;
+  border-bottom: var(--stroke);
+}
+.collapsible-card .card-toggle{
+  background: rgba(243,244,246,.9) !important;
+  border: 1px solid rgba(148,163,184,.35) !important;
+  border-radius: 999px !important;
+  padding: 10px 14px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+}
+.collapsible-card .card-toggle .toggle-label{ font-weight: 800; }
+.collapsible-card .card-toggle-icon{ font-size: .95rem !important; }
+
+/* Checkbox group: larger tap targets, consistent alignment */
+.checkbox-group{
+  gap: 14px !important;
+  align-items:center;
+}
+.checkbox-group label{
+  gap: 8px !important;
+  font-weight: 700;
+}
+.checkbox-group input[type="checkbox"]{
+  width: 20px;
+  height: 20px;
+  accent-color: var(--brand);
+}
+
+/* Admin panel: filters should align as a 2-column form on mobile/tablet */
+.admin-filters .filter-row{
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  gap: 14px !important;
+  align-items: start !important;
+}
+@media (max-width: 720px){
+  .admin-filters .filter-row{ grid-template-columns: 1fr !important; }
+}
+/* New stacked label style */
+.admin-filters .adm-field{
+  display:flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+  width: 100%;
+}
+.admin-filters .adm-field > span{
+  font-weight: 700;
+  color: rgba(15,23,42,.65);
+}
+@media (prefers-color-scheme: dark){
+  .admin-filters .adm-field > span{ color: rgba(255,255,255,.78); }
+}
+/* Attendance inline field (Yoklama: YOK/VAR) */
+.admin-filters .adm-inline-field{
+  display:flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100%;
+}
+.admin-filters .adm-inline-field .adm-inline{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Admin buttons row: allow wrap, keep spacing consistent */
+.admin-filters .button-row{
+  display:flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  align-items:center !important;
+}
+/* Admin button variants to match screenshot */
+.btn.admin-soft{
+  background: rgba(251,146,60,.35) !important;
+  color: rgba(124,45,18,.95) !important;
+  box-shadow: none !important;
+}
+.btn.admin-solid{
+  background: linear-gradient(135deg,var(--brand),var(--brand-2)) !important;
+  color: rgba(15,23,42,.95) !important;
+}
+.btn.admin-ghost{
+  background: rgba(255,255,255,.90) !important;
+  border: 1px solid rgba(148,163,184,.40) !important;
+  color: rgba(15,23,42,.92) !important;
+  box-shadow: none !important;
+}
+@media (prefers-color-scheme: dark){
+  .btn.admin-ghost{
+    background: rgba(148,163,184,.10) !important;
+    color: var(--ink) !important;
+  }
+}
+
+/* Footer as a centered card (instead of full-width bar) */
+.site-footer{
+  max-width: var(--maxw);
+  margin: 26px auto 12px;
+  border-radius: 18px;
+  border: var(--stroke);
+  background: var(--glass);
+  box-shadow: var(--shadow);
+}
+
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -823,7 +1023,7 @@ div.admin-filters .button-row {
                   aria-expanded="false"
                   aria-controls="hwBody">
             <span class="toggle-label">Aç</span>
-            <span class="card-toggle-icon">▾</span>
+            <span class="card-toggle-icon">▸</span>
           </button>
         </h3>
         <div class="body stack collapsible-body" id="hwBody" hidden>
@@ -878,7 +1078,7 @@ div.admin-filters .button-row {
                   aria-expanded="false"
                   aria-controls="qzBody">
             <span class="toggle-label">Aç</span>
-            <span class="card-toggle-icon">▾</span>
+            <span class="card-toggle-icon">▸</span>
           </button>
         </h3>
         <div class="body stack collapsible-body" id="qzBody" hidden>
@@ -982,17 +1182,17 @@ div.admin-filters .button-row {
       <!-- ↓ ESKİ: <div class="row no-print" ...> BLOĞUNUN YERİNE AŞAĞIDAKİYİ KOY ↓ -->
       <div class="admin-filters no-print" role="group" aria-label="Tarih ve filtreler">
         <div class="filter-row" role="group" aria-label="Filtreler">
-          <label class="row" for="admDate" title="Rapor tarihi">
+          <label class="adm-field" for="admDate" title="Rapor tarihi">
             <span class="muted">Tarih:</span>
             <input id="admDate" class="input" type="date" aria-label="Tarih seçici" />
           </label>
 
-          <label class="row" for="admClass" title="Sınıf seç">
+          <label class="adm-field" for="admClass" title="Sınıf seç">
             <span class="muted">Sınıf:</span>
             <select id="admClass" class="input" aria-label="Sınıf filtresi"></select>
           </label>
 
-          <label class="row" for="admStatus" title="Durum seç">
+          <label class="adm-field" for="admStatus" title="Durum seç">
             <span class="muted">Durum:</span>
             <select id="admStatus" class="input" aria-label="Durum filtresi">
               <option value="hepsi">Hepsi</option>
@@ -1002,7 +1202,7 @@ div.admin-filters .button-row {
             </select>
           </label>
 
-          <label class="row" for="admHour" title="Ders saati seç">
+          <label class="adm-field" for="admHour" title="Ders saati seç">
             <span class="muted">Ders Saati:</span>
             <select id="admHour" class="input" aria-label="Ders saati filtresi">
               <option value="1" selected>1. saat</option>
@@ -1013,42 +1213,44 @@ div.admin-filters .button-row {
             </select>
           </label>
           <!-- Yeni: Program filtresi -->
-          <label class="row" for="admProgram" title="Program seç">
+          <label class="adm-field" for="admProgram" title="Program seç">
             <span class="muted">Program:</span>
             <select id="admProgram" class="input" aria-label="Program filtresi">
               <option value="hepsi">Hepsi</option>
             </select>
           </label>
           <!-- Yeni: Yoklama aktif/pasif (Tatil Modu) -->
-          <label class="row" title="Yoklama sistemini aktif/pasif yap">
+          
+          <label class="adm-inline-field" title="Yoklama sistemini aktif/pasif yap">
             <span class="muted">Yoklama:</span>
-            <span class="att-switch" id="admAttendanceSwitch" aria-disabled="false">
-              <input id="admAttendanceEnabled" type="checkbox" aria-label="Yoklama VAR/YOK" />
-              <span class="att-slider" aria-hidden="true">
-                <span class="att-text att-text-off">YOK</span>
-                <span class="att-text att-text-on">VAR</span>
+            <div class="adm-inline">
+              <span class="att-switch" id="admAttendanceSwitch" aria-disabled="false">
+                <input id="admAttendanceEnabled" type="checkbox" aria-label="Yoklama VAR/YOK" />
+                <span class="att-slider" aria-hidden="true">
+                  <span class="att-text att-text-off">YOK</span>
+                  <span class="att-text att-text-on">VAR</span>
+                </span>
               </span>
-            </span>
-            <span id="admAttendanceState" class="muted" style="margin-left:6px;">Aktif</span>
+              <span id="admAttendanceState" class="muted" style="margin-left:6px;">Aktif</span>
+            </div>
           </label>
-
-        </div>
+</div>
 
         <div class="button-row" role="group" aria-label="İşlem butonları">
           <button class="btn whatsBtn" id="admWhatsApp" type="button" title="WhatsApp raporu gönder">
           <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
           </button>
-          <button class="btn" id="admTeacherReport" type="button" title="Öğretmen uyum raporu">Öğrt. Uyum</button>
-          <button class="btn" id="admStudentStats" type="button" title="Öğrenci istatistiği">Öğrenci İstatistiği</button>
-          <button class="btn danger" id="admHistory" type="button" title="Eski kayıtları görüntüle/sil">Eski Kayıtlar</button>
+          <button class="btn admin-soft" id="admTeacherReport" type="button" title="Öğretmen uyum raporu">Öğrt. Uyum</button>
+          <button class="btn admin-solid" id="admStudentStats" type="button" title="Öğrenci istatistiği">Öğrenci İstatistiği</button>
+          <button class="btn admin-solid danger" id="admHistory" type="button" title="Eski kayıtları görüntüle/sil">Eski Kayıtlar</button>
 
           <!-- Yeni: Ödev ve Quiz rapor düğmeleri -->
-          <button class="btn" id="admHomeworksBtn" type="button" title="Ödev raporları">Ödevler</button>
-          <button class="btn" id="admQuizzesBtn" type="button" title="Quiz raporları">Quizler</button>
+          <button class="btn admin-soft" id="admHomeworksBtn" type="button" title="Ödev raporları">Ödevler</button>
+          <button class="btn admin-soft" id="admQuizzesBtn" type="button" title="Quiz raporları">Quizler</button>
 
           <span style="flex:1"></span><!-- butonları sağa/sola yaymak için -->
-          <button class="btn ghost" id="admRefresh" type="button">Yenile</button>
-          <button class="btn" id="admPrint" type="button">Yazdır</button>
+          <button class="btn admin-ghost" id="admRefresh" type="button">Yenile</button>
+          <button class="btn admin-solid" id="admPrint" type="button">Yazdır</button>
         </div>
       </div>
 <!-- PRINT: Özet sayfa (sadece yazdırda görünür) -->
@@ -1786,6 +1988,10 @@ await loadSheets(); buildSlotOrder();
           hwToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           const lbl = hwToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
+          const ic = qzToggle.querySelector('.card-toggle-icon');
+          if (ic) ic.textContent = expanded ? '▾' : '▸';
+          const ic = hwToggle.querySelector('.card-toggle-icon');
+          if (ic) ic.textContent = expanded ? '▾' : '▸';
 
           // Kart kapanırken alt detay kartını da kapat
           if (collapsed && UI.hwControlCard) {
