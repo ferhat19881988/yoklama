@@ -1005,6 +1005,10 @@ div.admin-filters .button-row {
           <label class="row" for="admHour" title="Ders saati seç">
             <span class="muted">Ders Saati:</span>
             <select id="admHour" class="input" aria-label="Ders saati filtresi">
+              <option value="1" selected>1. saat</option>
+              <option value="2">2. saat</option>
+              <option value="3">3. saat</option>
+              <option value="4">4. saat</option>
               <option value="hepsi">Hepsi</option>
             </select>
           </label>
@@ -1718,15 +1722,15 @@ await loadSheets(); buildSlotOrder();
       UI.admRefresh?.addEventListener('click', refreshAdmin);
       UI.admWhatsApp?.addEventListener('click', sendWhatsAppReport);
       // Filtreler değiştiğinde sayfa numaralarını sıfırla ve listeyi tazele
-      UI.admClass?.addEventListener('change', () => { admClassPage = 1; admPage = 1; updateAdminHourOptions(); refreshAdmin(); });
+      UI.admClass?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       UI.admStatus?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
-      UI.admDate?.addEventListener('change', () => { admClassPage = 1; admPage = 1; updateAdminHourOptions(); refreshAdmin(); });
+      UI.admDate?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       UI.admTeacherReport?.addEventListener('click', openTeacherReportModal);
       UI.admStudentStats?.addEventListener('click', openStudentStatsModal);
       UI.admHistory?.addEventListener('click', openHistoryModal);
       UI.admHour?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       // Program filtresi değişikliği
-      UI.admProgram?.addEventListener('change', () => { admClassPage = 1; admPage = 1; updateAdminHourOptions(); refreshAdmin(); });
+      UI.admProgram?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       
 
       // Admin: Yoklama aktif/pasif (Tatil Modu)
@@ -2788,7 +2792,7 @@ async function loadParentRange(kind){
         }).join('');
         UI.admProgram.value = 'hepsi';
       }
-      updateAdminHourOptions(); // ders planına göre saat seçeneklerini doldur
+      UI.admHour && (UI.admHour.value = '1'); // ilk açılış: 1. saat
       refreshAdmin();
     }
 function getAdminFilters(){
@@ -2796,87 +2800,12 @@ function getAdminFilters(){
     date: UI.admDate.value || toDateStr(nowTR()),
     cls: UI.admClass.value || 'hepsi',
     status: UI.admStatus.value || 'hepsi',
-    hour: UI.admHour?.value || 'hepsi',  // varsayılan: Hepsi
+    hour: UI.admHour?.value || '1',  // varsayılan 1. saat
     program: UI.admProgram?.value || 'hepsi'
   };
 }
 
-/* --- Admin: Ders Saati seçeneklerini ders planına göre dinamik doldur --- */
-function dayNameFromDateStr(dateStr){
-  try{
-    const d = dayjs.tz(dateStr, 'YYYY-MM-DD');
-    return turkishDays[d.day()];
-  }catch(e){
-    return todayNameTR();
-  }
-}
-function classMatchesAdminFilter(rowSinif, cls){
-  if(!cls || cls==='hepsi') return true;
-  const s = safe(rowSinif);
-  if(s===safe(cls)) return true;
-  const parts = s.split(/[-–]/).map(x=>x.trim()).filter(Boolean);
-  return parts.includes(safe(cls));
-}
-function computeAdminPlanHours(dateStr, cls, program){
-  const dayName = dayNameFromDateStr(dateStr).toLocaleLowerCase('tr-TR');
-  const hours = new Set();
-  for(const r of (schedule||[])){
-    if(safe(r.GUN).toLocaleLowerCase('tr-TR') !== dayName) continue;
-    if(!classMatchesAdminFilter(r.SINIF, cls)) continue;
-
-    const rowProg = safe(r.PROGRAM);
-    if(program && program!=='hepsi' && rowProg !== safe(program)) continue;
-
-    const pForOrder = (program && program!=='hepsi') ? program : rowProg;
-    const n = (typeof slotOrderGet === 'function') ? slotOrderGet(safe(r.SAAT_KODU), pForOrder) : null;
-    if(n) hours.add(Number(n));
-  }
-  return Array.from(hours).filter(n=>Number.isFinite(n) && n>0).sort((a,b)=>a-b);
-}
-function fallbackAdminHours(program){
-  let maxN = 0;
-  if(program && program!=='hepsi' && slotOrderMapByProgram?.get){
-    const m = slotOrderMapByProgram.get(program);
-    if(m && typeof m.size === 'number') maxN = m.size;
-  }else if(slotOrderMapByProgram && slotOrderMapByProgram.forEach){
-    slotOrderMapByProgram.forEach((m)=>{
-      if(m && typeof m.size === 'number') maxN = Math.max(maxN, m.size);
-    });
-  }else if(slotOrderMap && typeof slotOrderMap.size === 'number'){
-    maxN = slotOrderMap.size;
-  }
-  if(maxN<=0) maxN = 4; // en azından boş kalmasın
-  return Array.from({length:maxN},(_,i)=>i+1);
-}
-function updateAdminHourOptions(){
-  if(!UI?.admHour) return;
-  const dateStr = UI.admDate?.value || toDateStr(nowTR());
-  const clsVal  = UI.admClass?.value || 'hepsi';
-  const progVal = UI.admProgram?.value || 'hepsi';
-  const current = UI.admHour.value || '';
-
-  let list = computeAdminPlanHours(dateStr, clsVal, progVal);
-  if(!list.length){
-    list = fallbackAdminHours(progVal);
-  }
-
-  const opts = list.map(n => ({v:String(n), t:`${n}. saat`}));
-  // En sonda "Hepsi"
-  opts.push({v:'hepsi', t:'Hepsi'});
-
-  UI.admHour.innerHTML = opts.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
-
-  // Seçimi koru (mümkünse)
-  const values = new Set(opts.map(o=>o.v));
-  if(values.has(current)) UI.admHour.value = current;
-  else {
-    const first = opts.find(o => o.v !== 'hepsi')?.v || 'hepsi';
-    UI.admHour.value = first;
-  }
-}
-
 async function refreshAdmin(){
-  updateAdminHourOptions();
   const {date, cls, status, hour, program} = getAdminFilters();
 
   // Skeleton: liste yüklenirken boş ekran yerine iskelet göster
@@ -2985,23 +2914,21 @@ async function refreshAdmin(){
     });
   }
 
-  // Program seçeneklerini güncelle: ders planındaki mevcut programları kullan
-if (UI.admProgram) {
-  const currentProgVal = UI.admProgram.value || 'hepsi';
-  const progs = Array.from((typeof slotOrderMapByProgram !== 'undefined' && slotOrderMapByProgram && slotOrderMapByProgram.keys) ? slotOrderMapByProgram.keys() : []);
-  const progOptions = ['hepsi', ...progs.filter(p => p).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}))];
-  UI.admProgram.innerHTML = progOptions.map(p => {
-    const lbl = p === 'hepsi' ? 'Hepsi' : labelProgram(p);
-    return `<option value="${p}">${lbl}</option>`;
-  }).join('');
-  UI.admProgram.value = progOptions.includes(currentProgVal) ? currentProgVal : 'hepsi';
-}
-
-// Program değişmiş olabileceği için saatleri yeniden doldur
-updateAdminHourOptions();
-
-// Güncellenen program filtresini yeniden al
-const { program: selProgram } = getAdminFilters();
+  // Program seçeneklerini güncelle: tüm kayıtlar üzerinden benzersiz program kodlarını topla
+  if (UI.admProgram) {
+    const progSet = new Set(rows.map(r => r.program).filter(p => p));
+    const currentProgVal = UI.admProgram.value || 'hepsi';
+    const progOptions = ['hepsi', ...Array.from(progSet).sort((a,b) => a.localeCompare(b,'tr',{numeric:true}))];
+    const progHtml = progOptions.map(p => `<option value="${p}">${p}</option>`).join('');
+    UI.admProgram.innerHTML = progHtml;
+    if (progOptions.includes(currentProgVal)) {
+      UI.admProgram.value = currentProgVal;
+    } else {
+      UI.admProgram.value = 'hepsi';
+    }
+  }
+  // Güncellenen program filtresini yeniden al
+  const { program: selProgram } = getAdminFilters();
 
   // Sıralama
   const filteredRowsByProg = (selProgram && selProgram !== 'hepsi') ? rows.filter(r => r.program === selProgram) : rows;
