@@ -733,198 +733,6 @@ div.admin-filters .button-row {
 .collapsible-body[hidden]{
   display:none;
 }
-
-/* =========================================================
-   Design Refresh Patch (Renk/Glass/Tipografi/Spacing/Mobil)
-   ========================================================= */
-
-/* 4px tabanlı spacing scale */
-:root{
-  --space-1:4px;
-  --space-2:8px;
-  --space-3:12px;
-  --space-4:16px;
-  --space-5:24px;
-  --space-6:32px;
-
-  /* Nötr yüzeyler: katman hissini artır */
-  --bg:#0b1018;
-  --panel:#0f1623;
-  --card:#121b2b;
-  --surface-3:#162033;
-
-  /* Daha yumuşak sınırlar + ring */
-  --stroke:0.5px solid rgba(148,163,184,.16);
-  --glass:rgba(255,255,255,.04);
-  --shadow:0 14px 40px rgba(0,0,0,.45);
-  --ring:0 0 0 3px rgba(249,115,22,.22);
-
-  /* Düzen */
-  --gap:16px;
-}
-
-/* Açık tema ince ayarı */
-@media (prefers-color-scheme: light){
-  :root{
-    --bg:#f7f8fc;
-    --panel:#ffffff;
-    --card:#ffffff;
-    --surface-3:#f1f5f9;
-    --stroke:0.5px solid rgba(2,6,23,.10);
-    --glass:rgba(255,255,255,.78);
-    --shadow:0 14px 36px rgba(2,6,23,.10);
-  }
-}
-
-/* Arka plan kontrastını yumuşat (brand sadece aksiyonlarda kalsın) */
-body{
-  background:
-    radial-gradient(1200px 640px at -10% -10%, rgba(249,115,22,.10), transparent 62%),
-    radial-gradient(1000px 520px at 120% 0%, rgba(251,146,60,.10), transparent 62%),
-    radial-gradient(900px 500px at 50% 110%, rgba(148,163,184,.10), transparent 60%),
-    var(--bg);
-}
-
-/* Header: brand yerine nötr, cam hissi */
-header{
-  background: rgba(15,22,35,.72);
-  color: var(--ink);
-  backdrop-filter: saturate(160%) blur(12px);
-  -webkit-backdrop-filter: saturate(160%) blur(12px);
-}
-@media (prefers-color-scheme: light){
-  header{ background: rgba(255,255,255,.82); }
-}
-.logo-text, #userChip{ color: inherit; }
-#userChip{ color: rgba(231,233,238,.80); }
-@media (prefers-color-scheme: light){
-  #userChip{ color: var(--muted); }
-}
-
-/* Tipografi: tabular nums (sayısal hizalama) */
-.mono,
-.table,
-.table th,
-.table td,
-.kpi-value,
-#kpiTop,#kpiVar,#kpiYok,#dashVar,#dashYok,#dashGec{
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1, "lnum" 1;
-}
-
-/* Başlık hiyerarşisi: daha net boşluk + daha nötr arka plan */
-.card h3{
-  padding: var(--space-4) var(--space-4);
-  font-size: 1.1rem;
-  font-weight: 800;
-  background: linear-gradient(180deg, rgba(148,163,184,.10), transparent 70%);
-  border-bottom: var(--stroke);
-}
-.card .body{ padding: var(--space-4); }
-
-/* Spacing standardizasyonu */
-.container{ margin: var(--space-5) auto; }
-main#app{ gap: var(--gap); }
-.row{ gap: var(--space-3); }
-.stack{ gap: var(--space-3); }
-.grid{ gap: var(--space-4); }
-
-/* Glassmorphism: sadece kartlarda kalsın; input & tablolar daha solid olsun */
-.card{ background: var(--glass); }
-.input{
-  background: var(--card);
-  border: var(--stroke);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-}
-@media (prefers-color-scheme: light){
-  .input{ background: #ffffff; box-shadow: inset 0 1px 0 rgba(2,6,23,.03); }
-}
-.input::placeholder{ color: rgba(154,163,178,.85); }
-.input:focus-visible{
-  border-color: rgba(249,115,22,.35);
-  box-shadow: var(--ring);
-}
-
-/* Mobil dokunma hedefi */
-@media (max-width:600px){
-  .input, select.input, .btn{ min-height: 44px; }
-}
-
-/* Mikro etkileşim: basılma hissi */
-.btn:active{ transform: translateY(0) scale(.98); }
-
-/* Tablo: cam değil, daha opak ve okunur */
-.table{
-  background: var(--card);
-  border: var(--stroke);
-  border-radius: 14px;
-  overflow: hidden;
-  min-width: 0; /* modallar için */
-}
-.table thead th{
-  background: var(--surface-3);
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-.table tbody tr:nth-child(even){
-  background: rgba(148,163,184,.06);
-}
-@media (prefers-color-scheme: light){
-  .table tbody tr:nth-child(even){
-    background: rgba(2,6,23,.03);
-  }
-}
-.table th,.table td{
-  border-bottom: 1px solid rgba(148,163,184,.18);
-}
-
-/* Küçük ekranlarda tabloyu karta çevir (overflow-x yerine tek elle UX) */
-@media (max-width:600px){
-  .table{ border: none; background: transparent; }
-  .table thead{ display: none; }
-  .table tbody{ display: block; }
-  .table tbody tr{
-    display: block;
-    border: var(--stroke);
-    border-radius: 14px;
-    background: var(--card);
-    padding: 12px 12px;
-    margin-bottom: 12px;
-    box-shadow: 0 8px 22px rgba(0,0,0,.18);
-  }
-  @media (prefers-color-scheme: light){
-    .table tbody tr{ box-shadow: 0 10px 26px rgba(2,6,23,.10); }
-  }
-  .table tbody td{
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    border: none;
-    padding: 8px 0;
-    text-align: right;
-  }
-  .table tbody td::before{
-    content: attr(data-label);
-    flex: 0 0 auto;
-    color: var(--muted);
-    font-weight: 600;
-    text-align: left;
-    padding-right: 10px;
-  }
-}
-
-/* .table-wrap davranışı: masaüstünde scroll kalsın, mobilde kart görünümü devreye girsin */
-.table-wrap .table{ min-width: 720px; }
-@media (max-width:600px){
-  .table-wrap .table{ min-width: 0; }
-}
-
-/* Admin filtreleri biraz daha nefes alsın */
-div.admin-filters{ gap: var(--space-3) !important; }
-div.admin-filters .filter-row{ gap: var(--space-3) !important; }
-div.admin-filters .button-row{ gap: var(--space-2) !important; }
-
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -3177,14 +2985,14 @@ async function refreshAdmin(){
       const saatCell = r.saat || '';
 
       return `<tr class="${rowClass}">
-        <td data-label="No">${r.no}</td>
-        <td data-label="Ad Soyad">${r.ad}</td>
-        <td data-label="Sınıf">${r.sinif}</td>
-        <td data-label="Durum">${dTxt}</td>
-        <td data-label="Geç">${gecCell}</td>
-        <td data-label="Ders">${r.ders || ''}</td>
-        <td data-label="Saat">${saatCell}</td>
-        <td data-label="Öğretmen">${r.ogretmen || ''}</td>
+        <td>${r.no}</td>
+        <td>${r.ad}</td>
+        <td>${r.sinif}</td>
+        <td>${dTxt}</td>
+        <td>${gecCell}</td>
+        <td>${r.ders || ''}</td>
+        <td>${saatCell}</td>
+        <td>${r.ogretmen || ''}</td>
       </tr>`;
     }).join('');
   // Boş liste kontrolü: mevcut sayfada kayıt yoksa gizle göster
@@ -3723,7 +3531,7 @@ async function showStudentReport(no, name){
       ${
         lateRows.length
         ? `<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${
-            lateRows.map(r=> `<tr><td data-label="Tarih">${fmtDate(r.tarih)}</td><td data-label="Sınıf">${r.cls}</td><td data-label="Öğretmen">${r.ogretmen}</td><td data-label="Ders">${r.ders}</td><td data-label="Saat">${fmtSaat(r)}</td></tr>`).join('')
+            lateRows.map(r=> `<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')
           }</tbody></table>`
         : `<div class="muted">Kayıtlı “geç” bulunamadı.</div>`
       }
@@ -3736,7 +3544,7 @@ async function showStudentReport(no, name){
       ${
         homeworkList.length
         ? `<table class="table"><thead><tr><th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th></tr></thead><tbody>${
-            homeworkList.map(r=> `<tr><td data-label="Ödev">${r.title}</td><td data-label="Ders">${r.subject}</td><td data-label="Son Tarih">${r.dueStr}</td><td data-label="Öğretmen">${r.teacherName}</td><td data-label="Durum">${r.statusText}</td></tr>`).join('')
+            homeworkList.map(r=> `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.due}</td><td>${r.teacherName}</td><td>${r.statusText}</td></tr>`).join('')
           }</tbody></table>`
         : `<div class="muted">Ödev bulunamadı.</div>`
       }
@@ -3749,7 +3557,7 @@ async function showStudentReport(no, name){
       ${
         quizList.length
         ? `<table class="table"><thead><tr><th>Quiz</th><th>Ders</th><th>Tarih</th><th>Öğretmen</th><th>Sonuç</th></tr></thead><tbody>${
-            quizList.map(r=> `<tr><td data-label="Quiz">${r.title}</td><td data-label="Ders">${r.subject}</td><td data-label="Tarih">${r.dateStr}</td><td data-label="Öğretmen">${r.teacherName}</td><td data-label="Sonuç">${r.resultText}</td></tr>`).join('')
+            quizList.map(r=> `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.date}</td><td>${r.teacherName}</td><td>${r.resultText}</td></tr>`).join('')
           }</tbody></table>`
         : `<div class="muted">Quiz bulunamadı.</div>`
       }
