@@ -1006,6 +1006,9 @@ div.admin-filters .button-row {
             <span class="muted">Ders Saati:</span>
             <select id="admHour" class="input" aria-label="Ders saati filtresi">
               <option value="1" selected>1. saat</option>
+              <option value="2">2. saat</option>
+              <option value="3">3. saat</option>
+              <option value="4">4. saat</option>
               <option value="hepsi">Hepsi</option>
             </select>
           </label>
@@ -1719,15 +1722,15 @@ await loadSheets(); buildSlotOrder();
       UI.admRefresh?.addEventListener('click', refreshAdmin);
       UI.admWhatsApp?.addEventListener('click', sendWhatsAppReport);
       // Filtreler değiştiğinde sayfa numaralarını sıfırla ve listeyi tazele
-      UI.admClass?.addEventListener('change', () => { admClassPage = 1; admPage = 1; updateAdminHourOptions(); refreshAdmin(); });
+      UI.admClass?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       UI.admStatus?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
-      UI.admDate?.addEventListener('change', () => { admClassPage = 1; admPage = 1; updateAdminHourOptions(); refreshAdmin(); });
+      UI.admDate?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       UI.admTeacherReport?.addEventListener('click', openTeacherReportModal);
       UI.admStudentStats?.addEventListener('click', openStudentStatsModal);
       UI.admHistory?.addEventListener('click', openHistoryModal);
       UI.admHour?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       // Program filtresi değişikliği
-      UI.admProgram?.addEventListener('change', () => { admClassPage = 1; admPage = 1; updateAdminHourOptions(); refreshAdmin(); });
+      UI.admProgram?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       
 
       // Admin: Yoklama aktif/pasif (Tatil Modu)
@@ -2789,7 +2792,7 @@ async function loadParentRange(kind){
         }).join('');
         UI.admProgram.value = 'hepsi';
       }
-      updateAdminHourOptions('1'); // ilk açılış: saat seçeneklerini programa göre üret
+      UI.admHour && (UI.admHour.value = '1'); // ilk açılış: 1. saat
       refreshAdmin();
     }
 function getAdminFilters(){
@@ -2800,96 +2803,6 @@ function getAdminFilters(){
     hour: UI.admHour?.value || '1',  // varsayılan 1. saat
     program: UI.admProgram?.value || 'hepsi'
   };
-}
-
-
-// Admin: Ders saati seçeneklerini (gün + sınıf + program) ders programına göre dinamik üret
-function getAdminAvailableHours(dateStr, cls, program){
-  const date = dateStr || toDateStr(nowTR());
-  const dayName = turkishDays[dayjs(date).day()].toLocaleLowerCase('tr-TR');
-
-  let rows = Array.isArray(schedule) ? schedule.filter(r =>
-    safe(r.GUN).toLocaleLowerCase('tr-TR') === dayName
-  ) : [];
-
-  // sınıf filtresi (hepsi değilse)
-  if(cls && cls !== 'hepsi'){
-    rows = rows.filter(r => safe(r.SINIF) === cls);
-  }
-
-  // program filtresi (hepsi değilse)
-  if(program && program !== 'hepsi'){
-    rows = rows.filter(r => (safe(r.PROGRAM) || 'GENEL') === program);
-  }
-
-  const hs = new Set();
-  const addHour = (n)=>{
-    const v = parseInt(String(n||''), 10);
-    if(Number.isFinite(v) && v > 0) hs.add(v);
-  };
-
-  for(const r of rows){
-    const code = safe(r.SAAT_KODU);
-    const pr = (program && program !== 'hepsi') ? program : (safe(r.PROGRAM) || 'GENEL');
-
-    let h = slotOrderGet(code, pr);
-
-    // Slot tablosu varsa daha sağlam (program eşleşmesini de yakalar)
-    if(!h){
-      const sl = getSlotByCode(code, pr);
-      const slProg = safe(sl?.PROGRAM) || pr;
-      h = slotOrderGet(code, slProg);
-    }
-
-    // Son çare: kod içindeki rakam
-    if(!h){
-      const m = String(code||'').match(/\d+/);
-      if(m) h = parseInt(m[0], 10);
-    }
-
-    addHour(h);
-  }
-
-  // Eğer ders programından saat çıkmıyorsa (örn. tatil), slot listesinden üret
-  if(hs.size === 0){
-    const slotRows = Array.isArray(slots) ? slots : [];
-    for(const s of slotRows){
-      const pr = safe(s.PROGRAM) || 'GENEL';
-      if(program && program !== 'hepsi' && pr !== program) continue;
-      const code = safe(s.SAAT_KODU||s.KOD||s.ID);
-      addHour(slotOrderGet(code, pr));
-    }
-  }
-
-  return Array.from(hs).sort((a,b)=>a-b);
-}
-
-function updateAdminHourOptions(forceValue){
-  if(!UI?.admHour) return;
-
-  const f = getAdminFilters();
-  const prev = (typeof forceValue === 'string') ? forceValue : (UI.admHour.value || '1');
-
-  const hours = getAdminAvailableHours(f.date, f.cls, f.program);
-
-  const opts = hours.map(h => `<option value="${h}">${h}. saat</option>`);
-  opts.push('<option value="hepsi">Hepsi</option>');
-  UI.admHour.innerHTML = opts.join('');
-
-  // seçim koru / akıllı varsayılan
-  if(prev === 'hepsi'){
-    UI.admHour.value = 'hepsi';
-  }else{
-    const pv = parseInt(prev, 10);
-    if(hours.includes(pv)){
-      UI.admHour.value = String(pv);
-    }else if(hours.length){
-      const def = hours.includes(1) ? 1 : hours[0];
-      UI.admHour.value = String(def);
-    }else{
-      UI.admHour.value = 'hepsi';
-    }
-  }
 }
 
 async function refreshAdmin(){
@@ -5578,58 +5491,7 @@ function printParentQuizzes(){
   color: var(--brand-2);
 }
 
- 
-/* ===== Mobile Layout & Spacing Polish (v2026-01) ===== */
-/* Safe-area padding (iOS notch) + daha dengeli yatay boşluk */
-.container{
-  padding-left: calc(18px + env(safe-area-inset-left));
-  padding-right: calc(18px + env(safe-area-inset-right));
-  padding-bottom: calc(env(safe-area-inset-bottom));
-}
-main#app{ gap: clamp(14px, 3.6vw, var(--gap)) }
-.row{ gap: clamp(8px, 2.8vw, 12px) }
-.card h3{ font-size: clamp(1.02rem, 3.8vw, 1.15rem) }
-.card .body{ padding: clamp(14px, 3.8vw, 18px) }
-
-/* Öğrenci isimleri — okunabilirlik (önceki çok küçük değerleri düzeltir) */
-.student .name{
-  font-size: clamp(.95rem, 3.6vw, 1.05rem) !important;
-  line-height: 1.2;
-}
-
-/* Çok küçük ekranlarda buton ve ders kartı dokunmatik hedefleri */
-@media (max-width:480px){
-  .container{
-    padding-left: calc(12px + env(safe-area-inset-left));
-    padding-right: calc(12px + env(safe-area-inset-right));
-  }
-  .btn{ min-height:44px }
-  .btn.small{ min-height:38px }
-  .lesson{
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  .lesson .right{ margin-left: 0 }
-}
-
-/* Admin filtreleri: telefonda tek kolon, rahat hizalama */
-@media (max-width:560px){
-  div.admin-filters .filter-row{
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-  div.admin-filters .filter-row label.row{
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-  div.admin-filters .button-row .btn{
-    flex: 1 1 160px;
-  }
-}
-
-</style>
+ </style>
 <script>
 function getSlotByCode(code, program){
   const key = String(code||'').trim(); if(!key) return null;
