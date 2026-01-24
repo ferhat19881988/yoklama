@@ -27,7 +27,7 @@
       --ink:#e7e9ee; --muted:#9aa3b2;
       --ok:#22c55e; --bad:#ef4444; --warn:#f59e0b;
       --shadow:0 10px 30px rgba(0,0,0,.45);
-      --radius:16px; --radius-sm:12px; --maxw:1120px; --gap:18px;
+      --radius:16px; --radius-sm:12px; --maxw:1120px; --gap:4px;
       --stroke:1px solid rgba(255,255,255,.06);
       --glass:rgba(255,255,255,.03);
       --ring:0 0 0 3px rgba(249,115,22,.35);
@@ -141,6 +141,29 @@
     .center{ justify-content:center }
 
     .card{ background:var(--glass); border:var(--stroke); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden }
+
+    /* Kartlar: daha sıkı aralık + her kartta özgün arka plan (kayma hissini azaltır) */
+    .card{ position:relative; background:linear-gradient(180deg, rgba(255,255,255,.04), transparent 42%), var(--glass); }
+    .card::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      opacity:.95;
+      background:
+        radial-gradient(900px 420px at 0% 0%, var(--cardTint, rgba(249,115,22,.12)), transparent 62%),
+        radial-gradient(780px 380px at 100% 0%, var(--cardTint2, rgba(59,130,246,.10)), transparent 65%),
+        radial-gradient(820px 420px at 50% 120%, rgba(34,197,94,.06), transparent 60%);
+    }
+    .card > *{ position:relative; z-index:1; }
+
+    /* “Kendine özgün” arka plan döngüsü (parent bazında) */
+    #app .card:nth-of-type(6n+1){ --cardTint:rgba(249,115,22,.14);  --cardTint2:rgba(99,102,241,.10); }
+    #app .card:nth-of-type(6n+2){ --cardTint:rgba(34,197,94,.12);   --cardTint2:rgba(14,165,233,.10); }
+    #app .card:nth-of-type(6n+3){ --cardTint:rgba(244,63,94,.12);   --cardTint2:rgba(249,115,22,.10); }
+    #app .card:nth-of-type(6n+4){ --cardTint:rgba(59,130,246,.12);  --cardTint2:rgba(168,85,247,.10); }
+    #app .card:nth-of-type(6n+5){ --cardTint:rgba(245,158,11,.12);  --cardTint2:rgba(34,197,94,.10); }
+    #app .card:nth-of-type(6n+6){ --cardTint:rgba(168,85,247,.12);  --cardTint2:rgba(14,165,233,.10); }
     .card h3{ margin:0; padding:14px 16px; border-bottom:var(--stroke); font-size:1.05rem; font-weight:800; background:linear-gradient(90deg, rgba(249,115,22,.10), transparent 70%) }
     .card .body{ padding:16px }
 
@@ -167,16 +190,18 @@
 
     /* --- Modern VAR/YOK toggle (Admin: Yoklama Aktif/Pasif) --- */
     .att-switch{
+      --attW:84px;
       position:relative;
       display:inline-flex;
       align-items:center;
       gap:10px;
       user-select:none;
     }
+    .att-switch.wide{ --attW:120px; }
     .att-switch input{
       position:absolute;
       inset:0;
-      width:84px;
+      width:var(--attW);
       height:34px;
       opacity:0;
       cursor:pointer;
@@ -184,7 +209,7 @@
     }
     .att-slider{
       position:relative;
-      width:84px;
+      width:var(--attW);
       height:34px;
       border-radius:999px;
       border:var(--stroke);
@@ -223,7 +248,7 @@
       background:rgba(34,197,94,.18);
     }
     .att-switch input:checked + .att-slider::before{
-      transform:translateX(50px);
+      transform:translateX(calc(var(--attW) - 34px));
     }
     .att-switch[aria-disabled="true"]{ opacity:.55; pointer-events:none; }
 
@@ -494,6 +519,71 @@ div.admin-filters .button-row {
   div.admin-filters .button-row { gap: 6px !important; }
   div.admin-filters .filter-row label { min-width: 220px; }
 }
+
+/* ===== Admin: Özet Dashboard ===== */
+.holiday-banner{
+  border:1px solid rgba(245,158,11,.35);
+  background:linear-gradient(90deg, rgba(245,158,11,.14), rgba(249,115,22,.08));
+  border-radius:14px;
+  padding:12px 14px;
+  font-weight:700;
+}
+.holiday-banner .muted{ font-weight:600 }
+.adm-summary{ display:block; }
+.adm-summary.hidden{ display:none; }
+.adm-summary-grid{
+  display:grid;
+  gap:12px;
+  grid-template-columns:repeat(3, minmax(0,1fr));
+}
+@media (max-width: 980px){
+  .adm-summary-grid{ grid-template-columns:1fr; }
+}
+.adm-sum-card{
+  border:var(--stroke);
+  background:rgba(255,255,255,.03);
+  border-radius:16px;
+  overflow:hidden;
+}
+.adm-sum-card .head{
+  padding:14px 16px;
+  border-bottom:var(--stroke);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.adm-sum-card .head h4{ margin:0; font-size:1.05rem; font-weight:900; }
+.adm-sum-card .content{ padding:14px 16px; }
+.adm-sum-list{ margin:0; padding-left:18px; display:grid; gap:8px; }
+.adm-sum-list li{ line-height:1.35; }
+.adm-sum-empty{ color:var(--muted); }
+.adm-sum-kpi{
+  font-size:1.8rem;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+.adm-sum-sub{ color:var(--muted); font-weight:700; margin-top:6px; }
+.donut-wrap{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.donut{
+  --p:0;
+  width:130px; height:130px;
+  border-radius:999px;
+  background: conic-gradient(var(--brand) calc(var(--p) * 1%), rgba(148,163,184,.22) 0);
+  display:grid; place-items:center;
+  border:1px solid rgba(255,255,255,.08);
+}
+.donut .inner{
+  width:92px; height:92px;
+  border-radius:999px;
+  background:var(--panel);
+  border:var(--stroke);
+  display:grid; place-items:center;
+  text-align:center;
+}
+.donut .pct{ font-weight:900; font-size:1.25rem; }
+.donut .lbl{ font-size:.8rem; color:var(--muted); font-weight:700; }
+
 /* ---------- Print Summary ---------- */
 .print-sheet { display:none; }
 .ps-head { text-align:center; margin: 0 0 12px; }
@@ -1032,6 +1122,19 @@ div.admin-filters .button-row {
             <span id="admAttendanceState" class="muted" style="margin-left:6px;">Aktif</span>
           </label>
 
+          <!-- Yeni: Özet / Detay görünüm anahtarı -->
+          <label class="row" title="Admin görünümünü değiştir">
+            <span class="muted">Görünüm:</span>
+            <span class="att-switch wide" id="admSummarySwitch">
+              <input id="admSummaryToggle" type="checkbox" aria-label="Detay/Özet" />
+              <span class="att-slider" aria-hidden="true">
+                <span class="att-text att-text-off">Detay</span>
+                <span class="att-text att-text-on">Özet</span>
+              </span>
+            </span>
+            <span id="admViewState" class="muted" style="margin-left:6px;">Detay</span>
+          </label>
+
         </div>
 
         <div class="button-row" role="group" aria-label="İşlem butonları">
@@ -1072,7 +1175,63 @@ div.admin-filters .button-row {
   </table>
 </div>
 
-          <div class="print-area">
+
+      <!-- Tatil Modu uyarısı (hem Detay hem Özet görünümünde görünür) -->
+      <div id="admHolidayBanner" class="holiday-banner hidden" role="status" aria-live="polite">
+        Program pasif (Tatil Modu): Yoklama kayıtları şu an kapalı. Aktif edildiğinde normal şekilde çalışacaktır.
+      </div>
+
+      <!-- ÖZET: Dashboard (liste gizlenir, bu alan görünür) -->
+      <div id="admSummaryDash" class="adm-summary hidden" aria-label="Özet Dashboard">
+        <div class="adm-summary-grid">
+          <div class="adm-sum-card" aria-label="Gelmeyenler ve Geç Gelenler">
+            <div class="head">
+              <h4>📌 Gelmeyenler &amp; Geç Gelenler</h4>
+              <div class="muted" style="font-weight:800;">Sınıf • Saat</div>
+            </div>
+            <div class="content">
+              <ul id="admSumAbsLate" class="adm-sum-list"></ul>
+              <div id="admSumAbsLateEmpty" class="adm-sum-empty hidden">Kayıt bulunmuyor.</div>
+            </div>
+          </div>
+
+          <div class="adm-sum-card" aria-label="Yoklaması alınmamış dersler">
+            <div class="head">
+              <h4>⏱️ Yoklaması Alınmamış Dersler</h4>
+              <div class="muted" style="font-weight:800;">Başlangıç +30dk</div>
+            </div>
+            <div class="content">
+              <ul id="admSumMissingTeach" class="adm-sum-list"></ul>
+              <div id="admSumMissingTeachEmpty" class="adm-sum-empty hidden">Eksik yoklama yok.</div>
+            </div>
+          </div>
+
+          <div class="adm-sum-card" aria-label="Katılım özeti">
+            <div class="head">
+              <h4>📊 Katılım Özeti</h4>
+              <div class="muted" id="admSumTotalsSub" style="font-weight:800;">—</div>
+            </div>
+            <div class="content">
+              <div class="donut-wrap">
+                <div class="donut" id="admSumPie" style="--p:0">
+                  <div class="inner">
+                    <div class="pct" id="admSumPct">0%</div>
+                    <div class="lbl">Katılım</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="adm-sum-kpi" id="admSumTotals">0 / 0</div>
+                  <div class="adm-sum-sub" id="admSumBreakdown">Gelen: 0 • Gelmeyen: 0 • Geç: 0</div>
+                  <div class="adm-sum-sub" id="admSumUnknown">Eksik kayıt: 0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+          <div class="print-area" id="admDetailArea">
             <div class="table-wrap">
               <table class="table" aria-label="Öğrenci listesi">
                 <thead>
@@ -1206,6 +1365,24 @@ div.admin-filters .button-row {
       admProgram: document.getElementById('admProgram'),
       admPagination: document.getElementById('admPagination'),
 
+      // Admin: Özet/Detay görünümü
+      admSummaryToggle: document.getElementById('admSummaryToggle'),
+      admViewState: document.getElementById('admViewState'),
+      admHolidayBanner: document.getElementById('admHolidayBanner'),
+      admDetailArea: document.getElementById('admDetailArea'),
+      admMiniDash: document.getElementById('admMiniDash'),
+      admSummaryDash: document.getElementById('admSummaryDash'),
+      admSumAbsLate: document.getElementById('admSumAbsLate'),
+      admSumAbsLateEmpty: document.getElementById('admSumAbsLateEmpty'),
+      admSumMissingTeach: document.getElementById('admSumMissingTeach'),
+      admSumMissingTeachEmpty: document.getElementById('admSumMissingTeachEmpty'),
+      admSumTotals: document.getElementById('admSumTotals'),
+      admSumTotalsSub: document.getElementById('admSumTotalsSub'),
+      admSumBreakdown: document.getElementById('admSumBreakdown'),
+      admSumUnknown: document.getElementById('admSumUnknown'),
+      admSumPie: document.getElementById('admSumPie'),
+      admSumPct: document.getElementById('admSumPct'),
+
       admAttendanceEnabled: document.getElementById('admAttendanceEnabled'),
       admAttendanceState: document.getElementById('admAttendanceState'),
 
@@ -1260,6 +1437,23 @@ div.admin-filters .button-row {
     // admPage: Diğer filtreler aktifken (sınıf veya durum) 20 öğrencilik sayfalarda gezmek için
     let admPage = 1;
     let admClassPage = 1;
+
+    // Admin görünüm modu: 'detail' | 'summary'
+    let adminViewMode = (localStorage.getItem('admViewMode') || 'detail');
+    function setAdminViewMode(mode){
+      adminViewMode = (mode === 'summary') ? 'summary' : 'detail';
+      localStorage.setItem('admViewMode', adminViewMode);
+
+      const isSummary = adminViewMode === 'summary';
+      if(UI.admSummaryToggle) UI.admSummaryToggle.checked = isSummary;
+      if(UI.admViewState) UI.admViewState.textContent = isSummary ? 'Özet' : 'Detay';
+
+      // Alanları göster/gizle
+      UI.admDetailArea && UI.admDetailArea.classList.toggle('hidden', isSummary);
+      UI.admMiniDash && UI.admMiniDash.classList.toggle('hidden', isSummary);
+      UI.admSummaryDash && UI.admSummaryDash.classList.toggle('hidden', !isSummary);
+    }
+
 
     function updateTeacherKpis(toplam, v, y, g){
       const pct = (n, d) => d > 0 ? Math.round((n/d)*100) : 0;
@@ -1346,6 +1540,11 @@ function applyAttendanceConfigToUI(){
     UI.admAttendanceState.textContent = attendanceEnabled ? 'Aktif' : 'Pasif';
   }
 
+  // Admin: Tatil modunda hem Detay hem Özet alanında uyarı göster
+  if(UI.admHolidayBanner){
+    UI.admHolidayBanner.classList.toggle('hidden', !!attendanceEnabled);
+  }
+
   // Admin: Öğretmen Uyum Raporu tatil modunda devre dışı
   if(UI.admTeacherReport){
     UI.admTeacherReport.disabled = !attendanceEnabled;
@@ -1425,6 +1624,7 @@ async function setAttendanceEnabledRemote(enabled){
 const toDateStr = (dy) => dy.format('YYYY-MM-DD');
 const turkishDays = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
 const todayNameTR = () => turkishDays[nowTR().day()];
+const dayNameTRForDateStr = (dateStr) => turkishDays[dayjs.tz(dateStr).day()];
 const safe = (v)=> (v??'').toString().trim();
 const ordinal = (n)=> `${n}. Saat`;
 
@@ -1753,6 +1953,13 @@ await loadSheets(); buildSlotOrder();
           applyAttendanceConfigToUI();
         }
       });
+
+      // Admin: Özet/Detay görünümü
+      UI.admSummaryToggle?.addEventListener('change', ()=>{
+        setAdminViewMode(UI.admSummaryToggle.checked ? 'summary' : 'detail');
+        refreshAdmin();
+      });
+
 // Sayfalama düğmeleri tıklaması
       UI.admPagination?.addEventListener('click', (e) => {
         const btn = e.target.closest('.page-btn');
@@ -2793,6 +3000,8 @@ async function loadParentRange(kind){
         UI.admProgram.value = 'hepsi';
       }
       UI.admHour && (UI.admHour.value = '1'); // ilk açılış: 1. saat
+      // Özet/Detay görünümü uygula
+      setAdminViewMode(adminViewMode);
       refreshAdmin();
     }
 function getAdminFilters(){
@@ -3080,6 +3289,231 @@ async function refreshAdmin(){
     scope: { cls, status, hour, program },
     stats: { tVar, tYok, tGec, classes: classStats }
   };
+
+
+  // Özet dashboard (adminViewMode=summary ise görünür, ama her zaman güncellenir)
+  try{
+    renderAdminSummaryDashboard({
+      date,
+      cls,
+      program: selProgram,
+      dayData,
+      byNo,
+      studentPool
+    });
+  }catch(e){
+    console.error('renderAdminSummaryDashboard error', e);
+  }
+
+}
+
+
+function renderAdminSummaryDashboard(ctx){
+  const { date, cls, program, dayData, byNo, studentPool } = ctx || {};
+  if(!UI.admSummaryDash) return;
+
+  // ---------- Kart 1: Gelmeyenler & Geç Gelenler (No + Ad) ----------
+  const groups = new Map(); // key: sinif|hourNo -> {sinif,hourNo,abs:[],late:[]}
+
+  const hourFrom = (rec, saatKodu) => {
+    const h = rec?.saatNo ?? (() => {
+      const m = String(saatKodu||'').match(/\d+/);
+      return m ? parseInt(m[0],10) : null;
+    })();
+    return h || null;
+  };
+
+  const scan = (sinifKey, node) => {
+    Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
+      Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
+        Object.entries(byStudent||{}).forEach(([ogrNo, rec])=>{
+          const no = safe(ogrNo);
+          if(!byNo.has(no)) return;
+
+          const recProg = safe(rec?.program)||'';
+          if(program && program !== 'hepsi' && recProg !== program) return;
+
+          const hNo = hourFrom(rec, saatKodu);
+          const stu = byNo.get(no) || {ad:'', sinif:safe(sinifKey)};
+          const sinif = safe(stu.sinif || sinifKey);
+
+          const k = `${sinif}|${hNo||'?'}`;
+          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', abs:[], late:[] });
+
+          const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
+
+          if(rec?.durum === 'yok'){
+            groups.get(k).abs.push(lineBase);
+          }else if(rec?.durum === 'var' && rec?.late){
+            groups.get(k).late.push(lineBase);
+          }
+        });
+      });
+    });
+  };
+
+  if(cls === 'hepsi'){
+    Object.entries(dayData||{}).forEach(([sinifKey, node])=> scan(safe(sinifKey), node));
+  }else{
+    Object.entries(dayData||{}).forEach(([sinifKey, node])=>{
+      const parts = safe(sinifKey).split(/[-–]/).map(x=>x.trim());
+      if(parts.includes(cls)) scan(safe(sinifKey), node);
+    });
+  }
+
+  const groupArr = Array.from(groups.values())
+    .filter(g => g.abs.length || g.late.length)
+    .sort((a,b)=> (a.sinif + String(a.hourNo)).localeCompare(b.sinif + String(b.hourNo), 'tr', {numeric:true}));
+
+  if(UI.admSumAbsLate){
+    UI.admSumAbsLate.innerHTML = groupArr.slice(0, 18).map(g=>{
+      const abs = g.abs.slice(0, 6).join(', ');
+      const late = g.late.slice(0, 6).join(', ');
+      const moreAbs = g.abs.length > 6 ? ` +${g.abs.length-6}` : '';
+      const moreLate = g.late.length > 6 ? ` +${g.late.length-6}` : '';
+      const parts = [];
+      if(g.abs.length) parts.push(`❌ <span class="mono">${g.abs.length}</span> (${abs}${moreAbs})`);
+      if(g.late.length) parts.push(`⏰ <span class="mono">${g.late.length}</span> (${late}${moreLate})`);
+      return `<li><b>${g.sinif}</b> • ${g.hourNo}. Saat<br><span class="muted">${parts.join(' • ')}</span></li>`;
+    }).join('');
+    UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
+  }
+
+  // ---------- Kart 2: Yoklaması alınmamış öğretmenler (Başlangıç +30dk) ----------
+  const dayName = (dayNameTRForDateStr(date)||'').toLocaleLowerCase('tr-TR');
+  const slotByCodeProg = (code, prog) => {
+    const key = String(code||'').trim();
+    const p = String(prog||'').trim();
+    if(!key) return null;
+    let hit = slots.find(r =>
+      String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key &&
+      (r.PROGRAM??'').toString().trim()===p
+    );
+    if(hit) return hit;
+    return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key) || null;
+  };
+
+  const refNow = (date === toDateStr(nowTR()))
+    ? nowTR()
+    : parseOnDate(date, '23:59');
+
+  const hasAttendance = (lesson) => {
+    const clsWanted = safe(lesson.sinif);
+    const keys = Object.keys(dayData||{}).filter(k=>{
+      const kk = safe(k);
+      if(kk === clsWanted) return true;
+      return kk.split(/[-–]/).map(x=>x.trim()).includes(clsWanted);
+    });
+    for(const k of keys){
+      const node = dayData?.[k]?.[lesson.saatKodu]?.[lesson.ogretmenId];
+      if(node && typeof node === 'object' && Object.keys(node).length > 0) return true;
+    }
+    return false;
+  };
+
+  const missing = [];
+  schedule
+    .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR') === dayName)
+    .forEach(r=>{
+      const prog = safe(r.PROGRAM) || '';
+      if(program && program !== 'hepsi' && prog !== program) return;
+
+      const tInfo = teacherById(r.OGRETMEN_ID) || { id: safe(r.OGRETMEN_ID), name:'—', branch:'' };
+      const slot = slotByCodeProg(r.SAAT_KODU, prog) || {};
+      const bas = safe(slot.BASLANGIC);
+      const bit = safe(slot.BITIS);
+
+      const start = bas ? parseOnDate(date, bas) : null;
+      if(!start) return;
+
+      // 30 dk geçti mi?
+      if(refNow.isBefore(start.add(30,'minute'))) return;
+
+      const lesson = {
+        sinif: safe(r.SINIF),
+        saatKodu: safe(r.SAAT_KODU),
+        ogretmenId: safe(tInfo.id),
+        ogretmenAd: safe(tInfo.name),
+        dersName: lessonNameFromRow(r, tInfo),
+        bas, bit, program: prog
+      };
+
+      if(!hasAttendance(lesson)){
+        missing.push(lesson);
+      }
+    });
+
+  missing.sort((a,b)=> (a.bas||'').localeCompare(b.bas||'') || a.ogretmenAd.localeCompare(b.ogretmenAd,'tr'));
+
+  if(UI.admSumMissingTeach){
+    UI.admSumMissingTeach.innerHTML = missing.slice(0, 18).map(m=>{
+      const saatTxt = (m.bas && m.bit) ? `${m.bas}-${m.bit}` : (m.bas||'');
+      return `<li><b>${m.ogretmenAd}</b> — ${m.sinif} • ${m.dersName}<br><span class="muted">${saatTxt}${labelProgram(m.program)?` • ${labelProgram(m.program)}`:''}</span></li>`;
+    }).join('');
+    UI.admSumMissingTeachEmpty && UI.admSumMissingTeachEmpty.classList.toggle('hidden', missing.length > 0);
+  }
+
+  // ---------- Kart 3: Toplam / Katılım ----------
+  // present = (var + gec), absent=yok, unknown = kayıt yok
+  const agg = new Map(); // sinif#no -> {hasVarAny,hasYokAny,hasLateAny}
+  const ensure = (sinifKey, no) => {
+    const k = `${sinifKey}#${no}`;
+    if(!agg.has(k)) agg.set(k, { hasVarAny:false, hasYokAny:false, hasLateAny:false });
+    return agg.get(k);
+  };
+  const scanAgg = (sinifKey, node) => {
+    Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
+      Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
+        Object.entries(byStudent||{}).forEach(([ogrNo, rec])=>{
+          const no = safe(ogrNo);
+          if(!byNo.has(no)) return;
+          const recProg = safe(rec?.program)||'';
+          if(program && program !== 'hepsi' && recProg !== program) return;
+
+          const S = ensure(safe(sinifKey), no);
+          if(rec?.durum === 'var'){
+            S.hasVarAny = true;
+            if(rec?.late) S.hasLateAny = true;
+          }else if(rec?.durum === 'yok'){
+            S.hasYokAny = true;
+          }
+        });
+      });
+    });
+  };
+  if(cls === 'hepsi'){
+    Object.entries(dayData||{}).forEach(([sinifKey, node])=> scanAgg(safe(sinifKey), node));
+  }else{
+    Object.entries(dayData||{}).forEach(([sinifKey, node])=>{
+      const parts = safe(sinifKey).split(/[-–]/).map(x=>x.trim());
+      if(parts.includes(cls)) scanAgg(safe(sinifKey), node);
+    });
+  }
+
+  let present = 0, absent = 0, late = 0;
+  for(const v of agg.values()){
+    if(v.hasVarAny && v.hasLateAny){ late++; present++; }
+    else if(!v.hasVarAny && v.hasYokAny){ absent++; }
+    else if(v.hasVarAny){ present++; }
+  }
+
+  const totalRegistered = Array.isArray(studentPool) ? studentPool.length : (byNo?.size || 0);
+  const known = present + absent;
+  const unknown = Math.max(0, totalRegistered - known);
+  const pct = totalRegistered ? Math.round((present / totalRegistered) * 100) : 0;
+
+  UI.admSumTotals && (UI.admSumTotals.textContent = `${present} / ${totalRegistered}`);
+  UI.admSumBreakdown && (UI.admSumBreakdown.textContent = `Gelen: ${present} • Gelmeyen: ${absent} • Geç: ${late}`);
+  UI.admSumUnknown && (UI.admSumUnknown.textContent = `Eksik kayıt: ${unknown}`);
+  UI.admSumPct && (UI.admSumPct.textContent = `${pct}%`);
+  if(UI.admSumPie){
+    UI.admSumPie.style.setProperty('--p', String(Math.max(0, Math.min(100, pct))));
+  }
+  if(UI.admSumTotalsSub){
+    const scope = (cls && cls !== 'hepsi') ? cls : 'Tüm sınıflar';
+    const progLbl = (program && program !== 'hepsi') ? labelProgram(program) : 'Tüm programlar';
+    UI.admSumTotalsSub.textContent = `${formatTurkishDate(date)} • ${scope} • ${progLbl}`;
+  }
 }
 
 
