@@ -3558,7 +3558,7 @@ function renderAdminSummaryDashboard(ctx){
 
 
   // ---------- Kart 1: Gelmeyenler & Geç Gelenler (No + Ad) ----------
-  const groups = new Map(); // key: sinif|hourNo -> {sinif,hourNo,abs:[],late:[]}
+  const groups = new Map(); // key: sinif|hourNo -> {sinif,hourNo,program,bas,bit,abs:[],late:[]}
 
   const hourFrom = (rec, saatKodu) => {
     const h = rec?.saatNo ?? (() => {
@@ -3566,6 +3566,27 @@ function renderAdminSummaryDashboard(ctx){
       return m ? parseInt(m[0],10) : null;
     })();
     return h || null;
+  };
+
+  // Saat aralığı (örn: 13:30-14:05) için: önce kayıttan dene, yoksa slots tablosundan bul.
+  const getTimeRange = (saatKodu, recProg, rec) => {
+    const b0 = String(rec?.bas ?? rec?.baslangic ?? rec?.start ?? '').trim();
+    const e0 = String(rec?.bit ?? rec?.bitis ?? rec?.end ?? '').trim();
+    if (b0 && e0) return { bas: b0, bit: e0 };
+    try{
+      const key = String(saatKodu||'').trim();
+      const p = String(recProg||'').trim();
+      const list = Array.isArray(slots) ? slots : [];
+      let hit = list.find(r =>
+        String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key &&
+        String(r.PROGRAM??'').toString().trim()===p
+      );
+      if(!hit) hit = list.find(r => String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key);
+      const b = String(hit?.BASLANGIC ?? hit?.BAS ?? hit?.START ?? '').trim();
+      const e = String(hit?.BITIS ?? hit?.BIT ?? hit?.END ?? '').trim();
+      if(b && e) return { bas: b, bit: e };
+    }catch{}
+    return { bas:'', bit:'' };
   };
 
   const scan = (sinifKey, node) => {
@@ -3583,7 +3604,14 @@ function renderAdminSummaryDashboard(ctx){
           const sinif = safe(stu.sinif || sinifKey);
 
           const k = `${sinif}|${hNo||'?'}`;
-          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', abs:[], late:[] });
+          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', program: recProg||'', bas:'', bit:'', abs:[], late:[] });
+          const g = groups.get(k);
+          // Program / saat aralığını ilk yakaladığımız değerlerle doldur
+          if(g && !g.program && recProg) g.program = recProg;
+          if(g && (!g.bas || !g.bit)){
+            const tr = getTimeRange(saatKodu, recProg, rec);
+            if(tr.bas && tr.bit){ g.bas = tr.bas; g.bit = tr.bit; }
+          }
 
           const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
 
@@ -3625,7 +3653,9 @@ function renderAdminSummaryDashboard(ctx){
         ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}${moreLate}</div>`
         : '';
 
-      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat</span></div>${absLine}${lateLine}</li>`;
+      const timeTxt = (g.bas && g.bit) ? ` (${g.bas}-${g.bit})` : '';
+      const progTxt = g.program ? ` • ${g.program}` : '';
+      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat${timeTxt}${progTxt}</span></div>${absLine}${lateLine}</li>`;
     }).join('');
     UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
   }
