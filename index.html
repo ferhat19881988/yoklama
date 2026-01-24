@@ -1582,7 +1582,7 @@ function applyAttendanceConfigToUI(){
     if(UI.dashGec && UI.dashGec.textContent === 'Tatil') UI.dashGec.textContent = '—';
     if(UI.admListBody){
       // Eğer tablo tatil mesajında kaldıysa, yükleme iskeleti göster
-      const cur = (UI.admListBody.textContent || '').toLowerCase('tr-TR');
+      const cur = (UI.admListBody.textContent || '').toLocaleLowerCase('tr-TR');
       if(cur.includes('tatil modu') || cur.includes('program pasif')){
         try{ UI.admListBody.innerHTML = adminTableSkeletonRows(10); }catch(_){ UI.admListBody.innerHTML = ''; }
       }
@@ -1592,7 +1592,6 @@ function applyAttendanceConfigToUI(){
   }
 
     if(UI.admPagination) UI.admPagination.innerHTML = '';
-  }
 
 // Admin: Öğretmen Uyum Raporu tatil modunda devre dışı
   if(UI.admTeacherReport){
@@ -1629,8 +1628,8 @@ function initAttendanceConfigListener(){
       attendanceEnabled = (v === null || v === undefined) ? true : !!v;
       attendanceConfigReady = true;
       applyAttendanceConfigToUI();
-            scheduleAdminRefreshFromCfg();
-if(session?.role === 'ogretmen' && !UI.teacherView.classList.contains('hidden')){
+      scheduleAdminRefreshFromCfg();
+      if(session?.role === 'ogretmen' && !UI.teacherView.classList.contains('hidden')){
         refreshLessonChips?.();
       }
     }, (err)=>{
@@ -1638,8 +1637,8 @@ if(session?.role === 'ogretmen' && !UI.teacherView.classList.contains('hidden'))
       attendanceEnabled = true;
       attendanceConfigReady = true;
       applyAttendanceConfigToUI();
-          scheduleAdminRefreshFromCfg();
-});
+      scheduleAdminRefreshFromCfg();
+    });
   }catch(e){
     console.error('initAttendanceConfigListener error', e);
     attendanceEnabled = true;
