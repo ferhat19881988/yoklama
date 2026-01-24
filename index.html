@@ -3558,7 +3558,7 @@ function renderAdminSummaryDashboard(ctx){
 
 
   // ---------- Kart 1: Gelmeyenler & Geç Gelenler (No + Ad) ----------
-  const groups = new Map(); // key: sinif|hourNo -> {sinif,hourNo,program,bas,bit,abs:[],late:[]}
+  const groups = new Map(); // key: sinif|hourNo -> {sinif,hourNo,abs:[],late:[]}
 
   const hourFrom = (rec, saatKodu) => {
     const h = rec?.saatNo ?? (() => {
@@ -3566,27 +3566,6 @@ function renderAdminSummaryDashboard(ctx){
       return m ? parseInt(m[0],10) : null;
     })();
     return h || null;
-  };
-
-  // Saat aralığı (örn: 13:30-14:05) için: önce kayıttan dene, yoksa slots tablosundan bul.
-  const getTimeRange = (saatKodu, recProg, rec) => {
-    const b0 = String(rec?.bas ?? rec?.baslangic ?? rec?.start ?? '').trim();
-    const e0 = String(rec?.bit ?? rec?.bitis ?? rec?.end ?? '').trim();
-    if (b0 && e0) return { bas: b0, bit: e0 };
-    try{
-      const key = String(saatKodu||'').trim();
-      const p = String(recProg||'').trim();
-      const list = Array.isArray(slots) ? slots : [];
-      let hit = list.find(r =>
-        String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key &&
-        String(r.PROGRAM??'').toString().trim()===p
-      );
-      if(!hit) hit = list.find(r => String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key);
-      const b = String(hit?.BASLANGIC ?? hit?.BAS ?? hit?.START ?? '').trim();
-      const e = String(hit?.BITIS ?? hit?.BIT ?? hit?.END ?? '').trim();
-      if(b && e) return { bas: b, bit: e };
-    }catch{}
-    return { bas:'', bit:'' };
   };
 
   const scan = (sinifKey, node) => {
@@ -3604,14 +3583,7 @@ function renderAdminSummaryDashboard(ctx){
           const sinif = safe(stu.sinif || sinifKey);
 
           const k = `${sinif}|${hNo||'?'}`;
-          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', program: recProg||'', bas:'', bit:'', abs:[], late:[] });
-          const g = groups.get(k);
-          // Program / saat aralığını ilk yakaladığımız değerlerle doldur
-          if(g && !g.program && recProg) g.program = recProg;
-          if(g && (!g.bas || !g.bit)){
-            const tr = getTimeRange(saatKodu, recProg, rec);
-            if(tr.bas && tr.bit){ g.bas = tr.bas; g.bit = tr.bit; }
-          }
+          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', abs:[], late:[] });
 
           const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
 
@@ -3653,9 +3625,7 @@ function renderAdminSummaryDashboard(ctx){
         ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}${moreLate}</div>`
         : '';
 
-      const timeTxt = (g.bas && g.bit) ? ` (${g.bas}-${g.bit})` : '';
-      const progTxt = g.program ? ` • ${g.program}` : '';
-      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat${timeTxt}${progTxt}</span></div>${absLine}${lateLine}</li>`;
+      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat</span></div>${absLine}${lateLine}</li>`;
     }).join('');
     UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
   }
@@ -4396,6 +4366,7 @@ async function showStudentReport(no, name){
       <button id="hDelSel" class="btn danger" type="button">Seçilileri Sil</button>
       <button id="hDelAll" class="btn danger" type="button">Bugünü Sil</button>
       <button id="hDelAllTime" class="btn danger" type="button">Tüm Zamanı Sil</button>
+      <button id="hResetAllData" class="btn danger" type="button" title="Yoklama + Ödev + Quiz verilerini tamamen sil">Her Şeyi Sil</button>
     </div>
 
     <div style="max-height:60vh;overflow:auto;">
@@ -4423,6 +4394,7 @@ async function showStudentReport(no, name){
     const btnSel    = h.querySelector('#hDelSel');
     const btnAll    = h.querySelector('#hDelAll');
     const btnAllTm  = h.querySelector('#hDelAllTime');
+    const btnResetAll = h.querySelector('#hResetAllData');
     const tbBody    = h.querySelector('#hTable tbody');
     const chkAll    = h.querySelector('#hAll');
 
@@ -4567,6 +4539,38 @@ async function showStudentReport(no, name){
         tbBody.innerHTML=''; h.querySelector('#hEmpty').classList.remove('hidden');
       }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
     });
+
+
+btnResetAll && btnResetAll.addEventListener('click', async ()=>{
+  const warn1 = await Swal.fire({
+    title:'Her Şeyi Sil',
+    html:'<div style="text-align:left;line-height:1.5">Bu işlem <b>geri alınamaz</b>.<br><br><b>Yoklama</b>, <b>Ödev</b> ve <b>Quiz</b> verilerinin tamamı Firebase üzerinde silinecek.</div>',
+    icon:'warning',
+    showCancelButton:true,
+    confirmButtonText:'Evet, sil',
+    cancelButtonText:'Vazgeç'
+  });
+  if(!warn1.isConfirmed) return;
+
+  const warn2 = await Swal.fire({
+    title:'Son Onay',
+    text:'Emin misiniz? Bu işlem geri alınamaz.',
+    icon:'question',
+    showCancelButton:true,
+    confirmButtonText:'Evet, devam et',
+    cancelButtonText:'Vazgeç'
+  });
+  if(!warn2.isConfirmed) return;
+
+  const wipe = { [ATT_ROOT]: null, homeworks: null, hwStatus: null, quizzes: null, qzResults: null };
+  try{
+    if(navigator.onLine){ await update(ref(db), wipe); await flushQueue(false); }
+    else{ queueOfflineWrite('/', wipe); }
+    setStatus('Tüm yoklama/ödev/quiz verileri sıfırlandı.','ok');
+    tbBody.innerHTML='';
+    h.querySelector('#hEmpty').classList.remove('hidden');
+  }catch(e){ console.error(e); Swal.fire('Hata','Sıfırlama sırasında sorun oluştu.','error'); }
+});
 
     loadList();
   }
@@ -5810,35 +5814,75 @@ async function loadParentQuizzes(){
 function openAdminHomeworks(){
   const classSet = new Set(students.map(s => safe(s.SINIF)).filter(Boolean));
   const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
-  const html = `
-  <div class="stack" style="text-align:left">
-    <div class="row" style="gap:10px;align-items:center;">
-      <label class="row"><span class="muted">Tarih:</span><input id="admHwDate" type="date" class="input" /></label>
-      <label class="row"><span class="muted">Sınıf:</span>
-        <select id="admHwClass" class="input">
-          <option value="hepsi">Hepsi</option>
-          ${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}
-        </select>
-      </label>
-      <button class="btn" id="admHwLoad" type="button">Yükle</button>
-      <button class="btn" id="admHwPrint" type="button">Yazdır</button>
-    </div>
+  
+const html = `
+<div class="stack" style="text-align:left">
+  <style>
+    .adm-rpt-wrap{ margin-top:10px; border:var(--stroke); border-radius:12px; overflow:auto; max-height:60vh; -webkit-overflow-scrolling:touch; }
+    table.adm-rpt{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; min-width:980px; border-radius:12px; overflow:hidden; }
+    table.adm-rpt th, table.adm-rpt td{ padding:10px 10px; border-bottom:var(--stroke); text-align:left; vertical-align:top; }
+    table.adm-rpt thead th{
+      position:sticky; top:0; z-index:1;
+      background:linear-gradient(90deg, rgba(249,115,22,.14), rgba(249,115,22,.05));
+      font-weight:800; font-size:12px; line-height:1.15;
+      white-space:normal; word-break:normal; overflow-wrap:break-word;
+    }
+    table.adm-rpt td{ font-size:13px; }
+    table.adm-rpt th.num, table.adm-rpt td.num{ text-align:center; }
+    table.adm-rpt tbody tr:hover{ background:rgba(255,255,255,.04) }
+    @media (prefers-color-scheme: light){ table.adm-rpt tbody tr:hover{ background:rgba(2,6,23,.035) } }
+    @media (max-width:600px){ table.adm-rpt{ min-width:900px } }
+  </style>
 
-    <table class="table" style="margin-top:8px;">
+  <div class="row" style="gap:10px;align-items:center;">
+    <label class="row"><span class="muted">Tarih:</span><input id="admHwDate" type="date" class="input" /></label>
+    <label class="row"><span class="muted">Sınıf:</span>
+      <select id="admHwClass" class="input">
+        <option value="hepsi">Hepsi</option>
+        ${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </label>
+    <button class="btn" id="admHwLoad" type="button">Yükle</button>
+    <button class="btn" id="admHwPrint" type="button">Yazdır</button>
+  </div>
+
+  <div class="adm-rpt-wrap">
+    <table class="adm-rpt" aria-label="Ödev raporları">
+      <colgroup>
+        <col style="width:28%">
+        <col style="width:12%">
+        <col style="width:7%">
+        <col style="width:14%">
+        <col style="width:12%">
+        <col style="width:5%">
+        <col style="width:6%">
+        <col style="width:5%">
+        <col style="width:6%">
+        <col style="width:5%">
+      </colgroup>
       <thead>
         <tr>
-          <th>Ödev</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Teslim</th>
-          <th>Yaptı</th><th>Yapmadı</th><th>Eksik</th><th>Kitap Yok</th><th>Gelmedi</th>
+          <th>Ödev</th>
+          <th>Ders</th>
+          <th>Sınıf</th>
+          <th title="Öğretmen">Öğrt.</th>
+          <th>Teslim</th>
+          <th class="num">Yaptı</th>
+          <th class="num" title="Yapmadı">Yapmadı</th>
+          <th class="num">Eksik</th>
+          <th class="num" title="Kitap Yok">Kitap</th>
+          <th class="num">Gelmedi</th>
         </tr>
       </thead>
       <tbody id="admHwBody"></tbody>
     </table>
   </div>
-  `;
+</div>
+`;
   Swal.fire({
     title: 'Ödev Raporları',
     html,
-    width: Math.min(innerWidth-40, 1000),
+    width: Math.min(innerWidth-24, 1200),
     showConfirmButton: false,
     showCloseButton: true,
     didOpen: bind
@@ -5892,11 +5936,11 @@ function openAdminHomeworks(){
             <td>${r.cls}</td>
             <td>${r.teacher}</td>
             <td>${r.due ? formatDateTRLong(r.due) : '-'}</td>
-            <td>${r.counts.yapti}</td>
-            <td>${r.counts.yapmadi}</td>
-            <td>${r.counts.eksik}</td>
-            <td>${r.counts.kitap}</td>
-            <td>${r.counts.gelmedi}</td>
+            <td class="num">${r.counts.yapti}</td>
+            <td class="num">${r.counts.yapmadi}</td>
+            <td class="num">${r.counts.eksik}</td>
+            <td class="num">${r.counts.kitap}</td>
+            <td class="num">${r.counts.gelmedi}</td>
           </tr>`).join('');
       }else{
         tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
