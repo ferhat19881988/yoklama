@@ -1526,6 +1526,23 @@ function restoreNormalAttendanceUI(){
   setAttendancePanelControlsVisible(true);
 }
 
+// Admin: Tatil Modu / Görünüm değişikliklerinde listeyi hemen tazele (neden: UI anında güncellensin)
+let _admCfgRefreshTimer = null;
+function scheduleAdminRefreshFromCfg(){
+  try{
+    if(_admCfgRefreshTimer) clearTimeout(_admCfgRefreshTimer);
+    _admCfgRefreshTimer = setTimeout(()=>{
+      _admCfgRefreshTimer = null;
+      // Sadece admin ekranı açıksa (gereksiz DB okumasını önlemek için)
+      if(typeof refreshAdmin === 'function' && session?.role === 'admin' && UI?.adminView && !UI.adminView.classList.contains('hidden')){
+        refreshAdmin();
+      }
+    }, 50);
+  }catch(e){
+    console.error('scheduleAdminRefreshFromCfg error', e);
+  }
+}
+
 function applyAttendanceConfigToUI(){
   // Admin UI
   const canAdmin = !!(session && session.role === 'admin');
@@ -1557,6 +1574,23 @@ function applyAttendanceConfigToUI(){
     if(UI.admListBody){
       UI.admListBody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:16px;">Program pasif (Tatil Modu)</td></tr>`;
     }
+    if(UI.admPagination) UI.admPagination.innerHTML = '';
+  }else{
+    // Tatil modundan çıkınca eski "Tatil" etiketleri kalmasın; listeyi hemen tazele
+    if(UI.dashVar && UI.dashVar.textContent === 'Tatil') UI.dashVar.textContent = '—';
+    if(UI.dashYok && UI.dashYok.textContent === 'Tatil') UI.dashYok.textContent = '—';
+    if(UI.dashGec && UI.dashGec.textContent === 'Tatil') UI.dashGec.textContent = '—';
+    if(UI.admListBody){
+      // Eğer tablo tatil mesajında kaldıysa, yükleme iskeleti göster
+      const cur = (UI.admListBody.textContent || '').toLowerCase('tr-TR');
+      if(cur.includes('tatil modu') || cur.includes('program pasif')){
+        try{ UI.admListBody.innerHTML = adminTableSkeletonRows(10); }catch(_){ UI.admListBody.innerHTML = ''; }
+      }
+    }
+    // Admin ekranı açıksa listeyi hemen yeniden yükle
+    scheduleAdminRefreshFromCfg();
+  }
+
     if(UI.admPagination) UI.admPagination.innerHTML = '';
   }
 
@@ -1595,7 +1629,8 @@ function initAttendanceConfigListener(){
       attendanceEnabled = (v === null || v === undefined) ? true : !!v;
       attendanceConfigReady = true;
       applyAttendanceConfigToUI();
-      if(session?.role === 'ogretmen' && !UI.teacherView.classList.contains('hidden')){
+            scheduleAdminRefreshFromCfg();
+if(session?.role === 'ogretmen' && !UI.teacherView.classList.contains('hidden')){
         refreshLessonChips?.();
       }
     }, (err)=>{
@@ -1603,7 +1638,8 @@ function initAttendanceConfigListener(){
       attendanceEnabled = true;
       attendanceConfigReady = true;
       applyAttendanceConfigToUI();
-    });
+          scheduleAdminRefreshFromCfg();
+});
   }catch(e){
     console.error('initAttendanceConfigListener error', e);
     attendanceEnabled = true;
@@ -1949,6 +1985,13 @@ await loadSheets(); buildSlotOrder();
       
 
       // Admin: Yoklama aktif/pasif (Tatil Modu)
+      UI.admAttendanceEnabled?.addEventListener('input', ()=>{
+        // Neden: bazı cihazlarda 'change' gecikmeli tetiklenebiliyor; UI anında tepki versin
+        const enabled = !!UI.admAttendanceEnabled.checked;
+        attendanceEnabled = enabled;
+        applyAttendanceConfigToUI();
+        scheduleAdminRefreshFromCfg();
+      });
       UI.admAttendanceEnabled?.addEventListener('change', async ()=>{
         if(!session || session.role !== 'admin'){
           UI.admAttendanceEnabled.checked = !!attendanceEnabled;
@@ -1957,7 +2000,8 @@ await loadSheets(); buildSlotOrder();
         const enabled = !!UI.admAttendanceEnabled.checked;
         attendanceEnabled = enabled; // UI anında güncellensin
         applyAttendanceConfigToUI();
-        try{
+                scheduleAdminRefreshFromCfg();
+try{
           await setAttendanceEnabledRemote(enabled);
           Swal.fire('Kaydedildi', enabled ? 'Yoklama aktif edildi.' : 'Yoklama pasif edildi (Tatil Modu).', 'success');
         }catch(e){
@@ -1966,10 +2010,16 @@ await loadSheets(); buildSlotOrder();
           UI.admAttendanceEnabled.checked = !enabled;
           attendanceEnabled = !enabled;
           applyAttendanceConfigToUI();
-        }
+                    scheduleAdminRefreshFromCfg();
+}
       });
 
       // Admin: Özet/Detay görünümü
+      UI.admSummaryToggle?.addEventListener('input', ()=>{
+        // Neden: 'change' bazı ortamlarda gecikebilir; görünüm anında değişsin
+        setAdminViewMode(UI.admSummaryToggle.checked ? 'summary' : 'detail');
+      });
+
       UI.admSummaryToggle?.addEventListener('change', ()=>{
         setAdminViewMode(UI.admSummaryToggle.checked ? 'summary' : 'detail');
         refreshAdmin();
