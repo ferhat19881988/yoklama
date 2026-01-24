@@ -847,6 +847,163 @@ div.admin-filters .button-row {
 .collapsible-body[hidden]{
   display:none;
 }
+
+/* ===========================
+   MOBILE-FIRST ADMIN REDESIGN
+   Goal: telefon ekranında yatay taşma yok; kontrol alanı kompakt; liste alanı kendi içinde kayar.
+   =========================== */
+@media (max-width: 640px){
+
+  /* Admin kart iç boşlukları ve başlık */
+  #adminView .card h3{ padding:12px 14px; font-size:1.05rem; }
+  #adminView .card .body{ padding:12px; }
+
+  /* Filtre alanı: 2 sütun grid (küçük ekranda tek ekrana sığma) */
+  #adminView .admin-filters{ gap:10px !important; }
+  #adminView .admin-filters .filter-row{
+    display:grid !important;
+    grid-template-columns:repeat(2, minmax(0,1fr)) !important;
+    gap:10px !important;
+    align-items:stretch !important;
+  }
+
+  /* Label + input: alt alta (üstte etiket, altta kontrol) */
+  #adminView .admin-filters .filter-row label.row{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:4px !important;
+    align-items:stretch !important;
+    margin:0 !important;
+    width:100% !important;
+    min-width:0 !important;
+  }
+  #adminView .admin-filters .filter-row label.row > .muted{
+    font-size:.78rem !important;
+    line-height:1.1;
+  }
+
+  /* Kontroller: daha kısa, daha okunaklı */
+  #adminView .admin-filters .input{
+    padding:10px 12px !important;
+    border-radius:12px !important;
+    min-height:40px;
+  }
+
+  /* Toggle'lar daralsın */
+  #adminView .admin-filters .att-switch{ --attW:72px; }
+  #adminView .admin-filters .att-switch.wide{ --attW:96px; }
+  #adminView .admin-filters .att-slider{ height:32px; }
+  #adminView .admin-filters .att-slider::before{ top:3px; width:26px; height:26px; }
+  #adminView .admin-filters .att-text{ font-size:.78rem; }
+  #adminView .admin-filters #admAttendanceState,
+  #adminView .admin-filters #admViewState{ display:none; } /* yer kazandır */
+
+  /* Butonlar: 3 sütun grid, küçük tipografi */
+  #adminView .admin-filters .button-row{
+    display:grid !important;
+    grid-template-columns:repeat(3, minmax(0,1fr)) !important;
+    gap:8px !important;
+    align-items:stretch !important;
+  }
+  #adminView .admin-filters .button-row > span{ display:none !important; } /* flex:1 spacer */
+
+  #adminView .admin-filters .button-row .btn{
+    width:100%;
+    padding:10px 10px;
+    border-radius:14px;
+    font-size:.82rem;
+    line-height:1.1;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #adminView .btn.whatsBtn{
+    width:100% !important;
+    height:40px !important;
+    padding:0 !important;
+    border-radius:14px !important;
+  }
+  #adminView .btn.whatsBtn img{ width:18px; height:18px; }
+
+  /* Detay alanı: ekran içinde kalsın, içerik burada kaydırılsın */
+  #adminView #admDetailArea{
+    max-height: 44dvh;
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+    border-radius:14px;
+  }
+
+  /* Admin tablosu: kart liste görünümü (yatay kaydırma yok) */
+  #adminView .table-wrap{ overflow:visible !important; }
+  #adminView table.table{ min-width:0 !important; border:0 !important; }
+  #adminView table.table thead{ display:none !important; }
+  #adminView table.table tbody{ display:block !important; }
+  #adminView table.table tbody tr{
+    display:block !important;
+    border:var(--stroke);
+    border-radius:14px;
+    background:rgba(255,255,255,.03);
+    padding:10px 12px;
+    margin:0 0 10px 0;
+  }
+  #adminView table.table tbody td{
+    display:flex !important;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    padding:6px 0 !important;
+    border:0 !important;
+    text-align:right; /* değerler sağda */
+  }
+  #adminView table.table tbody td::before{
+    font-weight:900;
+    color:var(--muted);
+    text-align:left;
+    content:"";
+  }
+  #adminView table.table tbody td:nth-child(1)::before{ content:"No"; }
+  #adminView table.table tbody td:nth-child(2)::before{ content:"Ad Soyad"; }
+  #adminView table.table tbody td:nth-child(3)::before{ content:"Sınıf"; }
+  #adminView table.table tbody td:nth-child(4)::before{ content:"Durum"; }
+  #adminView table.table tbody td:nth-child(5)::before{ content:"Geç"; }
+  #adminView table.table tbody td:nth-child(6)::before{ content:"Ders"; }
+  #adminView table.table tbody td:nth-child(7)::before{ content:"Saat"; }
+  #adminView table.table tbody td:nth-child(8)::before{ content:"Öğretmen"; }
+
+  /* Uzun adlar taşmasın */
+  #adminView table.table tbody td:nth-child(2){
+    text-align:right;
+    word-break:break-word;
+  }
+
+  /* Sayfalama kompakt */
+  #adminView #admPagination{ margin-top:6px; }
+  #adminView #admPagination .page-btn{
+    padding:6px 10px;
+    border-radius:10px;
+    font-size:.85rem;
+  }
+
+  /* Mini dashboard: 2+1 düzen */
+  #adminView #admMiniDash{
+    display:grid !important;
+    grid-template-columns:repeat(2, minmax(0,1fr)) !important;
+    gap:10px !important;
+  }
+  #adminView #admMiniDash .kpi{ padding:12px; }
+  #adminView #admMiniDash .kpi:nth-child(3){ grid-column:1 / -1; }
+
+  /* Özet dashboard kartları da sığsın */
+  #adminView .adm-summary-grid{ grid-template-columns:1fr !important; }
+}
+
+/* Daha dar ekran: filtreler tek sütun (çok küçük cihazlarda okunabilirlik) */
+@media (max-width: 420px){
+  #adminView .admin-filters .filter-row{ grid-template-columns:1fr !important; }
+  #adminView .admin-filters .button-row{ grid-template-columns:repeat(2, minmax(0,1fr)) !important; }
+  #adminView #admDetailArea{ max-height: 42dvh; }
+}
+
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
