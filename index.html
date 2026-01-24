@@ -1379,7 +1379,7 @@ div.admin-filters .button-row {
           <div class="adm-sum-card" aria-label="Yoklaması alınmamış dersler">
             <div class="head">
               <h4>⏱️ Yoklaması Alınmamış Dersler</h4>
-              <div class="muted" style="font-weight:800;">Başlangıç +30dk</div>
+              <div class="muted" style="font-weight:800;">30dk geçti...</div>
             </div>
             <div class="content">
               <ul id="admSumMissingTeach" class="adm-sum-list clean"></ul>
@@ -5818,20 +5818,60 @@ function openAdminHomeworks(){
 const html = `
 <div class="stack" style="text-align:left">
   <style>
-    .adm-rpt-wrap{ margin-top:10px; border:var(--stroke); border-radius:12px; overflow:auto; max-height:60vh; -webkit-overflow-scrolling:touch; }
-    table.adm-rpt{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; min-width:980px; border-radius:12px; overflow:hidden; }
-    table.adm-rpt th, table.adm-rpt td{ padding:10px 10px; border-bottom:var(--stroke); text-align:left; vertical-align:top; }
+        .adm-rpt-wrap{
+      margin-top:10px;
+      border:var(--stroke);
+      border-radius:12px;
+      overflow:auto;
+      max-height:65vh;
+      -webkit-overflow-scrolling:touch;
+    }
+    table.adm-rpt{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      table-layout:auto;          /* başlıkları kırmadan doğal genişlik */
+      min-width:1120px;           /* Ödev Raporları: kolonlar daralıp harf kırılmasın */
+      border-radius:12px;
+      overflow:hidden;
+    }
+    table.adm-rpt th, table.adm-rpt td{
+      padding:10px 10px;
+      border-bottom:var(--stroke);
+      text-align:left;
+      vertical-align:top;
+      white-space:nowrap;         /* genel olarak tek satır */
+    }
+    /* Ödev başlığı uzun olabilir: sadece ilk sütunda satır kırılabilir */
+    table.adm-rpt td:nth-child(1){
+      white-space:normal;
+      word-break:break-word;
+      overflow-wrap:anywhere;
+    }
     table.adm-rpt thead th{
-      position:sticky; top:0; z-index:1;
+      position:sticky;
+      top:0;
+      z-index:1;
       background:linear-gradient(90deg, rgba(249,115,22,.14), rgba(249,115,22,.05));
-      font-weight:800; font-size:12px; line-height:1.15;
-      white-space:normal; word-break:normal; overflow-wrap:break-word;
+      font-weight:800;
+      font-size:12px;
+      line-height:1.15;
+
+      /* kritik: başlıklarda harf/kelime kırılmasın */
+      white-space:nowrap;
+      word-break:keep-all;
+      overflow-wrap:normal;
+      hyphens:none;
     }
     table.adm-rpt td{ font-size:13px; }
     table.adm-rpt th.num, table.adm-rpt td.num{ text-align:center; }
     table.adm-rpt tbody tr:hover{ background:rgba(255,255,255,.04) }
-    @media (prefers-color-scheme: light){ table.adm-rpt tbody tr:hover{ background:rgba(2,6,23,.035) } }
-    @media (max-width:600px){ table.adm-rpt{ min-width:900px } }
+    @media (prefers-color-scheme: light){
+      table.adm-rpt tbody tr:hover{ background:rgba(2,6,23,.035) }
+    }
+    @media (max-width:600px){
+      table.adm-rpt{ min-width:1120px; }
+    }
   </style>
 
   <div class="row" style="gap:10px;align-items:center;">
@@ -5849,16 +5889,16 @@ const html = `
   <div class="adm-rpt-wrap">
     <table class="adm-rpt" aria-label="Ödev raporları">
       <colgroup>
-        <col style="width:28%">
-        <col style="width:12%">
-        <col style="width:7%">
-        <col style="width:14%">
-        <col style="width:12%">
-        <col style="width:5%">
-        <col style="width:6%">
-        <col style="width:5%">
-        <col style="width:6%">
-        <col style="width:5%">
+        <col style="width:340px">
+        <col style="width:110px">
+        <col style="width:70px">
+        <col style="width:140px">
+        <col style="width:110px">
+        <col style="width:70px">
+        <col style="width:80px">
+        <col style="width:70px">
+        <col style="width:70px">
+        <col style="width:80px">
       </colgroup>
       <thead>
         <tr>
@@ -5882,7 +5922,7 @@ const html = `
   Swal.fire({
     title: 'Ödev Raporları',
     html,
-    width: Math.min(innerWidth-24, 1200),
+    width: Math.min(innerWidth-24, 1400),
     showConfirmButton: false,
     showCloseButton: true,
     didOpen: bind
