@@ -58,10 +58,7 @@
     body{
       margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,"Noto Sans",sans-serif;
       color:var(--ink);
-      background:
-        radial-gradient(1400px 700px at -10% -10%, rgba(249,115,22,.18), transparent 60%),
-        radial-gradient(1200px 600px at 120% 0%, rgba(251,146,60,.18), transparent 60%),
-        var(--bg);
+      background: var(--bg);
       line-height:1.45;
       -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;
     }
@@ -534,7 +531,7 @@ div.admin-filters .button-row {
 .adm-summary-grid{
   display:grid;
   gap:12px;
-  grid-template-columns:repeat(3, minmax(0,1fr));
+  grid-template-columns:repeat(2, minmax(0,1fr));
 }
 @media (max-width: 980px){
   .adm-summary-grid{ grid-template-columns:1fr; }
@@ -557,6 +554,33 @@ div.admin-filters .button-row {
 .adm-sum-card .content{ padding:14px 16px; }
 .adm-sum-list{ margin:0; padding-left:18px; display:grid; gap:8px; }
 .adm-sum-list li{ line-height:1.35; }
+
+.adm-sum-list.clean{ padding-left:0; list-style:none; }
+.adm-sum-list.clean li{
+  padding:10px 12px;
+  border:var(--stroke);
+  border-radius:14px;
+  background:rgba(255,255,255,.02);
+}
+.adm-sum-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+.adm-sum-key{ font-weight:900; }
+.adm-sum-line{ margin-top:4px; }
+.adm-sum-label{
+  display:inline-block;
+  min-width:92px;
+  font-weight:900;
+}
+.adm-sum-label.bad{ color:rgba(239,68,68,.95); }
+.adm-sum-label.warn{ color:rgba(245,158,11,.95); }
+.adm-sum-holiday{
+  list-style:none;
+  padding:12px 14px;
+  border:1px dashed rgba(245,158,11,.45);
+  border-radius:14px;
+  background:rgba(245,158,11,.10);
+  color:var(--ink);
+  font-weight:800;
+}
 .adm-sum-empty{ color:var(--muted); }
 .adm-sum-kpi{
   font-size:1.8rem;
@@ -1190,7 +1214,7 @@ div.admin-filters .button-row {
               <div class="muted" style="font-weight:800;">Sınıf • Saat</div>
             </div>
             <div class="content">
-              <ul id="admSumAbsLate" class="adm-sum-list"></ul>
+              <ul id="admSumAbsLate" class="adm-sum-list clean"></ul>
               <div id="admSumAbsLateEmpty" class="adm-sum-empty hidden">Kayıt bulunmuyor.</div>
             </div>
           </div>
@@ -1201,32 +1225,12 @@ div.admin-filters .button-row {
               <div class="muted" style="font-weight:800;">Başlangıç +30dk</div>
             </div>
             <div class="content">
-              <ul id="admSumMissingTeach" class="adm-sum-list"></ul>
+              <ul id="admSumMissingTeach" class="adm-sum-list clean"></ul>
               <div id="admSumMissingTeachEmpty" class="adm-sum-empty hidden">Eksik yoklama yok.</div>
             </div>
           </div>
 
-          <div class="adm-sum-card" aria-label="Katılım özeti">
-            <div class="head">
-              <h4>📊 Katılım Özeti</h4>
-              <div class="muted" id="admSumTotalsSub" style="font-weight:800;">—</div>
-            </div>
-            <div class="content">
-              <div class="donut-wrap">
-                <div class="donut" id="admSumPie" style="--p:0">
-                  <div class="inner">
-                    <div class="pct" id="admSumPct">0%</div>
-                    <div class="lbl">Katılım</div>
-                  </div>
-                </div>
-                <div>
-                  <div class="adm-sum-kpi" id="admSumTotals">0 / 0</div>
-                  <div class="adm-sum-sub" id="admSumBreakdown">Gelen: 0 • Gelmeyen: 0 • Geç: 0</div>
-                  <div class="adm-sum-sub" id="admSumUnknown">Eksik kayıt: 0</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          
         </div>
       </div>
 
@@ -1545,7 +1549,18 @@ function applyAttendanceConfigToUI(){
     UI.admHolidayBanner.classList.toggle('hidden', !!attendanceEnabled);
   }
 
-  // Admin: Öğretmen Uyum Raporu tatil modunda devre dışı
+    // Admin: Tatil modunda KPI ve tabloyu "Tatil" görünümüne çek
+  if(!attendanceEnabled){
+    if(UI.dashVar) UI.dashVar.textContent = 'Tatil';
+    if(UI.dashYok) UI.dashYok.textContent = 'Tatil';
+    if(UI.dashGec) UI.dashGec.textContent = 'Tatil';
+    if(UI.admListBody){
+      UI.admListBody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:16px;">Program pasif (Tatil Modu)</td></tr>`;
+    }
+    if(UI.admPagination) UI.admPagination.innerHTML = '';
+  }
+
+// Admin: Öğretmen Uyum Raporu tatil modunda devre dışı
   if(UI.admTeacherReport){
     UI.admTeacherReport.disabled = !attendanceEnabled;
     UI.admTeacherReport.title = attendanceEnabled ? 'Öğretmen uyum raporu' : 'Tatil Modu aktif: Yoklama kapalı';
@@ -3023,6 +3038,20 @@ async function refreshAdmin(){
   }
   UI.admEmpty?.classList.add('hidden');
 
+  // Tatil Modu: Admin özet ve detay ekranları boş gösterilsin
+  if(!attendanceEnabled){
+    try{ renderAdminSummaryDashboard({ date, cls, program, dayData:{}, byNo:new Map(), studentPool: students }); }catch(e){}
+    if(UI.admListBody){
+      UI.admListBody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:16px;">Program pasif (Tatil Modu)</td></tr>`;
+    }
+    if(UI.admPagination) UI.admPagination.innerHTML = '';
+    if(UI.dashVar) UI.dashVar.textContent = 'Tatil';
+    if(UI.dashYok) UI.dashYok.textContent = 'Tatil';
+    if(UI.dashGec) UI.dashGec.textContent = 'Tatil';
+    return;
+  }
+
+
   // Öğrenci sözlüğü (adı/sınıfı hızlı erişim için)
   // Öğrencileri sınıfa göre filtrele (tire ile birleştirilmiş sınıfları da dahil)
   const studentPool = (cls && cls !== 'hepsi')
@@ -3311,6 +3340,16 @@ async function refreshAdmin(){
 function renderAdminSummaryDashboard(ctx){
   const { date, cls, program, dayData, byNo, studentPool } = ctx || {};
   if(!UI.admSummaryDash) return;
+  // Tatil modunda özet/detay içerikleri boş gösterilsin
+  if(!attendanceEnabled){
+    const msg = '<li class="adm-sum-holiday">Program pasif (Tatil Modu).</li>';
+    if(UI.admSumAbsLate) UI.admSumAbsLate.innerHTML = msg;
+    if(UI.admSumAbsLateEmpty) UI.admSumAbsLateEmpty.classList.add('hidden');
+    if(UI.admSumMissingTeach) UI.admSumMissingTeach.innerHTML = msg;
+    if(UI.admSumMissingTeachEmpty) UI.admSumMissingTeachEmpty.classList.add('hidden');
+    return;
+  }
+
 
   // ---------- Kart 1: Gelmeyenler & Geç Gelenler (No + Ad) ----------
   const groups = new Map(); // key: sinif|hourNo -> {sinif,hourNo,abs:[],late:[]}
@@ -3367,17 +3406,24 @@ function renderAdminSummaryDashboard(ctx){
 
   if(UI.admSumAbsLate){
     UI.admSumAbsLate.innerHTML = groupArr.slice(0, 18).map(g=>{
-      const abs = g.abs.slice(0, 6).join(', ');
-      const late = g.late.slice(0, 6).join(', ');
-      const moreAbs = g.abs.length > 6 ? ` +${g.abs.length-6}` : '';
-      const moreLate = g.late.length > 6 ? ` +${g.late.length-6}` : '';
-      const parts = [];
-      if(g.abs.length) parts.push(`❌ <span class="mono">${g.abs.length}</span> (${abs}${moreAbs})`);
-      if(g.late.length) parts.push(`⏰ <span class="mono">${g.late.length}</span> (${late}${moreLate})`);
-      return `<li><b>${g.sinif}</b> • ${g.hourNo}. Saat<br><span class="muted">${parts.join(' • ')}</span></li>`;
+      const absNames = g.abs.slice(0, 6).join(', ');
+      const lateNames = g.late.slice(0, 6).join(', ');
+      const moreAbs = g.abs.length > 6 ? ` +${g.abs.length-6} kişi` : '';
+      const moreLate = g.late.length > 6 ? ` +${g.late.length-6} kişi` : '';
+
+      const absLine = g.abs.length
+        ? `<div class="adm-sum-line"><span class="adm-sum-label bad">Gelmeyen:</span><span class="mono">${g.abs.length}</span> kişi — ${absNames}${moreAbs}</div>`
+        : '';
+
+      const lateLine = g.late.length
+        ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}${moreLate}</div>`
+        : '';
+
+      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat</span></div>${absLine}${lateLine}</li>`;
     }).join('');
     UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
   }
+
 
   // ---------- Kart 2: Yoklaması alınmamış öğretmenler (Başlangıç +30dk) ----------
   const dayName = (dayNameTRForDateStr(date)||'').toLocaleLowerCase('tr-TR');
@@ -5917,9 +5963,9 @@ function printParentQuizzes(){
   text-align: center;
   font-size: 0.95rem;
   color: var(--muted);
-  background: var(--glass);
+  background: var(--bg);
   border-top: var(--stroke);
-  box-shadow: 0 -8px 24px rgba(0,0,0,.25);
+  box-shadow: none;
 }
 .site-footer strong{
   color: var(--brand-2);
