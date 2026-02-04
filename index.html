@@ -3612,17 +3612,15 @@ function renderAdminSummaryDashboard(ctx){
 
   if(UI.admSumAbsLate){
     UI.admSumAbsLate.innerHTML = groupArr.slice(0, 18).map(g=>{
-      const absNames = g.abs.slice(0, 6).join(', ');
-      const lateNames = g.late.slice(0, 6).join(', ');
-      const moreAbs = g.abs.length > 6 ? ` +${g.abs.length-6} kişi` : '';
-      const moreLate = g.late.length > 6 ? ` +${g.late.length-6} kişi` : '';
+      const absNames = g.abs.join(', ');
+      const lateNames = g.late.join(', ');
 
       const absLine = g.abs.length
-        ? `<div class="adm-sum-line"><span class="adm-sum-label bad">Gelmeyen:</span><span class="mono">${g.abs.length}</span> kişi — ${absNames}${moreAbs}</div>`
+        ? `<div class="adm-sum-line"><span class="adm-sum-label bad">Gelmeyen:</span><span class="mono">${g.abs.length}</span> kişi — ${absNames}</div>`
         : '';
 
       const lateLine = g.late.length
-        ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}${moreLate}</div>`
+        ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}</div>`
         : '';
 
       return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat</span></div>${absLine}${lateLine}</li>`;
