@@ -3597,21 +3597,16 @@ function renderAdminSummaryDashboard(ctx){
     });
   };
 
-  if(cls === 'hepsi'){
-    Object.entries(dayData||{}).forEach(([sinifKey, node])=> scan(safe(sinifKey), node));
-  }else{
-    Object.entries(dayData||{}).forEach(([sinifKey, node])=>{
-      const parts = safe(sinifKey).split(/[-–]/).map(x=>x.trim());
-      if(parts.includes(cls)) scan(safe(sinifKey), node);
-    });
-  }
+  // Sınıf filtresinden bağımsız: bu kartta tüm sınıflar listelenir
+  Object.entries(dayData||{}).forEach(([sinifKey, node])=> scan(safe(sinifKey), node));
+
 
   const groupArr = Array.from(groups.values())
     .filter(g => g.abs.length || g.late.length)
     .sort((a,b)=> (a.sinif + String(a.hourNo)).localeCompare(b.sinif + String(b.hourNo), 'tr', {numeric:true}));
 
   if(UI.admSumAbsLate){
-    UI.admSumAbsLate.innerHTML = groupArr.slice(0, 18).map(g=>{
+    UI.admSumAbsLate.innerHTML = groupArr.map(g=>{
       const absNames = g.abs.join(', ');
       const lateNames = g.late.join(', ');
 
