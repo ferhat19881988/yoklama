@@ -5050,17 +5050,25 @@ async function openHomeworkControl(cls,id){
           const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
           const title       = hw?.title || 'Ödev';
           const dueStr      = hw?.dueDate ? formatDateTR(hw.dueDate) : '—';
+          const lessonName  = hw?.subject || session?.teacherBranch || 'Ders';
+          const DEADLINE_DAYS = 3; // isterseniz 2 yapabilirsiniz
+          const deadlineStr = (() => {
+            const d = new Date();
+            d.setDate(d.getDate() + DEADLINE_DAYS);
+            return formatDateTR(d);
+          })();
+
           const msg =
-`*${companyName} Bilgilendirmesi* 📣
+`Merhaba 🌿
+Ben *${teacherName}* (${lessonName}) öğretmeniyim.
 
-👤 *Öğrenci:* ${studentName}
-👤 *Öğretmen:* ${teacherName}
-📘 *Ödev:* ${title}
-${statusIcon} *Durum:* ${statusText}
-📅 *Teslim Tarihi:* ${dueStr}
+*${studentName}* öğrencimizin "${title}" ödevinin teslim tarihi ${dueStr}.
+Şu an sistemde *${statusText}* görünüyor.
 
-— *Saygılarımızla*  
-${companyName} 🏫`;
+Rica etsem en geç ${deadlineStr} tarihine kadar tamamlayıp teslim edebilir mi?
+Teşekkür ederim.
+
+${companyName}`;
           const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
           location.href = url;
         });
