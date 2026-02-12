@@ -1631,6 +1631,8 @@ let slotOrderMapByProgram = new Map();        // NEW: program -> Map(kod -> no)
 let session=null;
 let currentLesson=null;
 let tempAtt={};
+let currentRoster=[]; // yoklama panelindeki mevcut sınıf/grup listesi (SMS için)
+
 let teacherRefreshTimer=null;
 let teacherLessonsToday=[];
 // Attendance (Yoklama) enable/disable (Admin -> Firebase config)
@@ -2763,8 +2765,11 @@ async function openLesson(lesson){
       // Normal ders: sadece ilgili sınıf
       return safe(s.SINIF).toLocaleLowerCase('tr-TR') === lesson.sinif.toLocaleLowerCase('tr-TR');
     })
-    .map(s=>({id:safe(s.NO), ad:s.ADSOYAD||'', no:safe(s.NO)}))
+    .map(s=>({id:safe(s.NO), ad:s.ADSOYAD||'', no:safe(s.NO), veliTel: safe(s.VeliTel ?? s.VELITEL ?? s.velitel ?? '') }))
     .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+
+  // SMS: veli telefonları listede görünmez; sadece 1. saat bildirimleri için tutulur
+  currentRoster = list;
 
   const tarih = toDateStr(nowTR());
   const path  = attPath(tarih, lesson.sinif, lesson.saatKodu, lesson.ogretmenId);
@@ -2871,7 +2876,7 @@ async function openLesson(lesson){
 
   UI.allVar.onclick = ()=> setAll('var');
   UI.allYok.onclick = ()=> setAll('yok');
-  UI.saveBtn.onclick = saveAttendance;
+  UI.saveBtn.onclick = handleAttendanceSaveClick;
   UI.undoBtn.onclick = undoAttendance;
 
   renderSummary();
@@ -2914,12 +2919,236 @@ async function openLesson(lesson){
       updateTeacherKpis(toplam, v, y, g);
     }
 
-async function saveAttendance(){
+
+/* ---------- 1. Saat: Veli SMS Bildirimleri ---------- */
+/*
+  NOT (CORS önlemi):
+  1sms API dokümanında smspost/v1 (POST, XML) ve smsget/v1 (GET) uçları bulunuyor.
+  Tarayıcıdan doğrudan POST/XML istekleri çoğu zaman CORS preflight'a takılır.
+  Bu yüzden burada "smsget/v1" GET çağrısını mode:'no-cors' ile "fire-and-forget" olarak kullanıyoruz.
+  Eğer başarı/başarısız yanıtını okumak istiyorsanız, kendi domaininizde bir PROXY URL kurup
+  SMS_CFG.SMS_PROXY_URL değerine yazabilirsiniz (önerilen ve en sağlıklı yöntem).
+*/
+
+const SMS_CFG = {
+  HOSTNAME: 'https://api.1sms.com.tr',
+  USERNAME: 'fenomencocukkulubu',
+  PASSWORD: '11b66accbf01c8cecd1af164c87da264',
+  HEADER: 'FENOMEN',
+  DIRECT_GET_PATH: '/api/smsget/v1',
+  SMS_PROXY_URL: '' // örn: https://<sizin-domaininiz>/sms-proxy  (aynı origin / CORS izinli)
+};
+
+function isTruthy(v){
+  const s = safe(v).toLowerCase();
+  return v === true || v === 1 || s === 'true' || s === '1' || s === 'ok' || s === 'success';
+}
+
+
+function normalizeTRGsm(raw){
+  const digits = safe(raw).replace(/\D/g,'');
+  if(!digits) return '';
+  // 0090XXXXXXXXXX
+  if(digits.startsWith('0090') && digits.length >= 14) return digits.slice(2, 14);
+  // 90XXXXXXXXXX
+  if(digits.startsWith('90') && digits.length >= 12) return digits.slice(0, 12);
+  // 0XXXXXXXXXX (11 hane)
+  if(digits.startsWith('0') && digits.length === 11) return '9' + digits; // 90XXXXXXXXXX
+  // XXXXXXXXXX (10 hane)
+  if(digits.length === 10) return '90' + digits;
+  return digits;
+}
+
+function buildVeliSmsText({type, studentName, hourNo, bas, bit, classLabel}){
+  const timeRange = `${bas||''}-${bit||''}`.replace(/^-|-$/g,'').trim();
+  const hour = hourNo ? `${hourNo}.` : '1.';
+  const cls = safe(classLabel);
+  const studentPart = cls ? `${cls} sınıfı öğrencimiz ${studentName}` : `${studentName} öğrencimiz`;
+  if(type === 'late'){
+    return `Sayın velimiz, ${studentPart} ${hour} derse geç katılmıştır (${timeRange}). FENOMEN.`;
+  }
+  // absent
+  return `Sayın velimiz, ${studentPart} ${hour} derse gelmemiştir (${timeRange}). FENOMEN.`;
+}
+
+async function fetchWithTimeout(url, options={}, timeoutMs=12000){
+  const controller = new AbortController();
+  const id = setTimeout(()=>controller.abort(), timeoutMs);
+  try{
+    const resp = await fetch(url, { ...options, signal: controller.signal });
+    return resp;
+  }finally{
+    clearTimeout(id);
+  }
+}
+
+// En sağlıklı yöntem: proxy (server-side) -> JSON döner.
+// Alternatif: tarayıcıdan no-cors GET (yanıt okunamaz; sadece istek çıkar).
+async function sendSmsOnce({gsm, message}){
+  const gsmNo = normalizeTRGsm(gsm);
+  if(!gsmNo) return { ok:false, reason:'Geçersiz telefon' };
+
+  // 1) Proxy varsa
+  if(SMS_CFG.SMS_PROXY_URL){
+    try{
+      const resp = await fetchWithTimeout(SMS_CFG.SMS_PROXY_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          username: SMS_CFG.USERNAME,
+          password: SMS_CFG.PASSWORD,
+          header: SMS_CFG.HEADER,
+          gsm: gsmNo,
+          message
+        }),
+        cache:'no-store',
+        mode:'cors'
+      }, 15000);
+      const ct = resp.headers.get('content-type') || '';
+      const data = ct.includes('application/json') ? await resp.json() : { text: await resp.text() };
+      if(resp.ok && (isTruthy(data.ok) || isTruthy(data.success) || safe(data.status).toLowerCase()==='ok')){
+        return { ok:true, gsm: gsmNo, data };
+      }
+      return { ok:false, gsm: gsmNo, data, reason:`Proxy yanıtı: HTTP ${resp.status}` };
+    }catch(e){
+      return { ok:false, gsm: gsmNo, reason: e?.message || String(e) };
+    }
+  }
+
+  // 2) Doğrudan GET (CORS'tan etkilenmemek için no-cors)
+  try{
+    const url =
+      `${SMS_CFG.HOSTNAME}${SMS_CFG.DIRECT_GET_PATH}` +
+      `?username=${encodeURIComponent(SMS_CFG.USERNAME)}` +
+      `&password=${encodeURIComponent(SMS_CFG.PASSWORD)}` +
+      `&header=${encodeURIComponent(SMS_CFG.HEADER)}` +
+      `&gsm=${encodeURIComponent(gsmNo)}` +
+      `&message=${encodeURIComponent(message)}`;
+
+    // mode:'no-cors' => cevap opaque olur; okuyamayız, ama preflight/CORS hataları oluşmaz.
+    await fetchWithTimeout(url, { method:'GET', mode:'no-cors', cache:'no-store' }, 12000);
+    return { ok:true, gsm: gsmNo, opaque:true };
+  }catch(e){
+    return { ok:false, gsm: gsmNo, reason: e?.message || String(e) };
+  }
+}
+
+// Kayıt onayı sonrası 1. saat için SMS batch gönderimi
+async function sendFirstHourSmsBatch(batch){
+  if(!batch || !batch.total) return;
+
+  if(!navigator.onLine){
+    setStatus(`SMS: İnternet yok — ${batch.total} SMS gönderilemedi.`, 'bad');
+    return;
+  }
+
+  let okCount=0, failCount=0;
+  setStatus(`SMS: Gönderim başladı (0/${batch.total})…${batch.skipped ? ` (${batch.skipped} numara eksik/geçersiz)` : ''}`, 'ok');
+
+  for(let i=0; i<batch.items.length; i++){
+    const it = batch.items[i];
+    const res = await sendSmsOnce({ gsm: it.gsm, message: it.message });
+
+    if(res.ok) okCount++;
+    else failCount++;
+
+    const msg = res.ok
+      ? `SMS: ${okCount} başarılı, ${failCount} hata (${i+1}/${batch.total})`
+      : `SMS: HATA (${i+1}/${batch.total}) • ${it.studentName} • ${res.reason || 'Bilinmeyen hata'}`;
+
+    setStatus(msg, failCount ? 'bad' : 'ok');
+
+    // Çok hızlı art arda istek atmamak için küçük bekleme
+    await new Promise(r=>setTimeout(r, 250));
+  }
+
+  const skippedNote = batch.skipped ? ` (${batch.skipped} numara eksik/geçersiz)` : '';
+  const final = failCount
+    ? `SMS tamamlandı: ${okCount} başarılı, ${failCount} hata.${skippedNote}`
+    : `SMS tamamlandı: ${okCount}/${batch.total} başarılı.${skippedNote}`;
+  setStatus(final, failCount ? 'bad' : 'ok');
+}
+
+function collectFirstHourSmsBatch(){
+  const hourNo = currentLesson?.saatNo || 1;
+  const bas = currentLesson?.bas || '';
+  const bit = currentLesson?.bit || '';
+
+  const map = new Map((currentRoster||[]).map(s => [safe(s.id), s]));
+  const items = [];
+
+  Object.entries(tempAtt || {}).forEach(([id, rec])=>{
+    if(!rec) return;
+    const st = map.get(safe(id));
+    if(!st) return;
+
+    const status = safe(rec.status);
+    const isLate = !!rec.late;
+
+    if(status === 'yok'){
+      const message = buildVeliSmsText({type:'absent', studentName: st.ad, hourNo, bas, bit, classLabel: currentLesson?.sinif || currentLesson?.grup || ''});
+      items.push({ studentId: st.id, studentName: st.ad, gsm: st.veliTel, message });
+    }else if(status === 'var' && isLate){
+      const message = buildVeliSmsText({type:'late', studentName: st.ad, hourNo, bas, bit, classLabel: currentLesson?.sinif || currentLesson?.grup || ''});
+      items.push({ studentId: st.id, studentName: st.ad, gsm: st.veliTel, message });
+    }
+  });
+
+  // geçersiz/boş numaraları temizle (log için ayrı saymak istemiyorsanız burada filtreleyin)
+  const cleaned = items.filter(it => normalizeTRGsm(it.gsm));
+  const skipped = items.length - cleaned.length;
+
+  return { total: cleaned.length, items: cleaned, skipped };
+}
+
+// Kaydet butonu için yeni akış (1. saat = SMS + uyarı)
+async function handleAttendanceSaveClick(){
   if(!currentLesson) return;
+
+  const isFirstHour = String(currentLesson.saatNo || '') === '1';
+
+  const title = isFirstHour ? '1. Saat Yoklaması' : 'Yoklama Onayı';
+  const text  = isFirstHour
+    ? 'Sayın öğretmenimiz, 1. saat yoklamalarında dikkatli yoklama almanızı rica ederiz. Çünkü 1. saat yoklamaları velilere SMS olarak gönderilmektedir.\n\nYoklama kaydedilsin mi?'
+    : 'Sayın öğretmenimiz, yoklamayı doğru aldınız mı?\n\nYoklama kaydedilsin mi?';
+
+  const confirmButtonText = isFirstHour ? 'Evet, Kaydet ve SMS Gönder' : 'Evet, Kaydet';
+
+  const res = await Swal.fire({
+    title,
+    text,
+    icon: isFirstHour ? 'warning' : 'question',
+    showCancelButton: true,
+    confirmButtonText,
+    cancelButtonText: 'Hayır, Geri Dön',
+    reverseButtons: true
+  });
+
+  if(!res.isConfirmed) return;
+
+  // SMS batch'i kayıttan ÖNCE topla (saveAttendance sonunda currentLesson/tempAtt sıfırlanıyor)
+  const batch = isFirstHour ? collectFirstHourSmsBatch() : null;
+
+  const savedOk = await saveAttendance();
+  if(!savedOk) return;
+
+  if(isFirstHour){
+    if(batch && batch.total){
+      await sendFirstHourSmsBatch(batch);
+    }else{
+      setStatus('1. saat yoklaması kaydedildi. SMS gönderilecek öğrenci yok.', 'ok');
+    }
+  }
+}
+
+/* ---------- /1. Saat: Veli SMS Bildirimleri ---------- */
+
+async function saveAttendance(){
+  if(!currentLesson) return false;
   if(attendanceConfigReady && !attendanceEnabled){
     Swal.fire('Tatil Modu','Yoklama şu anda pasif. Yönetici panelinden aktif edildiğinde kayıt alabilirsiniz.','info');
     showHolidayMode(currentLesson);
-    return;
+    return false;
   }
   const tarih = toDateStr(nowTR());
   const sinif = currentLesson.sinif;
@@ -2962,9 +3191,11 @@ async function saveAttendance(){
     closeAttendance();
     await showTeacherToday();
     await refreshTeacherDailyKpis();
+    return true;
   }catch(e){
     console.error(e); setStatus('Hata: kayıt sırasında sorun.', 'bad');
     Swal.fire('Hata','Kayıt sırasında bir sorun oluştu.','error');
+    return false;
   }
 }
 async function undoAttendance(){
