@@ -2621,10 +2621,10 @@ async function showTeacherToday(){
       const idx = +el.dataset.idx;
       const m = mine[idx];
       const now = nowTR();
-      const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(10,'minute')) ||
-                        now.isAfter(parseOnDate(toDateStr(now), m.bit).add(5,'hour')));
+      const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(5,'minute')) ||
+                        now.isAfter(parseOnDate(toDateStr(now), m.bit).add(3,'hour')));
       if (!canTake){
-        await Swal.fire({icon:'error',title:'Yoklama Alınamaz',text:'Yoklama ders başlamadan 10 dakika önce veya ders bitiminden 5 saat sonra alınamaz.',confirmButtonText:'Tamam'});
+        await Swal.fire({icon:'error',title:'Yoklama Alınamaz',text:'Yoklama ders başlamadan 5 dakika önce veya ders bitiminden 3 saat sonra alınamaz.',confirmButtonText:'Tamam'});
         return;
       }
       openLesson(m);
@@ -3558,52 +3558,14 @@ function renderAdminSummaryDashboard(ctx){
 
 
   // ---------- Kart 1: Gelmeyenler & Geç Gelenler (No + Ad) ----------
-  // Not: Başlık formatı: "1A Sınıfı •1. Saat (16:00-16:40) •P1"
-  const groups = new Map(); // key: sinif|hourNo|program|saatKodu -> {sinif,hourNo,bas,bit,program,abs:[],late:[]}
+  const groups = new Map(); // key: sinif|hourNo -> {sinif,hourNo,abs:[],late:[]}
 
-  const slotByCodeProg = (code, prog) => {
-    const key = String(code||'').trim();
-    const p   = String(prog||'').trim();
-    if(!key) return null;
-    let hit = slots.find(r =>
-      String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key &&
-      String(r.PROGRAM??'').toString().trim()===p
-    );
-    if(hit) return hit;
-    return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key) || null;
-  };
-
-  // Program bazında saat sırası (BASLANGIC'a göre 1..n)
-  const slotNoProg = (() => {
-    const cache = new Map();
-    return (code, prog) => {
-      const p = String(prog||'').trim() || 'GENEL';
-      if(!cache.has(p)){
-        const arr = slots
-          .filter(s => (String(s.PROGRAM??'').trim() || 'GENEL') === p)
-          .map(s => ({
-            kod: String(s.SAAT_KODU??s.KOD??s.ID??'').trim(),
-            bas: String(s.BASLANGIC||'23:59')
-          }))
-          .filter(x => x.kod);
-        arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
-        const m = new Map(); arr.forEach((x,i)=> m.set(x.kod, i+1));
-        cache.set(p, m);
-      }
-      const key = String(code||'').trim();
-      return cache.get(p).get(key) || null;
-    };
-  })();
-
-  const hourFrom = (rec, saatKodu, prog) => {
-    // Önce kayıt içindeki saatNo, yoksa slot sırası, o da yoksa kod içindeki sayıyı dene
-    const h1 = rec?.saatNo ? parseInt(rec.saatNo,10) : null;
-    const h2 = slotNoProg(saatKodu, prog);
-    const h3 = (() => {
+  const hourFrom = (rec, saatKodu) => {
+    const h = rec?.saatNo ?? (() => {
       const m = String(saatKodu||'').match(/\d+/);
       return m ? parseInt(m[0],10) : null;
     })();
-    return h1 || h2 || h3 || null;
+    return h || null;
   };
 
   const scan = (sinifKey, node) => {
@@ -3616,17 +3578,12 @@ function renderAdminSummaryDashboard(ctx){
           const recProg = safe(rec?.program)||'';
           if(program && program !== 'hepsi' && recProg !== program) return;
 
-          const hNo = hourFrom(rec, saatKodu, recProg);
+          const hNo = hourFrom(rec, saatKodu);
           const stu = byNo.get(no) || {ad:'', sinif:safe(sinifKey)};
           const sinif = safe(stu.sinif || sinifKey);
 
-          const slot = slotByCodeProg(saatKodu, recProg);
-          const bas = slot ? String(slot.BASLANGIC||'').trim() : '';
-          const bit = slot ? String(slot.BITIS||'').trim() : '';
-
-          const progLbl = labelProgram(recProg) || recProg || (slot ? (labelProgram(slot.PROGRAM)||safe(slot.PROGRAM)) : '') || '';
-          const k = `${sinif}|${hNo||'?'}|${progLbl||''}|${String(saatKodu||'')}`;
-          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', bas, bit, program: progLbl, abs:[], late:[] });
+          const k = `${sinif}|${hNo||'?'}`;
+          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', abs:[], late:[] });
 
           const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
 
@@ -3643,9 +3600,10 @@ function renderAdminSummaryDashboard(ctx){
   // Sınıf filtresinden bağımsız: bu kartta tüm sınıflar listelenir
   Object.entries(dayData||{}).forEach(([sinifKey, node])=> scan(safe(sinifKey), node));
 
+
   const groupArr = Array.from(groups.values())
     .filter(g => g.abs.length || g.late.length)
-    .sort((a,b)=> (a.sinif + String(a.hourNo) + (a.program||'')).localeCompare(b.sinif + String(b.hourNo) + (b.program||''), 'tr', {numeric:true}));
+    .sort((a,b)=> (a.sinif + String(a.hourNo)).localeCompare(b.sinif + String(b.hourNo), 'tr', {numeric:true}));
 
   if(UI.admSumAbsLate){
     UI.admSumAbsLate.innerHTML = groupArr.map(g=>{
@@ -3660,11 +3618,7 @@ function renderAdminSummaryDashboard(ctx){
         ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}</div>`
         : '';
 
-      const timeTxt = (g.bas && g.bit) ? ` (${g.bas}-${g.bit})` : '';
-      const progTxt = g.program ? ` •${g.program}` : '';
-      const headTxt = `${g.sinif} Sınıfı •${g.hourNo}. Saat${timeTxt}${progTxt}`;
-
-      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${headTxt}</span></div>${absLine}${lateLine}</li>`;
+      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat</span></div>${absLine}${lateLine}</li>`;
     }).join('');
     UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
   }
