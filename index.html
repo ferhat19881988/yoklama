@@ -3558,73 +3558,91 @@ function renderAdminSummaryDashboard(ctx){
 
 
   // ---------- Kart 1: Gelmeyenler & Geç Gelenler (No + Ad) ----------
-  const groups = new Map(); // key: sinif|hourNo -> {sinif,hourNo,abs:[],late:[]}
+// İstenen format: "1. Saat (16:00-16:40) •P1"
+// Not: gruplama içeride sınıfı da tutar (sıralama/ayrıştırma için), ancak başlıkta gösterilmez.
+const groups = new Map(); // key: sinif|hourNo|program -> {sinif,hourNo,prog,bas,bit,abs:[],late:[]}
 
-  const hourFrom = (rec, saatKodu) => {
-    const h = rec?.saatNo ?? (() => {
-      const m = String(saatKodu||'').match(/\d+/);
-      return m ? parseInt(m[0],10) : null;
-    })();
-    return h || null;
-  };
+const hourFrom = (rec, saatKodu) => {
+  const h = rec?.saatNo ?? (() => {
+    const m = String(saatKodu||'').match(/\d+/);
+    return m ? parseInt(m[0],10) : null;
+  })();
+  return h || null;
+};
 
-  const scan = (sinifKey, node) => {
-    Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
-      Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
-        Object.entries(byStudent||{}).forEach(([ogrNo, rec])=>{
-          const no = safe(ogrNo);
-          if(!byNo.has(no)) return;
+const slotFor = (saatKodu, prog) => {
+  try{
+    return getSlotByCode(saatKodu, prog) || {};
+  }catch(e){
+    return {};
+  }
+};
 
-          const recProg = safe(rec?.program)||'';
-          if(program && program !== 'hepsi' && recProg !== program) return;
+const scan = (sinifKey, node) => {
+  Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
+    Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
+      Object.entries(byStudent||{}).forEach(([ogrNo, rec])=>{
+        const no = safe(ogrNo);
+        if(!byNo.has(no)) return;
 
-          const hNo = hourFrom(rec, saatKodu);
-          const stu = byNo.get(no) || {ad:'', sinif:safe(sinifKey)};
-          const sinif = safe(stu.sinif || sinifKey);
+        const recProg = safe(rec?.program)||'';
+        if(program && program !== 'hepsi' && recProg !== program) return;
 
-          const k = `${sinif}|${hNo||'?'}`;
-          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', abs:[], late:[] });
+        const hNo = hourFrom(rec, saatKodu);
+        const stu = byNo.get(no) || {ad:'', sinif:safe(sinifKey)};
+        const sinif = safe(stu.sinif || sinifKey);
 
-          const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
+        const slot = slotFor(saatKodu, recProg);
+        const bas = safe(slot.BASLANGIC);
+        const bit = safe(slot.BITIS);
 
-          if(rec?.durum === 'yok'){
-            groups.get(k).abs.push(lineBase);
-          }else if(rec?.durum === 'var' && rec?.late){
-            groups.get(k).late.push(lineBase);
-          }
-        });
+        const k = `${sinif}|${hNo||'?'}|${recProg||''}`;
+        if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', prog:recProg||'', bas, bit, abs:[], late:[] });
+
+        const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
+
+        if(rec?.durum === 'yok'){
+          groups.get(k).abs.push(lineBase);
+        }else if(rec?.durum === 'var' && rec?.late){
+          groups.get(k).late.push(lineBase);
+        }
       });
     });
-  };
+  });
+};
 
-  // Sınıf filtresinden bağımsız: bu kartta tüm sınıflar listelenir
-  Object.entries(dayData||{}).forEach(([sinifKey, node])=> scan(safe(sinifKey), node));
+// Sınıf filtresinden bağımsız: bu kartta tüm sınıflar listelenir
+Object.entries(dayData||{}).forEach(([sinifKey, node])=> scan(safe(sinifKey), node));
+
+const groupArr = Array.from(groups.values())
+  .filter(g => g.abs.length || g.late.length)
+  .sort((a,b)=> (a.sinif + String(a.hourNo) + (a.prog||'')).localeCompare(b.sinif + String(b.hourNo) + (b.prog||''), 'tr', {numeric:true}));
+
+if(UI.admSumAbsLate){
+  UI.admSumAbsLate.innerHTML = groupArr.map(g=>{
+    const absNames = g.abs.join(', ');
+    const lateNames = g.late.join(', ');
+
+    const absLine = g.abs.length
+      ? `<div class="adm-sum-line"><span class="adm-sum-label bad">Gelmeyen:</span><span class="mono">${g.abs.length}</span> kişi — ${absNames}</div>`
+      : '';
+
+    const lateLine = g.late.length
+      ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}</div>`
+      : '';
+
+    const hourLbl = (g.hourNo && g.hourNo !== '?') ? `${g.hourNo}. Saat` : 'Saat';
+    const timeLbl = (g.bas && g.bit) ? ` (${g.bas}-${g.bit})` : '';
+    const progLbl = g.prog ? ` •${g.prog}` : '';
+    const headLbl = `${hourLbl}${timeLbl}${progLbl}`;
+
+    return `<li><div class="adm-sum-top"><span class="adm-sum-key">${headLbl}</span></div>${absLine}${lateLine}</li>`;
+  }).join('');
+  UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
+}
 
 
-  const groupArr = Array.from(groups.values())
-    .filter(g => g.abs.length || g.late.length)
-    .sort((a,b)=> (a.sinif + String(a.hourNo)).localeCompare(b.sinif + String(b.hourNo), 'tr', {numeric:true}));
-
-  if(UI.admSumAbsLate){
-    UI.admSumAbsLate.innerHTML = groupArr.map(g=>{
-      const absNames = g.abs.join(', ');
-      const lateNames = g.late.join(', ');
-
-      const absLine = g.abs.length
-        ? `<div class="adm-sum-line"><span class="adm-sum-label bad">Gelmeyen:</span><span class="mono">${g.abs.length}</span> kişi — ${absNames}</div>`
-        : '';
-
-      const lateLine = g.late.length
-        ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}</div>`
-        : '';
-
-      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat</span></div>${absLine}${lateLine}</li>`;
-    }).join('');
-    UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
-  }
-
-
-  // ---------- Kart 2: Yoklaması alınmamış öğretmenler (Başlangıç +30dk) ----------
+// ---------- Kart 2: Yoklaması alınmamış öğretmenler (Başlangıç +30dk) ----------
   const dayName = (dayNameTRForDateStr(date)||'').toLocaleLowerCase('tr-TR');
   const slotByCodeProg = (code, prog) => {
     const key = String(code||'').trim();
