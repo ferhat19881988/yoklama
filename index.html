@@ -3568,6 +3568,29 @@ function renderAdminSummaryDashboard(ctx){
     return h || null;
   };
 
+  // Saat etiketi (Admin Özet): saat sırası + saat aralığı + program etiketi
+  const fmtHourLabel = (saatKodu, hourNo, progCode) => {
+    const pcode = safe(progCode) || '';
+    const order = (hourNo && String(hourNo) !== '?')
+      ? String(hourNo)
+      : (typeof slotOrderGet === 'function' ? slotOrderGet(saatKodu, pcode) : '');
+
+    const slot = (typeof getSlotByCode === 'function') ? getSlotByCode(saatKodu, pcode) : null;
+    const start = (slot?.BASLANGIC ?? slot?.BASLA ?? slot?.START ?? slot?.SAAT_BAS ?? '').toString().trim();
+    const end   = (slot?.BITIS ?? slot?.BITIR ?? slot?.END ?? slot?.SAAT_BIT ?? '').toString().trim();
+
+    let base = order ? `${order}. Saat` : 'Saat';
+    if(start && end) base += ` (${start}-${end})`;
+
+    // Program kodu seçiliyse göster (örn: "P1 • 1. Saat (14:20-15:00) • ETÜT")
+    if(pcode && pcode !== 'GENEL' && pcode !== 'HEPSI'){
+      const lbl = (typeof labelProgram === 'function') ? labelProgram(pcode) : pcode;
+      const lblPart = (lbl && lbl !== pcode) ? ` • ${lbl}` : '';
+      return `${pcode} • ${base}${lblPart}`;
+    }
+    return base;
+  };
+
   const scan = (sinifKey, node) => {
     Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
       Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
@@ -3582,8 +3605,10 @@ function renderAdminSummaryDashboard(ctx){
           const stu = byNo.get(no) || {ad:'', sinif:safe(sinifKey)};
           const sinif = safe(stu.sinif || sinifKey);
 
-          const k = `${sinif}|${hNo||'?'}`;
-          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', abs:[], late:[] });
+          const saatKoduKey = String(saatKodu||'').trim();
+          const progCode = recProg || '';
+          const k = `${sinif}|${hNo||'?'}|${progCode}|${saatKoduKey}`;
+          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', program: progCode, saatKodu: saatKoduKey, abs:[], late:[] });
 
           const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
 
@@ -3618,7 +3643,7 @@ function renderAdminSummaryDashboard(ctx){
         ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}</div>`
         : '';
 
-      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat</span></div>${absLine}${lateLine}</li>`;
+      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${fmtHourLabel(g.saatKodu, g.hourNo, g.program)}</span></div>${absLine}${lateLine}</li>`;
     }).join('');
     UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
   }
