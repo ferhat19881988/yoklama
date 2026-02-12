@@ -2596,9 +2596,9 @@ async function showTeacherToday(){
     const bitSaati = parseOnDate(toDateStr(now), m.bit);
 
     let canTake = true;                         // neden: zaman penceresi kısıtı
-    if (now.isBefore(basSaati.subtract(5, 'minute'))) canTake = false;
-    if (now.isAfter(bitSaati.add(3, 'hour')))         canTake = false;
-    if (attendanceEnabled && !hasTaken && now.isAfter(basSaati.add(5, 'minute')) && now.isBefore(bitSaati.add(3, 'hour'))) {
+    if (now.isBefore(basSaati.subtract(10, 'minute'))) canTake = false;
+    if (now.isAfter(bitSaati.add(5, 'hour')))         canTake = false;
+    if (attendanceEnabled && !hasTaken && now.isAfter(basSaati.add(5, 'minute')) && now.isBefore(bitSaati.add(5, 'hour'))) {
       gecikenYoklamalar.push(`${m.sinif} • ${m.dersName} (${m.bas}-${m.bit})`);
     }
 
@@ -2621,10 +2621,10 @@ async function showTeacherToday(){
       const idx = +el.dataset.idx;
       const m = mine[idx];
       const now = nowTR();
-      const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(5,'minute')) ||
-                        now.isAfter(parseOnDate(toDateStr(now), m.bit).add(3,'hour')));
+      const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(10,'minute')) ||
+                        now.isAfter(parseOnDate(toDateStr(now), m.bit).add(5,'hour')));
       if (!canTake){
-        await Swal.fire({icon:'error',title:'Yoklama Alınamaz',text:'Yoklama ders başlamadan 5 dakika önce veya ders bitiminden 3 saat sonra alınamaz.',confirmButtonText:'Tamam'});
+        await Swal.fire({icon:'error',title:'Yoklama Alınamaz',text:'Yoklama ders başlamadan 10 dakika önce veya ders bitiminden 5 saat sonra alınamaz.',confirmButtonText:'Tamam'});
         return;
       }
       openLesson(m);
@@ -3582,8 +3582,17 @@ function renderAdminSummaryDashboard(ctx){
           const stu = byNo.get(no) || {ad:'', sinif:safe(sinifKey)};
           const sinif = safe(stu.sinif || sinifKey);
 
-          const k = `${sinif}|${hNo||'?'}`;
-          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', abs:[], late:[] });
+          const progKey = (recProg || safe(rec?.program) || '').toString().trim();
+          const k = `${sinif}|${hNo||'?'}|${progKey || '-'}`;
+          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', prog: progKey, saatBas:'', saatBit:'', abs:[], late:[] });
+
+          // Grup meta bilgisi (saat aralığı + program) — ilk bulunan kayıttan alınır
+          const gMeta = groups.get(k);
+          if(gMeta){
+            if(!gMeta.saatBas) gMeta.saatBas = safe(rec?.saatBas || rec?.bas || '');
+            if(!gMeta.saatBit) gMeta.saatBit = safe(rec?.saatBit || rec?.bit || '');
+            if(!gMeta.prog)    gMeta.prog    = progKey;
+          }
 
           const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
 
@@ -3603,7 +3612,28 @@ function renderAdminSummaryDashboard(ctx){
 
   const groupArr = Array.from(groups.values())
     .filter(g => g.abs.length || g.late.length)
-    .sort((a,b)=> (a.sinif + String(a.hourNo)).localeCompare(b.sinif + String(b.hourNo), 'tr', {numeric:true}));
+    .sort((a,b)=> (a.sinif + String(a.hourNo) + (a.prog||'')).localeCompare(b.sinif + String(b.hourNo) + (b.prog||''), 'tr', {numeric:true}));
+
+  const fmtClassLabel = (cls) => {
+    const c = safe(cls).trim();
+    if(!c) return '—';
+    const low = c.toLocaleLowerCase('tr-TR');
+    if(low.includes('sınıf')) return c;
+    return `${c} Sınıfı`;
+  };
+  const fmtTimeRange = (bas, bit) => {
+    const b = safe(bas).trim();
+    const e = safe(bit).trim();
+    if(!b && !e) return '';
+    return ` (${b || '??:??'}-${e || '??:??'})`;
+  };
+  const fmtProg = (prog) => {
+    const p = safe(prog).trim();
+    if(!p || p === '-') return '';
+    const lbl = labelProgram(p);
+    return lbl ? ` • ${lbl}` : ` • ${p}`;
+  };
+
 
   if(UI.admSumAbsLate){
     UI.admSumAbsLate.innerHTML = groupArr.map(g=>{
@@ -3618,7 +3648,8 @@ function renderAdminSummaryDashboard(ctx){
         ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}</div>`
         : '';
 
-      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat</span></div>${absLine}${lateLine}</li>`;
+      const head = `${fmtClassLabel(g.sinif)} • ${g.hourNo}. Saat${fmtTimeRange(g.saatBas, g.saatBit)}${fmtProg(g.prog)}`;
+      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${head}</span></div>${absLine}${lateLine}</li>`;
     }).join('');
     UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
   }
