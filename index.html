@@ -1444,6 +1444,65 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
+    /* SMS (1sms.com.tr) */
+    const SMS_API_HOST = 'https://api.1sms.com.tr';
+    const SMS_USERNAME = 'fenomenkucukkulubu';
+    const SMS_PASSWORD = '11b66accbf01c8cecd1af164c87da264';
+    // SMS başlığı (onaylı header) max 11 karakter olmalıdır. Gerekirse burayı değiştirin.
+    const SMS_HEADER   = 'FENOMEN';
+    const SMS_VALIDITY_MIN = 2880; // dakika (48 saat)
+
+    // Telefon normalizasyonu: 10/11/12 haneli TR numaralarını 90XXXXXXXXXX formatına çevirir.
+    function normalizeTRGsm(raw){
+      const digits = String(raw||'').replace(/\D/g,'');
+      if(!digits) return null;
+      if(digits.startsWith('90') && digits.length===12) return digits;
+      if(digits.length===10 && digits.startsWith('5')) return '90'+digits;
+      if(digits.length===11 && digits.startsWith('05')) return '90'+digits.slice(1);
+      if(digits.length===12 && digits.startsWith('905')) return digits;
+      if(digits.length===11 && digits.startsWith('0') && digits[1]==='5') return '90'+digits.slice(1);
+      return null;
+    }
+
+    // Tek SMS hakkı için Türkçe karakterleri sadeleştir (UCS2'ye düşmesin)
+    function toSmsAscii(s){
+      return String(s||'')
+        .replace(/[Çç]/g,'C').replace(/[Ğğ]/g,'G').replace(/[İı]/g,'I').replace(/[Öö]/g,'O').replace(/[Şş]/g,'S').replace(/[Üü]/g,'U')
+        .replace(/[^\x00-\x7F]/g,'');
+    }
+
+    function buildSmsXml(messages){
+      // messages: [{no:'9055...', msg:'...'}] (N-N tipi)
+      const mb = messages.map(m=>{
+        const no = m.no;
+        const msg = m.msg ?? '';
+        return `<mb><no>${no}</no><msg><![CDATA[${msg}]]></msg></mb>`;
+      }).join('');
+      return `<sms>
+  <username>${SMS_USERNAME}</username>
+  <password>${SMS_PASSWORD}</password>
+  <header>${SMS_HEADER}</header>
+  <validity>${SMS_VALIDITY_MIN}</validity>
+  <messages>${mb}</messages>
+</sms>`;
+    }
+
+    async function sendSmsBatch(messages){
+      if(!messages || !messages.length) return { ok:true, skipped:true, sent:0, raw:'NO_MESSAGES' };
+      const xml = buildSmsXml(messages);
+      const url = `${SMS_API_HOST}/api/smspost/v1`;
+      const res = await fetch(url, {
+        method:'POST',
+        headers: { 'Content-Type':'text/xml; charset=UTF-8' },
+        body: xml
+      });
+      const text = (await res.text()).trim();
+      // Başarılı dönüş: "00 <id>"
+      const ok = text.startsWith('00');
+      const id = ok ? (text.split(/\s+/)[1] || '') : '';
+      return { ok, id, raw: text, status: res.status };
+    }
+
 
     const firebaseConfig = {
       apiKey: "AIzaSyA0jqzCSRFQYvLojoYEiBzfylXLqrL-NsQ",
@@ -2858,12 +2917,13 @@ async function openLesson(lesson){
       const isOn = sw.classList.toggle('on');
       sw.setAttribute('aria-pressed', String(isOn));
       tempAtt[id].status = isOn ? 'var' : 'yok';
-      if(!isOn){ tempAtt[id].late = false; late.classList.remove('on'); }
+      if(!isOn){ tempAtt[id].late = false; tempAtt[id].lateAt = null; late.classList.remove('on'); }
       renderSummary();
     });
     late.addEventListener('click', ()=>{
       if(tempAtt[id].status!=='var') return;
       tempAtt[id].late = !tempAtt[id].late;
+      tempAtt[id].lateAt = tempAtt[id].late ? nowTR().format('HH:mm') : null;
       late.classList.toggle('on', tempAtt[id].late);
       renderSummary();
     });
@@ -2894,7 +2954,7 @@ async function openLesson(lesson){
     }
 
     function setAll(val){
-      Object.keys(tempAtt).forEach(k=> { tempAtt[k].status=val; tempAtt[k].late=false; });
+      Object.keys(tempAtt).forEach(k=> { tempAtt[k].status=val; tempAtt[k].late=false; tempAtt[k].lateAt=null; });
       Array.from(UI.studentList.querySelectorAll('.student')).forEach(li=>{
         const sw = li.querySelector('[data-role="switch"]');
         const late = li.querySelector('[data-role="late"]');
@@ -2921,15 +2981,36 @@ async function saveAttendance(){
     showHolidayMode(currentLesson);
     return;
   }
+
   const tarih = toDateStr(nowTR());
   const sinif = currentLesson.sinif;
   const pathBase = attPath(tarih, sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
+
+  // SMS'e gidecek kayıtları hazırlamak için önce özet çıkar
+  const ids = Object.keys(tempAtt||{});
+  const yokIds  = ids.filter(id => tempAtt[id]?.status === 'yok');
+  const lateIds = ids.filter(id => tempAtt[id]?.status === 'var' && !!tempAtt[id]?.late);
+
+  // Kullanıcı onayı (Firebase'e kaydetmeden önce)
+  const confirm = await Swal.fire({
+    title: 'Onay',
+    html: `<div style="text-align:left;line-height:1.5">
+      Yoklama doğru alındı mı?<br>
+      <b>Evet</b> derseniz kayıt <b>kaydedilecek</b> ve varsa <b>SMS gönderimi</b> yapılacaktır.<br><br>
+      <span class="muted">SMS: Yok (${yokIds.length}) • Geç (${lateIds.length})</span>
+    </div>`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Evet',
+    cancelButtonText: 'Hayır'
+  });
+  if(!confirm.isConfirmed) return;
 
   const updates = {};
   Object.entries(tempAtt).forEach(([id, d])=>{
     if(d.status){
       updates[`${pathBase}/${id}`] = {
-        durum:d.status, late:!!d.late, ts:Date.now(),
+        durum:d.status, late:!!d.late, lateAt: d.late ? (d.lateAt||nowTR().format('HH:mm')) : null, ts:Date.now(),
         ogretmenId: currentLesson.ogretmenId,
         ogretmenAd: currentLesson.ogretmenAd,
         ogretmenBrans: currentLesson.ogretmenBrans,
@@ -2948,22 +3029,67 @@ async function saveAttendance(){
     }
   });
 
+  // SMS mesajlarını hazırla (yalnızca telefon verisi olanlara)
+  const dersNo = currentLesson.saatNo || '';
+  const aralik = `${currentLesson.bas||''}-${currentLesson.bit||''}`.replace(/^-|-$/g,'');
+  const makeAbsentMsg = (stuNo, name) => toSmsAscii(`Sayin Velimiz, ${stuNo} nolu ogrencimiz ${name} ${dersNo?dersNo+'. ders ':''}(${aralik}) dersine katilmamistir. ${COMPANY_NAME}.`);
+  const makeLateMsg   = (stuNo, name, lateAt) => toSmsAscii(`Sayin Velimiz, ${stuNo} nolu ogrencimiz ${name} ${dersNo?dersNo+'. ders ':''}(${aralik}) dersine ${lateAt}de gec katilmistir. ${COMPANY_NAME}.`);
+
+  const smsMessages = [];
+  const addMsgForStudent = (id, kind)=>{
+    const st = students.find(s => safe(s.NO)===safe(id));
+    if(!st) return;
+    const gsm = normalizeTRGsm(st.VeliTel || st.VELITEL || st.velitel || '');
+    if(!gsm) return;
+    const stuNo = safe(st.NO);
+    const ad = toSmsAscii(st.ADSOYAD || st.adsoyad || '');
+    if(kind==='yok'){
+      smsMessages.push({ no:gsm, msg: makeAbsentMsg(stuNo, ad) });
+    }else if(kind==='late'){
+      const lateAt = (tempAtt[id]?.lateAt || nowTR().format('HH:mm'));
+      smsMessages.push({ no:gsm, msg: makeLateMsg(stuNo, ad, lateAt) });
+    }
+  };
+  yokIds.forEach(id=> addMsgForStudent(id,'yok'));
+  lateIds.forEach(id=> addMsgForStudent(id,'late'));
+
   try{
+    // 1) Firebase kaydı
     if(navigator.onLine){
       await update(ref(db), updates);
       await flushQueue(false);
       setStatus('Kaydedildi.', 'ok');
-      Swal.fire('Kaydedildi','Yoklama kaydedildi.','success');
     }else{
       // Offline kuyruk: çoklu yol güncellemesini tek paket sakla
       queueOfflineWrite('/', updates);
-      Swal.fire('Offline','Kayıt kuyruğa alındı.','info');
+      Swal.fire('Offline','Kayıt kuyruğa alındı. (SMS gönderimi internet gerektirir)','info');
     }
+
+    // 2) SMS gönderimi (online ise)
+    let smsResult = null;
+    if(navigator.onLine && smsMessages.length){
+      try{
+        smsResult = await sendSmsBatch(smsMessages);
+      }catch(e){
+        console.error('sms send error', e);
+        smsResult = { ok:false, raw:String(e) };
+      }
+    }
+
+    // 3) Kullanıcı bilgilendirme
+    if(navigator.onLine){
+      const smsInfo = smsMessages.length
+        ? (smsResult?.ok ? `\nSMS gonderildi: ${smsMessages.length}` : `\nSMS hatasi: ${smsResult?.raw || 'Bilinmiyor'}`)
+        : '\nSMS: Gonderilecek kayit yok';
+      Swal.fire('Kaydedildi', `Yoklama kaydedildi.${smsInfo}`, smsResult?.ok===false ? 'warning' : 'success');
+    }
+
     closeAttendance();
     await showTeacherToday();
     await refreshTeacherDailyKpis();
   }catch(e){
-    console.error(e); setStatus('Hata: kayıt sırasında sorun.', 'bad');
+    console.error(e);
+    setStatus('Hata: kayıt sırasında sorun.', 'bad');
     Swal.fire('Hata','Kayıt sırasında bir sorun oluştu.','error');
   }
 }
