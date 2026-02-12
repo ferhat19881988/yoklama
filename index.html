@@ -1489,25 +1489,18 @@ div.admin-filters .button-row {
 
     async function sendSmsBatch(messages){
       if(!messages || !messages.length) return { ok:true, skipped:true, sent:0, raw:'NO_MESSAGES' };
-
-      // NOTE:
-      // Tarayıcıdan 3. parti SMS API'lerine fetch ile giderken CORS (preflight) yüzünden
-      // "Failed to fetch" hatası oluşabiliyor. Bu yüzden mode:'no-cors' ile gönderiyoruz.
-      // no-cors modunda cevap "opaque" gelir; yanıt gövdesi/status okunamaz ama istek gönderilir.
       const xml = buildSmsXml(messages);
-      const url = `${SMS_API_HOST}/api/smspost/v1.1`;
-
-      try{
-        const res = await fetch(url, {
-          method:'POST',
-          mode:'no-cors',
-          cache:'no-cache',
-          body: xml
-        });
-        return { ok:true, opaque:true, raw:'SENT_NO_CORS', status: res?.status || 0 };
-      }catch(e){
-        return { ok:false, raw:String(e) };
-      }
+      const url = `${SMS_API_HOST}/api/smspost/v1`;
+      const res = await fetch(url, {
+        method:'POST',
+        headers: { 'Content-Type':'text/xml; charset=UTF-8' },
+        body: xml
+      });
+      const text = (await res.text()).trim();
+      // Başarılı dönüş: "00 <id>"
+      const ok = text.startsWith('00');
+      const id = ok ? (text.split(/\s+/)[1] || '') : '';
+      return { ok, id, raw: text, status: res.status };
     }
 
 
@@ -3086,10 +3079,7 @@ async function saveAttendance(){
     // 3) Kullanıcı bilgilendirme
     if(navigator.onLine){
       const smsInfo = smsMessages.length
-        ? (smsResult?.ok ? (smsResult?.opaque ? `
-SMS istegi gonderildi: ${smsMessages.length} (CORS nedeniyle onay okunamadi)` : `
-SMS gonderildi: ${smsMessages.length}`) : `
-SMS hatasi: ${smsResult?.raw || 'Bilinmiyor'}`)
+        ? (smsResult?.ok ? `\nSMS gonderildi: ${smsMessages.length}` : `\nSMS hatasi: ${smsResult?.raw || 'Bilinmiyor'}`)
         : '\nSMS: Gonderilecek kayit yok';
       Swal.fire('Kaydedildi', `Yoklama kaydedildi.${smsInfo}`, smsResult?.ok===false ? 'warning' : 'success');
     }
