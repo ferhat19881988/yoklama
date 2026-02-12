@@ -346,15 +346,6 @@
   background:rgba(245,158,11,.16);    /* sarı arka plan */
   border-color: rgba(245,158,11,.35); /* neden: uyarı vurgusu */
 }
-
-    /* SMS log */
-    .sms-item{ border:var(--stroke); background:var(--glass); border-radius:14px; padding:12px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px }
-    .sms-item .meta{ display:grid; gap:3px }
-    .sms-item .meta .who{ font-weight:800 }
-    .sms-item .meta .msg{ color:var(--muted); font-size:.9rem; line-height:1.25 }
-    .sms-item .meta .to{ color:var(--muted); font-size:.85rem }
-    .sms-item .right{ display:flex; flex-direction:column; gap:6px; align-items:flex-end }
-    .sms-item .raw{ color:var(--muted); font-size:.75rem; max-width:260px; word-break:break-word; text-align:right }
     .list{ list-style:none; padding:0; margin:0 }
     .student{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:var(--stroke); transition:background .15s ease, transform .03s ease }
     .student:hover{ background:rgba(255,255,255,.04) }
@@ -1068,15 +1059,6 @@ div.admin-filters .button-row {
         </div>
       </div>
 
-	      <!-- SMS Gönderim Durumu (1. saat yoklamalarında) -->
-	      <div id="smsLogCard" class="card" role="region" aria-label="SMS Gönderim Durumu">
-	        <h3>📨 SMS Gönderim Durumu</h3>
-	        <div class="body stack">
-	          <div class="muted" id="smsLogHint">1. saat yoklaması kaydedildikten sonra (onay verirseniz) velilere SMS gönderimi burada raporlanır.</div>
-	          <div id="smsLog" class="stack"></div>
-	        </div>
-	      </div>
-
       <div id="attCard" class="card hidden" role="region" aria-labelledby="attTitle">
         <h3 id="attTitle">📝 Yoklama</h3>
         <div class="body stack">
@@ -1463,19 +1445,6 @@ div.admin-filters .button-row {
     import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
 
-    /* --------------------------------------------------------------------------
-       SMS (1SMS / İnteraktif SMS)
-       - 1. saat yoklamalarında (saatNo===1) velilere otomatik SMS gönderimi
-       - API: /api/smspost/v1 (XML POST)
-    -------------------------------------------------------------------------- */
-    const SMS_API_BASE = 'https://api.1sms.com.tr';
-    const SMS_USERNAME = 'fenomencocukkulubu';
-    const SMS_PASSWORD = '11b66accbf01c8cecd1af164c87da264';
-    const SMS_HEADER   = 'FENOMEN';
-    const SMS_ENDPOINT_PATH = '/api/smspost/v1';
-    // Dokümanda panel.1sms.com.tr:8080 geçiyor; HOSTNAME farklıysa, otomatik fallback denenir.
-    const SMS_FALLBACK_URL  = 'https://panel.1sms.com.tr:8080/api/smspost/v1';
-
     const firebaseConfig = {
       apiKey: "AIzaSyA0jqzCSRFQYvLojoYEiBzfylXLqrL-NsQ",
       authDomain: "ders-ac884.firebaseapp.com",
@@ -1512,8 +1481,6 @@ div.admin-filters .button-row {
       lessonsGrid: document.getElementById('lessonsGrid'),
       todayInfo: document.getElementById('todayInfo'),
       noLesson: document.getElementById('noLesson'),
-	      smsLog: document.getElementById('smsLog'),
-	      smsLogHint: document.getElementById('smsLogHint'),
       attCard: document.getElementById('attCard'),
       attTitle: document.getElementById('attTitle'),
       studentList: document.getElementById('studentList'),
@@ -2629,9 +2596,9 @@ async function showTeacherToday(){
     const bitSaati = parseOnDate(toDateStr(now), m.bit);
 
     let canTake = true;                         // neden: zaman penceresi kısıtı
-    if (now.isBefore(basSaati.subtract(5, 'minute'))) canTake = false;
-    if (now.isAfter(bitSaati.add(3, 'hour')))         canTake = false;
-    if (attendanceEnabled && !hasTaken && now.isAfter(basSaati.add(5, 'minute')) && now.isBefore(bitSaati.add(3, 'hour'))) {
+    if (now.isBefore(basSaati.subtract(10, 'minute'))) canTake = false;
+    if (now.isAfter(bitSaati.add(5, 'hour')))         canTake = false;
+    if (attendanceEnabled && !hasTaken && now.isAfter(basSaati.add(5, 'minute')) && now.isBefore(bitSaati.add(5, 'hour'))) {
       gecikenYoklamalar.push(`${m.sinif} • ${m.dersName} (${m.bas}-${m.bit})`);
     }
 
@@ -2654,10 +2621,10 @@ async function showTeacherToday(){
       const idx = +el.dataset.idx;
       const m = mine[idx];
       const now = nowTR();
-      const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(5,'minute')) ||
-                        now.isAfter(parseOnDate(toDateStr(now), m.bit).add(3,'hour')));
+      const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(10,'minute')) ||
+                        now.isAfter(parseOnDate(toDateStr(now), m.bit).add(5,'hour')));
       if (!canTake){
-        await Swal.fire({icon:'error',title:'Yoklama Alınamaz',text:'Yoklama ders başlamadan 5 dakika önce veya ders bitiminden 3 saat sonra alınamaz.',confirmButtonText:'Tamam'});
+        await Swal.fire({icon:'error',title:'Yoklama Alınamaz',text:'Yoklama ders başlamadan 10 dakika önce veya ders bitiminden 5 saat sonra alınamaz.',confirmButtonText:'Tamam'});
         return;
       }
       openLesson(m);
@@ -2947,121 +2914,6 @@ async function openLesson(lesson){
       updateTeacherKpis(toplam, v, y, g);
     }
 
-	    /* ---------- SMS HELPERS (1. saat) ---------- */
-	    function getLessonHourNo(lesson){
-	      const n = Number(lesson?.saatNo);
-	      if(Number.isFinite(n) && n>0) return n;
-	      const m = String(lesson?.saatKodu||'').match(/\d+/);
-	      return m ? parseInt(m[0], 10) : null;
-	    }
-
-	    function normalizeGsm(raw){
-	      const digits = String(raw||'').replace(/\D/g,'');
-	      if(!digits) return '';
-	      // 10 haneli GSM (5xxxxxxxxx) -> 90 + 10
-	      if(digits.length===10) return `90${digits}`;
-	      // 11 haneli (05xxxxxxxxx) -> 90 + son 10
-	      if(digits.length===11 && digits.startsWith('0')) return `90${digits.slice(1)}`;
-	      // 12 haneli zaten 90 ile başlıyorsa aynen bırak
-	      if(digits.length===12 && digits.startsWith('90')) return digits;
-	      // Diğer: son 10'u alıp 90 ile tamamla (en güvenli normalize)
-	      if(digits.length>10) return `90${digits.slice(-10)}`;
-	      return digits;
-	    }
-
-	    function buildSmsText(kind, studentName, lesson){
-	      const hourNo = getLessonHourNo(lesson);
-	      const saat = hourNo ? `${hourNo}. ders` : 'ders';
-	      const timePart = (lesson?.bas && lesson?.bit) ? ` (${lesson.bas}-${lesson.bit})` : '';
-	      const action = kind==='late' ? 'geç katılmıştır' : 'gelmemiştir';
-	      return `Sayın Velimiz, öğrencimiz ${studentName} ${saat}e ${action}.${timePart} ${SMS_HEADER}.`;
-	    }
-
-	    function clearSmsLog(){
-	      if(UI.smsLog) UI.smsLog.innerHTML = '';
-	    }
-	    function addSmsLogRow(row){
-	      if(!UI.smsLog) return;
-	      const chip = row.ok ? 'ok' : (row.pending ? 'warn' : 'bad');
-	      const chipText = row.ok ? 'GÖNDERİLDİ' : (row.pending ? 'GÖNDERİLİYOR' : 'BAŞARISIZ');
-	      const title = `${row.student} • ${row.kind==='late'?'Geç':'Yok'}`;
-	      const msg = row.text;
-	      const to = row.to ? `VeliTel: ${row.to}` : 'VeliTel: yok';
-	      const raw = row.raw ? row.raw : '';
-	      UI.smsLog.insertAdjacentHTML('afterbegin', `
-	        <div class="sms-item">
-	          <div class="meta">
-	            <div class="who">${escapeHtml(title)}</div>
-	            <div class="msg">${escapeHtml(msg)}</div>
-	            <div class="to">${escapeHtml(to)}</div>
-	          </div>
-	          <div class="right">
-	            <div class="chip ${chip}">${chipText}</div>
-	            ${raw ? `<div class="raw">${escapeHtml(raw)}</div>` : ''}
-	          </div>
-	        </div>
-	      `);
-	    }
-
-	    function escapeHtml(str){
-	      return String(str||'')
-	        .replace(/&/g,'&amp;')
-	        .replace(/</g,'&lt;')
-	        .replace(/>/g,'&gt;')
-	        .replace(/"/g,'&quot;')
-	        .replace(/'/g,'&#39;');
-	    }
-
-	    function smsXmlSingle(to, text){
-	      // 1-N: tek numaraya tek mesaj
-	      return `<?xml version="1.0" encoding="UTF-8"?>\n` +
-	        `<sms>`+
-	          `<username>${escapeXml(SMS_USERNAME)}</username>`+
-	          `<password>${escapeXml(SMS_PASSWORD)}</password>`+
-	          `<header>${escapeXml(SMS_HEADER)}</header>`+
-	          `<validity>2880</validity>`+
-	          `<message>`+
-	            `<gsm><no>${escapeXml(to)}</no></gsm>`+
-	            `<msg><![CDATA[${text}]]></msg>`+
-	          `</message>`+
-	        `</sms>`;
-	    }
-
-	    function escapeXml(str){
-	      return String(str||'')
-	        .replace(/&/g,'&amp;')
-	        .replace(/</g,'&lt;')
-	        .replace(/>/g,'&gt;')
-	        .replace(/"/g,'&quot;')
-	        .replace(/'/g,'&apos;');
-	    }
-
-	    async function sendSms1Sms(to, text){
-	      const urlPrimary = `${SMS_API_BASE.replace(/\/$/,'')}${SMS_ENDPOINT_PATH}`;
-	      const body = smsXmlSingle(to, text);
-	      const doPost = async (url) => {
-	        const res = await fetch(url, {
-	          method: 'POST',
-	          headers: { 'Content-Type': 'application/xml; charset=UTF-8' },
-	          body
-	        });
-	        const raw = (await res.text()).trim();
-	        const ok = res.ok && raw.startsWith('00');
-	        return { ok, raw, httpOk: res.ok };
-	      };
-	      try{
-	        return await doPost(urlPrimary);
-	      }catch(e1){
-	        try{
-	          // Fallback (doküman): panel.1sms.com.tr:8080
-	          return await doPost(SMS_FALLBACK_URL);
-	        }catch(e2){
-	          return { ok:false, raw:`NETWORK_ERROR: ${e2?.message||e1?.message||'unknown'}`, httpOk:false };
-	        }
-	      }
-	    }
-	    /* ---------- /SMS HELPERS ---------- */
-
 async function saveAttendance(){
   if(!currentLesson) return;
   if(attendanceConfigReady && !attendanceEnabled){
@@ -3069,59 +2921,9 @@ async function saveAttendance(){
     showHolidayMode(currentLesson);
     return;
   }
-
-  // --- KAYDETME ONAY AKIŞI ---
-  const hourNo = getLessonHourNo(currentLesson);
-  const isFirstHour = String(hourNo ?? '') === '1';
-  let wantSendSms = false;
-
-  if(isFirstHour){
-    const res = await Swal.fire({
-      icon:'warning',
-      title:'1. Saat Yoklaması',
-      html:`Sayın öğretmenimiz, <b>1. saat</b> yoklamalarında dikkatli yoklama almanızı rica ederiz.<br>
-            Çünkü <b>1. saat yoklamaları</b> velilere <b>SMS</b> olarak gönderilmektedir.<br><br>
-            Yoklama <b>kaydedilsin</b> mi ve veli SMS'i <b>gönderilsin</b> mi?`,
-      showCancelButton:true,
-      confirmButtonText:'Evet, kaydet + SMS gönder',
-      cancelButtonText:'Sadece kaydet (SMS gönderme)'
-    });
-    // Kullanıcı modalı kapatırsa kayıt olmasın
-    if(res.dismiss === Swal.DismissReason.backdrop || res.dismiss === Swal.DismissReason.esc){
-      return;
-    }
-    wantSendSms = !!res.isConfirmed;
-  }else{
-    const ok = await Swal.fire({
-      icon:'question',
-      title:'Yoklama Kaydedilsin mi?',
-      text:'Sayın öğretmenimiz, yoklamayı doğru aldınız mı? Kaydedilsin mi?',
-      showCancelButton:true,
-      confirmButtonText:'Evet, kaydet',
-      cancelButtonText:'Hayır, vazgeç'
-    });
-    if(!ok.isConfirmed) return;
-  }
-
   const tarih = toDateStr(nowTR());
   const sinif = currentLesson.sinif;
   const pathBase = attPath(tarih, sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
-
-  // SMS hedefleri (1. saat + kullanıcı onayı) için hazırlık
-  const smsTargets = [];
-  if(isFirstHour && wantSendSms){
-    const byNo = new Map(students.map(s => [safe(s.NO), s]));
-    for(const [id, d] of Object.entries(tempAtt)){
-      if(d.status !== 'yok' && !(d.status==='var' && d.late)) continue;
-      const st = byNo.get(safe(id));
-      const studentName = st?.ADSOYAD || '';
-      const rawTel = st?.VeliTel || st?.VELITEL || st?.veliTel || '';
-      const to = normalizeGsm(rawTel);
-      const kind = (d.status==='var' && d.late) ? 'late' : 'absent';
-      const text = buildSmsText(kind==='late'?'late':'absent', studentName || `No ${id}`, currentLesson);
-      smsTargets.push({ id, student: studentName || `No ${id}`, kind, to, text });
-    }
-  }
 
   const updates = {};
   Object.entries(tempAtt).forEach(([id, d])=>{
@@ -3157,41 +2959,6 @@ async function saveAttendance(){
       queueOfflineWrite('/', updates);
       Swal.fire('Offline','Kayıt kuyruğa alındı.','info');
     }
-
-    // --- SMS GÖNDERİMİ (yalnızca online + 1. saat + onay) ---
-    if(isFirstHour && wantSendSms){
-      clearSmsLog();
-      if(!navigator.onLine){
-        addSmsLogRow({ student:'SMS', kind:'absent', to:'', text:'Offline mod: SMS gönderimi yapılamadı.', ok:false, pending:false, raw:'OFFLINE' });
-      }else if(smsTargets.length===0){
-        addSmsLogRow({ student:'SMS', kind:'absent', to:'', text:'Bu derste SMS gerektiren (YOK / GEÇ) öğrenci bulunamadı.', ok:true, pending:false, raw:'NO_TARGETS' });
-      }else{
-        // Önce pending kayıtları ekle
-        smsTargets.forEach(t => addSmsLogRow({ ...t, pending:true, ok:false, raw:'' }));
-        // Sırayla gönder (API tarafında rate-limit ve hata yönetimi daha stabil)
-        const results = [];
-        for(const t of smsTargets){
-          if(!t.to){
-            results.push({ ...t, ok:false, raw:'NO_VELITEL' });
-            continue;
-          }
-          const r = await sendSms1Sms(t.to, t.text);
-          results.push({ ...t, ok:!!r.ok, raw:r.raw });
-        }
-        // Log'u sonuçlarla yeniden yaz
-        clearSmsLog();
-        results.slice().reverse().forEach(r => addSmsLogRow({ ...r, pending:false }));
-
-        const okCount = results.filter(r=>r.ok).length;
-        const failCount = results.length - okCount;
-        await Swal.fire({
-          icon: failCount ? 'warning' : 'success',
-          title: 'SMS Gönderim Özeti',
-          html: `Toplam: <b>${results.length}</b><br>Gönderildi: <b>${okCount}</b><br>Başarısız: <b>${failCount}</b><br><br><small>Detaylar “SMS Gönderim Durumu” bölümünde listelenir.</small>`
-        });
-      }
-    }
-
     closeAttendance();
     await showTeacherToday();
     await refreshTeacherDailyKpis();
@@ -3815,8 +3582,17 @@ function renderAdminSummaryDashboard(ctx){
           const stu = byNo.get(no) || {ad:'', sinif:safe(sinifKey)};
           const sinif = safe(stu.sinif || sinifKey);
 
-          const k = `${sinif}|${hNo||'?'}`;
-          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', abs:[], late:[] });
+          const progKey = (recProg || safe(rec?.program) || '').toString().trim();
+          const k = `${sinif}|${hNo||'?'}|${progKey || '-'}`;
+          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', prog: progKey, saatBas:'', saatBit:'', abs:[], late:[] });
+
+          // Grup meta bilgisi (saat aralığı + program) — ilk bulunan kayıttan alınır
+          const gMeta = groups.get(k);
+          if(gMeta){
+            if(!gMeta.saatBas) gMeta.saatBas = safe(rec?.saatBas || rec?.bas || '');
+            if(!gMeta.saatBit) gMeta.saatBit = safe(rec?.saatBit || rec?.bit || '');
+            if(!gMeta.prog)    gMeta.prog    = progKey;
+          }
 
           const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
 
@@ -3836,7 +3612,28 @@ function renderAdminSummaryDashboard(ctx){
 
   const groupArr = Array.from(groups.values())
     .filter(g => g.abs.length || g.late.length)
-    .sort((a,b)=> (a.sinif + String(a.hourNo)).localeCompare(b.sinif + String(b.hourNo), 'tr', {numeric:true}));
+    .sort((a,b)=> (a.sinif + String(a.hourNo) + (a.prog||'')).localeCompare(b.sinif + String(b.hourNo) + (b.prog||''), 'tr', {numeric:true}));
+
+  const fmtClassLabel = (cls) => {
+    const c = safe(cls).trim();
+    if(!c) return '—';
+    const low = c.toLocaleLowerCase('tr-TR');
+    if(low.includes('sınıf')) return c;
+    return `${c} Sınıfı`;
+  };
+  const fmtTimeRange = (bas, bit) => {
+    const b = safe(bas).trim();
+    const e = safe(bit).trim();
+    if(!b && !e) return '';
+    return ` (${b || '??:??'}-${e || '??:??'})`;
+  };
+  const fmtProg = (prog) => {
+    const p = safe(prog).trim();
+    if(!p || p === '-') return '';
+    const lbl = labelProgram(p);
+    return lbl ? ` • ${lbl}` : ` • ${p}`;
+  };
+
 
   if(UI.admSumAbsLate){
     UI.admSumAbsLate.innerHTML = groupArr.map(g=>{
@@ -3851,7 +3648,8 @@ function renderAdminSummaryDashboard(ctx){
         ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}</div>`
         : '';
 
-      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${g.sinif} • ${g.hourNo}. Saat</span></div>${absLine}${lateLine}</li>`;
+      const head = `${fmtClassLabel(g.sinif)} • ${g.hourNo}. Saat${fmtTimeRange(g.saatBas, g.saatBit)}${fmtProg(g.prog)}`;
+      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${head}</span></div>${absLine}${lateLine}</li>`;
     }).join('');
     UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
   }
