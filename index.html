@@ -1023,6 +1023,7 @@ div.admin-filters .button-row {
         <img src="https://i.ibb.co/cS9PSRpq/Logo-Fenomen.jpg" alt="Fenomen Yoklama Logo" class="logo-img">
         <span class="logo-text">Yoklama</span>
       </div>
+      <button class="btn ghost hidden" id="btnRefresh" type="button" title="Verileri yenile">🔄 Yenile</button>
       <button class="btn ghost hidden" id="btnLogout" type="button">Çıkış</button>
     </div>
     <div class="head-session" role="group" aria-label="Oturum ve durum">
@@ -1472,6 +1473,7 @@ div.admin-filters .button-row {
       loginCode: document.getElementById('loginCode'),
       btnLogin: document.getElementById('btnLogin'),
       btnLogout: document.getElementById('btnLogout'),
+      btnRefresh: document.getElementById('btnRefresh'),
       userChip: document.getElementById('userChip'),
 
       teacherView: document.getElementById('teacherView'),
@@ -2108,6 +2110,47 @@ await loadSheets(); buildSlotOrder();
         location.reload();
       };
 
+
+      // Öğretmen: Güçlü Yenileme (cache temizle + cache-busting reload)
+      function strongReload(){
+        try{ localStorage.removeItem('fenomenSheetsCache_v1'); }catch{}
+        try{ sessionStorage.removeItem('fenomenSheetsCache_v1'); }catch{}
+        try{ saveScrollState(true); }catch{} // WHY: yenilemede konumu kaybetme
+        try{
+          const url = new URL(window.location.href);
+          url.searchParams.set('_r', String(Date.now()));
+          window.location.replace(url.toString());
+        }catch{
+          window.location.reload();
+        }
+      }
+
+      if(UI.btnRefresh){
+        UI.btnRefresh.onclick = async ()=>{
+          // Yalnızca öğretmen için görünür; ama yine de güvenlik kontrolü
+          if(!session || session.role !== 'ogretmen') return;
+          // Offline ise de yenileme mümkün; fakat veri çekimi internet ister.
+          if(!navigator.onLine){
+            Swal.fire('Offline','İnternet bağlantısı yok. Online olunca tekrar deneyin.','warning');
+            return;
+          }
+          // Not: SweetAlert yüklü değilse direkt yenile.
+          try{
+            const ok = await Swal.fire({
+              title: 'Verileri Yenile',
+              text: 'Ders/öğrenci listeleri ve ekran verileri yeniden yüklenecek.',
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: 'Yenile',
+              cancelButtonText: 'Vazgeç'
+            });
+            if(ok.isConfirmed) strongReload();
+          }catch{
+            strongReload();
+          }
+        };
+      }
+
       // İptal butonu (Tatil Modu dahil) her zaman paneli kapatsın
       const cancelEl = document.getElementById('cancelBtn');
       if(cancelEl && !cancelEl.dataset.bound){
@@ -2402,6 +2445,8 @@ try{
     UI.loginCard.classList.add('hidden');
     UI.app.classList.remove('hidden');
     UI.btnLogout.classList.remove('hidden');
+    // Öğretmen için: güçlü yenileme butonu
+    try{ UI.btnRefresh && UI.btnRefresh.classList.toggle('hidden', session.role !== 'ogretmen'); }catch{}
 
     // Fix: Admin yoklama anahtarı bazen ilk açılışta "donuk" kalabiliyordu.
     // Neden: initAttendanceConfigListener(), session restore/login'den önce çalışıp
