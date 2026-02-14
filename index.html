@@ -581,7 +581,32 @@ div.admin-filters .button-row {
   color:var(--ink);
   font-weight:800;
 }
-.adm-sum-empty{ color:var(--muted); }
+
+.adm-sum-list.scroll6{
+  max-height: 360px; /* yaklaşık 6 satır sonrası scroll */
+  overflow: auto;
+  padding-right: 6px;
+}
+.adm-sum-divider{
+  height:1px;
+  background: rgba(255,255,255,.08);
+  margin: 12px 0 10px 0;
+}
+.adm-sum-subhead{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom: 8px;
+}
+.adm-sum-subhead h5{
+  margin:0;
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+.adm-sum-label.ok{ color: rgba(34,197,94,.95); }
+
+\1 color:var(--muted); }
 .adm-sum-kpi{
   font-size:1.8rem;
   font-weight:900;
@@ -1383,8 +1408,17 @@ div.admin-filters .button-row {
               <div class="muted" style="font-weight:800;">30dk geçti...</div>
             </div>
             <div class="content">
-              <ul id="admSumMissingTeach" class="adm-sum-list clean"></ul>
+              <ul id="admSumMissingTeach" class="adm-sum-list clean scroll6"></ul>
               <div id="admSumMissingTeachEmpty" class="adm-sum-empty hidden">Eksik yoklama yok.</div>
+
+              <div class="adm-sum-divider"></div>
+
+              <div class="adm-sum-subhead">
+                <h5>🟢 1. Derste Gelmeyip 2. Derste Gelenler</h5>
+                <div class="muted">Sonradan gelenler</div>
+              </div>
+              <ul id="admSumLateArrivals" class="adm-sum-list clean"></ul>
+              <div id="admSumLateArrivalsEmpty" class="adm-sum-empty hidden">Kayıt yok.</div>
             </div>
           </div>
 
@@ -1539,6 +1573,8 @@ div.admin-filters .button-row {
       admSumAbsLateEmpty: document.getElementById('admSumAbsLateEmpty'),
       admSumMissingTeach: document.getElementById('admSumMissingTeach'),
       admSumMissingTeachEmpty: document.getElementById('admSumMissingTeachEmpty'),
+      admSumLateArrivals: document.getElementById('admSumLateArrivals'),
+      admSumLateArrivalsEmpty: document.getElementById('admSumLateArrivalsEmpty'),
       admSumTotals: document.getElementById('admSumTotals'),
       admSumTotalsSub: document.getElementById('admSumTotalsSub'),
       admSumBreakdown: document.getElementById('admSumBreakdown'),
@@ -3829,7 +3865,9 @@ function renderAdminSummaryDashboard(ctx){
     if(UI.admSumAbsLateEmpty) UI.admSumAbsLateEmpty.classList.add('hidden');
     if(UI.admSumMissingTeach) UI.admSumMissingTeach.innerHTML = msg;
     if(UI.admSumMissingTeachEmpty) UI.admSumMissingTeachEmpty.classList.add('hidden');
-    return;
+        if(UI.admSumLateArrivals) UI.admSumLateArrivals.innerHTML = msg;
+    if(UI.admSumLateArrivalsEmpty) UI.admSumLateArrivalsEmpty.classList.add('hidden');
+return;
   }
 
 
@@ -4003,7 +4041,85 @@ function renderAdminSummaryDashboard(ctx){
       return `<li><b>${m.ogretmenAd}</b> — ${m.sinif} • ${m.dersName}<br><span class="muted">${saatTxt}${labelProgram(m.program)?` • ${labelProgram(m.program)}`:''}</span></li>`;
     }).join('');
     UI.admSumMissingTeachEmpty && UI.admSumMissingTeachEmpty.classList.toggle('hidden', missing.length > 0);
+  
+  // ---------- Alt Bölüm: 1. derste gelmeyip 2. derste gelenler (ETÜT hariç) ----------
+  // Not: Bu bölüm sınıf filtresinden bağımsızdır; her sınıf kendi içinde listelenir.
+  const progFilter = safe(program);
+  const progIsEtut = progFilter && progFilter.toLocaleUpperCase('tr-TR') === 'ETÜT';
+  const byNoAll = new Map((students||[]).map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
+  const lateCand = new Map(); // key: sinif|prog -> Map(no -> {no,ad,sinif,prog,abs1:false,var2:false})
+
+  const lcEnsure = (sinif, prog, no, ad) => {
+    const k = `${sinif}|${prog||'-'}`;
+    if(!lateCand.has(k)) lateCand.set(k, new Map());
+    const m = lateCand.get(k);
+    if(!m.has(no)) m.set(no, { no, ad, sinif, prog, abs1:false, var2:false });
+    return m.get(no);
+  };
+
+  if(!progIsEtut){
+    Object.entries(dayData||{}).forEach(([sinifKey, node])=>{
+      Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
+        Object.values(byTeacher||{}).forEach(byStudent=>{
+          Object.entries(byStudent||{}).forEach(([ogrNo, rec])=>{
+            const no = safe(ogrNo);
+            const stu = byNoAll.get(no);
+            if(!stu) return;
+
+            const recProg = safe(rec?.program)||'';
+            if(recProg.toLocaleUpperCase('tr-TR') === 'ETÜT') return;
+            if(progFilter && progFilter !== 'hepsi' && recProg !== progFilter) return;
+
+            const h = extractHour(rec, saatKodu);
+            if(h !== 1 && h !== 2) return;
+
+            const sinif = safe(stu.sinif || sinifKey);
+            const item = lcEnsure(sinif, recProg, no, (stu.ad||'').trim() || '—');
+
+            if(h === 1 && rec?.durum === 'yok') item.abs1 = true;
+            if(h === 2 && rec?.durum === 'var') item.var2 = true;
+          });
+        });
+      });
+    });
   }
+
+  // Grupla: sınıf bazında (programlar dahil olabilir)
+  const byClass = new Map(); // sinif -> [{no,ad,prog}]
+  for(const m of lateCand.values()){
+    for(const it of m.values()){
+      if(!(it.abs1 && it.var2)) continue;
+      if(!byClass.has(it.sinif)) byClass.set(it.sinif, []);
+      byClass.get(it.sinif).push({ no: it.no, ad: it.ad, prog: it.prog });
+    }
+  }
+  // sıralama
+  const classKeys = Array.from(byClass.keys()).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true,sensitivity:'base'}));
+  classKeys.forEach(k=>{
+    byClass.get(k).sort((a,b)=> String(a.no).localeCompare(String(b.no),'tr',{numeric:true}) || (a.ad||'').localeCompare(b.ad||'','tr'));
+  });
+
+  if(UI.admSumLateArrivals){
+    if(classKeys.length === 0){
+      UI.admSumLateArrivals.innerHTML = '';
+      UI.admSumLateArrivalsEmpty && UI.admSumLateArrivalsEmpty.classList.remove('hidden');
+    } else {
+      UI.admSumLateArrivalsEmpty && UI.admSumLateArrivalsEmpty.classList.add('hidden');
+      UI.admSumLateArrivals.innerHTML = classKeys.map(clsName => {
+        const items = byClass.get(clsName) || [];
+        const names = items.map(s=>{
+          const pLbl = labelProgram(s.prog);
+          const progTxt = pLbl ? ` • ${pLbl}` : (s.prog ? ` • ${s.prog}` : '');
+          return `${s.no} — ${s.ad}<span class="muted"> (1. derste yok, 2. derste var${progTxt})</span>`;
+        }).join(', ');
+        return `<li>
+          <div class="adm-sum-top"><span class="adm-sum-key">${fmtClassLabel(clsName)}</span></div>
+          <div class="adm-sum-line"><span class="adm-sum-label ok">Sonradan gelenler:</span><span class="mono">${items.length}</span> kişi — ${names}</div>
+        </li>`;
+      }).join('');
+    }
+  }
+}
 
   // ---------- Kart 3: Toplam / Katılım ----------
   // present = (var + gec), absent=yok, unknown = kayıt yok
