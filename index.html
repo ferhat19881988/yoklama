@@ -581,32 +581,7 @@ div.admin-filters .button-row {
   color:var(--ink);
   font-weight:800;
 }
-
-.adm-sum-list.scroll6{
-  max-height: 360px; /* yaklaşık 6 satır sonrası scroll */
-  overflow: auto;
-  padding-right: 6px;
-}
-.adm-sum-divider{
-  height:1px;
-  background: rgba(255,255,255,.08);
-  margin: 12px 0 10px 0;
-}
-.adm-sum-subhead{
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom: 8px;
-}
-.adm-sum-subhead h5{
-  margin:0;
-  font-size: 0.98rem;
-  font-weight: 900;
-}
-.adm-sum-label.ok{ color: rgba(34,197,94,.95); }
-
-\1 color:var(--muted); }
+.adm-sum-empty{ color:var(--muted); }
 .adm-sum-kpi{
   font-size:1.8rem;
   font-weight:900;
@@ -1350,6 +1325,7 @@ div.admin-filters .button-row {
           </button>
           <button class="btn" id="admTeacherReport" type="button" title="Öğretmen uyum raporu">Öğrt. Uyum</button>
           <button class="btn" id="admStudentStats" type="button" title="Öğrenci istatistiği">Öğrenci İstatistiği</button>
+	          <button class="btn" id="admWeeklyAbsence" type="button" title="Haftalık devamsızlık (son 7 gün)">Haftalık Devamsızlık</button>
           <button class="btn danger" id="admHistory" type="button" title="Eski kayıtları görüntüle/sil">Eski Kayıtlar</button>
 
           <!-- Yeni: Ödev ve Quiz rapor düğmeleri -->
@@ -1408,17 +1384,8 @@ div.admin-filters .button-row {
               <div class="muted" style="font-weight:800;">30dk geçti...</div>
             </div>
             <div class="content">
-              <ul id="admSumMissingTeach" class="adm-sum-list clean scroll6"></ul>
+              <ul id="admSumMissingTeach" class="adm-sum-list clean"></ul>
               <div id="admSumMissingTeachEmpty" class="adm-sum-empty hidden">Eksik yoklama yok.</div>
-
-              <div class="adm-sum-divider"></div>
-
-              <div class="adm-sum-subhead">
-                <h5>🟢 1. Derste Gelmeyip 2. Derste Gelenler</h5>
-                <div class="muted">Sonradan gelenler</div>
-              </div>
-              <ul id="admSumLateArrivals" class="adm-sum-list clean"></ul>
-              <div id="admSumLateArrivalsEmpty" class="adm-sum-empty hidden">Kayıt yok.</div>
             </div>
           </div>
 
@@ -1552,6 +1519,7 @@ div.admin-filters .button-row {
       admWhatsApp: document.getElementById('admWhatsApp'),
       admTeacherReport: document.getElementById('admTeacherReport'),
       admStudentStats: document.getElementById('admStudentStats'),
+	      admWeeklyAbsence: document.getElementById('admWeeklyAbsence'),
       admHistory: document.getElementById('admHistory'),
       dashVar: document.getElementById('dashVar'),
       dashYok: document.getElementById('dashYok'),
@@ -1573,8 +1541,6 @@ div.admin-filters .button-row {
       admSumAbsLateEmpty: document.getElementById('admSumAbsLateEmpty'),
       admSumMissingTeach: document.getElementById('admSumMissingTeach'),
       admSumMissingTeachEmpty: document.getElementById('admSumMissingTeachEmpty'),
-      admSumLateArrivals: document.getElementById('admSumLateArrivals'),
-      admSumLateArrivalsEmpty: document.getElementById('admSumLateArrivalsEmpty'),
       admSumTotals: document.getElementById('admSumTotals'),
       admSumTotalsSub: document.getElementById('admSumTotalsSub'),
       admSumBreakdown: document.getElementById('admSumBreakdown'),
@@ -2215,6 +2181,7 @@ await loadSheets(); buildSlotOrder();
       UI.admDate?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       UI.admTeacherReport?.addEventListener('click', openTeacherReportModal);
       UI.admStudentStats?.addEventListener('click', openStudentStatsModal);
+	      UI.admWeeklyAbsence?.addEventListener('click', openWeeklyAbsenceModal);
       UI.admHistory?.addEventListener('click', openHistoryModal);
       UI.admHour?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
       // Program filtresi değişikliği
@@ -3865,9 +3832,7 @@ function renderAdminSummaryDashboard(ctx){
     if(UI.admSumAbsLateEmpty) UI.admSumAbsLateEmpty.classList.add('hidden');
     if(UI.admSumMissingTeach) UI.admSumMissingTeach.innerHTML = msg;
     if(UI.admSumMissingTeachEmpty) UI.admSumMissingTeachEmpty.classList.add('hidden');
-        if(UI.admSumLateArrivals) UI.admSumLateArrivals.innerHTML = msg;
-    if(UI.admSumLateArrivalsEmpty) UI.admSumLateArrivalsEmpty.classList.add('hidden');
-return;
+    return;
   }
 
 
@@ -4041,85 +4006,7 @@ return;
       return `<li><b>${m.ogretmenAd}</b> — ${m.sinif} • ${m.dersName}<br><span class="muted">${saatTxt}${labelProgram(m.program)?` • ${labelProgram(m.program)}`:''}</span></li>`;
     }).join('');
     UI.admSumMissingTeachEmpty && UI.admSumMissingTeachEmpty.classList.toggle('hidden', missing.length > 0);
-  
-  // ---------- Alt Bölüm: 1. derste gelmeyip 2. derste gelenler (ETÜT hariç) ----------
-  // Not: Bu bölüm sınıf filtresinden bağımsızdır; her sınıf kendi içinde listelenir.
-  const progFilter = safe(program);
-  const progIsEtut = progFilter && progFilter.toLocaleUpperCase('tr-TR') === 'ETÜT';
-  const byNoAll = new Map((students||[]).map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
-  const lateCand = new Map(); // key: sinif|prog -> Map(no -> {no,ad,sinif,prog,abs1:false,var2:false})
-
-  const lcEnsure = (sinif, prog, no, ad) => {
-    const k = `${sinif}|${prog||'-'}`;
-    if(!lateCand.has(k)) lateCand.set(k, new Map());
-    const m = lateCand.get(k);
-    if(!m.has(no)) m.set(no, { no, ad, sinif, prog, abs1:false, var2:false });
-    return m.get(no);
-  };
-
-  if(!progIsEtut){
-    Object.entries(dayData||{}).forEach(([sinifKey, node])=>{
-      Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
-        Object.values(byTeacher||{}).forEach(byStudent=>{
-          Object.entries(byStudent||{}).forEach(([ogrNo, rec])=>{
-            const no = safe(ogrNo);
-            const stu = byNoAll.get(no);
-            if(!stu) return;
-
-            const recProg = safe(rec?.program)||'';
-            if(recProg.toLocaleUpperCase('tr-TR') === 'ETÜT') return;
-            if(progFilter && progFilter !== 'hepsi' && recProg !== progFilter) return;
-
-            const h = extractHour(rec, saatKodu);
-            if(h !== 1 && h !== 2) return;
-
-            const sinif = safe(stu.sinif || sinifKey);
-            const item = lcEnsure(sinif, recProg, no, (stu.ad||'').trim() || '—');
-
-            if(h === 1 && rec?.durum === 'yok') item.abs1 = true;
-            if(h === 2 && rec?.durum === 'var') item.var2 = true;
-          });
-        });
-      });
-    });
   }
-
-  // Grupla: sınıf bazında (programlar dahil olabilir)
-  const byClass = new Map(); // sinif -> [{no,ad,prog}]
-  for(const m of lateCand.values()){
-    for(const it of m.values()){
-      if(!(it.abs1 && it.var2)) continue;
-      if(!byClass.has(it.sinif)) byClass.set(it.sinif, []);
-      byClass.get(it.sinif).push({ no: it.no, ad: it.ad, prog: it.prog });
-    }
-  }
-  // sıralama
-  const classKeys = Array.from(byClass.keys()).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true,sensitivity:'base'}));
-  classKeys.forEach(k=>{
-    byClass.get(k).sort((a,b)=> String(a.no).localeCompare(String(b.no),'tr',{numeric:true}) || (a.ad||'').localeCompare(b.ad||'','tr'));
-  });
-
-  if(UI.admSumLateArrivals){
-    if(classKeys.length === 0){
-      UI.admSumLateArrivals.innerHTML = '';
-      UI.admSumLateArrivalsEmpty && UI.admSumLateArrivalsEmpty.classList.remove('hidden');
-    } else {
-      UI.admSumLateArrivalsEmpty && UI.admSumLateArrivalsEmpty.classList.add('hidden');
-      UI.admSumLateArrivals.innerHTML = classKeys.map(clsName => {
-        const items = byClass.get(clsName) || [];
-        const names = items.map(s=>{
-          const pLbl = labelProgram(s.prog);
-          const progTxt = pLbl ? ` • ${pLbl}` : (s.prog ? ` • ${s.prog}` : '');
-          return `${s.no} — ${s.ad}<span class="muted"> (1. derste yok, 2. derste var${progTxt})</span>`;
-        }).join(', ');
-        return `<li>
-          <div class="adm-sum-top"><span class="adm-sum-key">${fmtClassLabel(clsName)}</span></div>
-          <div class="adm-sum-line"><span class="adm-sum-label ok">Sonradan gelenler:</span><span class="mono">${items.length}</span> kişi — ${names}</div>
-        </li>`;
-      }).join('');
-    }
-  }
-}
 
   // ---------- Kart 3: Toplam / Katılım ----------
   // present = (var + gec), absent=yok, unknown = kayıt yok
@@ -4757,6 +4644,175 @@ async function showStudentReport(no, name){
   w.focus();
   w.print();
   // w.close();
+}
+
+/* ---------- ADMIN: HAFTALIK DEVAMSIZLIK (SON 7 GÜN) ---------- */
+async function openWeeklyAbsenceModal(){
+  // Not: Son 7 gün (bugün dahil). Kayıt (var/yok) üzerinden yüzde hesaplanır.
+  const end = (typeof nowTR === 'function') ? nowTR().startOf('day') : dayjs().startOf('day');
+  const start = end.subtract(6,'day');
+
+  const fmtRange = `${start.locale('tr').format('D MMM')} – ${end.locale('tr').format('D MMM YYYY')}`;
+
+  const html = `
+    <div class="stack" style="text-align:left">
+      <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="pill">Aralık: <b>${fmtRange}</b></div>
+        <div class="pill muted">En çok devamsızlık yapan <b>10</b> öğrenci</div>
+        <div class="grow"></div>
+        <button id="waReload" class="btn" type="button">Yenile</button>
+      </div>
+      <div id="waContent" style="min-height:120px">
+        <div class="muted">Hesaplanıyor…</div>
+      </div>
+      <div class="muted" style="margin-top:8px">Not: Yüzde, son 7 günde öğrenci için oluşan yoklama kayıtları (VAR+YOK) içinde YOK oranıdır.</div>
+    </div>
+  `;
+
+  const render = async () => {
+    const box = document.getElementById('waContent');
+    if(!box) return;
+    box.innerHTML = '<div class="muted">Yükleniyor…</div>';
+
+    // Öğrenci havuzu
+    const byNo = new Map(students.map(s => [safe(s.NO), { no: safe(s.NO), ad: s.ADSOYAD||'', sinif: safe(s.SINIF) }]));
+
+    // Toplamlar
+    const agg = new Map();
+    const ensure = (no) => {
+      if(!no) return null;
+      if(!byNo.has(no)) return null;
+      if(!agg.has(no)){
+        const st = byNo.get(no);
+        agg.set(no, { ...st, present:0, absent:0, details:[] });
+      }
+      return agg.get(no);
+    };
+
+    const dates = [];
+    for(let i=0;i<7;i++) dates.push(end.subtract(i,'day').format('YYYY-MM-DD'));
+
+    // Saat etiketi: önce kayıt içindeki saatNo; yoksa saatKodu'ndan rakam
+    const labelFrom = (saatKodu, rec) => {
+      const n = rec?.saatNo ?? (String(saatKodu||'').match(/\d+/)?.[0] ?? '').toString();
+      return n ? `${n}. saat` : 'Saat';
+    };
+
+    const pushDetail = (st, dStr, sinif, hourLabel) => {
+      st.details.push({ dStr, sinif, hourLabel });
+    };
+
+    for(const dStr of dates){
+      try{
+        const rootPath = attDayRoot(dStr, 'hepsi');
+        const snap = await get(ref(db, rootPath));
+        const dayData = snap.exists() ? (snap.val()||{}) : {};
+
+        const scanClassNode = (sinif, node) => {
+          if(!node) return;
+          // Eski şema tespiti
+          const isLegacy = Object.values(node||{}).some(v => v && typeof v === 'object' && ('var' in v || 'yok' in v));
+          if(isLegacy){
+            Object.entries(node).forEach(([hour, recs])=>{
+              const hourLabel = `${String(hour)}. saat`;
+              Object.keys(recs?.var || {}).forEach(no => { const st = ensure(safe(no)); if(st) st.present++; });
+              Object.keys(recs?.yok || {}).forEach(no => { const st = ensure(safe(no)); if(st){ st.absent++; pushDetail(st, dStr, sinif, hourLabel); } });
+            });
+            return;
+          }
+          // Yeni şema
+          Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
+            Object.values(byTeacher || {}).forEach(byStudent=>{
+              Object.entries(byStudent || {}).forEach(([ogrNo, rec])=>{
+                const st = ensure(safe(ogrNo));
+                if(!st) return;
+                if(rec?.durum === 'var') st.present++;
+                else if(rec?.durum === 'yok'){
+                  st.absent++;
+                  pushDetail(st, dStr, sinif, labelFrom(saatKodu, rec));
+                }
+              });
+            });
+          });
+        };
+
+        Object.entries(dayData||{}).forEach(([sinif, node]) => scanClassNode(safe(sinif), node));
+
+      }catch(e){
+        console.error('weekly absence fetch error', dStr, e);
+      }
+    }
+
+    // Sıralama
+    const rows = [...agg.values()]
+      .map(s => {
+        const total = s.present + s.absent;
+        const pct = total>0 ? Math.round((s.absent / total) * 100) : 0;
+        return { ...s, total, pct };
+      })
+      .filter(s => s.total > 0 && s.absent > 0)
+      .sort((a,b)=> (b.pct - a.pct) || (b.absent - a.absent) || ((a.sinif+a.ad).localeCompare(b.sinif+b.ad,'tr',{numeric:true,sensitivity:'base'})))
+      .slice(0,10);
+
+    if(!rows.length){
+      box.innerHTML = '<div class="muted">Son 7 günde devamsızlık kaydı bulunamadı.</div>';
+      return;
+    }
+
+    const detailLines = (s) => {
+      const items = (s.details||[])
+        .sort((a,b)=> (a.dStr||'').localeCompare(b.dStr||'','tr') || (a.hourLabel||'').localeCompare(b.hourLabel||'','tr'))
+        .map(d => {
+          const dTxt = dayjs(d.dStr).locale('tr').format('D MMMM dddd');
+          return `<li>${dTxt} • ${d.hourLabel}${d.sinif ? ` • ${d.sinif}` : ''}</li>`;
+        }).join('');
+      return items ? `<ul style="margin:8px 0 0 18px">${items}</ul>` : '<div class="muted">Detay yok.</div>';
+    };
+
+    box.innerHTML = rows.map((s,idx)=>{
+      const title = `${s.sinif} • ${s.no} — ${s.ad}`;
+      return `
+        <details class="lesson hover-raise" style="cursor:pointer">
+          <summary class="row" style="gap:10px;align-items:center;list-style:none">
+            <div style="min-width:22px" class="muted">${idx+1}.</div>
+            <div class="grow">
+              <div class="title">${title}</div>
+              <div class="muted">Devamsızlık: <b>%${s.pct}</b> • ${s.absent}/${s.total} kayıt</div>
+              <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;margin-top:6px">
+                <div style="height:100%;width:${Math.min(100,Math.max(0,s.pct))}%;background:rgba(249,115,22,0.9)"></div>
+              </div>
+            </div>
+            <span class="pill">Detay</span>
+          </summary>
+          <div style="padding-top:8px">
+            <div class="muted">Hangi gün/saat devamsızlık yaptı:</div>
+            ${detailLines(s)}
+          </div>
+        </details>
+      `;
+    }).join('');
+
+    // summary okunu gizlemek için
+    Array.from(box.querySelectorAll('details > summary')).forEach(sm=>{
+      sm.style.listStyle='none';
+      sm.style.outline='none';
+    });
+  };
+
+  const bind = async () => {
+    const btn = document.getElementById('waReload');
+    if(btn) btn.onclick = render;
+    await render();
+  };
+
+  await Swal.fire({
+    title: 'Haftalık Devamsızlık',
+    html,
+    width: 900,
+    showConfirmButton: false,
+    showCloseButton: true,
+    didOpen: bind
+  });
 }
   
     /* ---------- ADMIN: ESKİ KAYITLAR ---------- */
