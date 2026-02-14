@@ -1423,7 +1423,7 @@ div.admin-filters .button-row {
           <label class="row" for="admStatus" title="Durum seç">
             <span class="muted">Durum:</span>
             <select id="admStatus" class="input" aria-label="Durum filtresi">
-              <option value="hepsi">Hepsi</option>
+              <option value="hepsi" selected>Hepsi</option>
               <option value="gelen">Gelen (VAR)</option>
               <option value="gelmeyen">Gelmeyen (YOK)</option>
               <option value="gec">Geç Gelen</option>
@@ -1433,18 +1433,18 @@ div.admin-filters .button-row {
           <label class="row" for="admHour" title="Ders saati seç">
             <span class="muted">Ders Saati:</span>
             <select id="admHour" class="input" aria-label="Ders saati filtresi">
-              <option value="1" selected>1. saat</option>
+              <option value="1">1. saat</option>
               <option value="2">2. saat</option>
               <option value="3">3. saat</option>
               <option value="4">4. saat</option>
-              <option value="hepsi">Hepsi</option>
+              <option value="hepsi" selected>Hepsi</option>
             </select>
           </label>
           <!-- Yeni: Program filtresi -->
           <label class="row" for="admProgram" title="Program seç">
             <span class="muted">Program:</span>
             <select id="admProgram" class="input" aria-label="Program filtresi">
-              <option value="hepsi">Hepsi</option>
+              <option value="hepsi" selected>Hepsi</option>
             </select>
           </label>
           <!-- Yeni: Yoklama aktif/pasif (Tatil Modu) -->
@@ -3679,7 +3679,7 @@ async function loadParentRange(kind){
       const todayStr = toDateStr(nowTR()); UI.admDate.value = todayStr;
       const classSet = new Set(students.map(s=> safe(s.SINIF)).filter(Boolean));
       const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
-      UI.admClass.innerHTML = `<option value="hepsi">Hepsi</option>` + classes.map(c=> `<option value="${c}">${c}</option>`).join('');
+      UI.admClass.innerHTML = `<option value="hepsi" selected>Hepsi</option>` + classes.map(c=> `<option value="${c}">${c}</option>`).join('');
       // Program filtre seçeneklerini doldur: mevcut program kodlarını kullan
       if (UI.admProgram) {
         const progs = Array.from((typeof slotOrderMapByProgram !== 'undefined' && slotOrderMapByProgram && slotOrderMapByProgram.keys) ? slotOrderMapByProgram.keys() : []);
@@ -3690,7 +3690,7 @@ async function loadParentRange(kind){
         }).join('');
         UI.admProgram.value = 'hepsi';
       }
-      UI.admHour && (UI.admHour.value = '1'); // ilk açılış: 1. saat
+      UI.admHour && (UI.admHour.value = 'hepsi'); // ilk açılış: Hepsi
       // Özet/Detay görünümü uygula
       setAdminViewMode(adminViewMode);
       refreshAdmin();
@@ -3700,7 +3700,7 @@ function getAdminFilters(){
     date: UI.admDate.value || toDateStr(nowTR()),
     cls: UI.admClass.value || 'hepsi',
     status: UI.admStatus.value || 'hepsi',
-    hour: UI.admHour?.value || '1',  // varsayılan 1. saat
+    hour: UI.admHour?.value || 'hepsi',  // varsayılan: Hepsi
     program: UI.admProgram?.value || 'hepsi'
   };
 }
@@ -5162,7 +5162,7 @@ async function showStudentReport(no, name){
       </label>
       <label class="row"><span class="muted">Sınıf:</span>
         <select id="hClass" class="input">
-          <option value="hepsi">Hepsi</option>
+          <option value="hepsi" selected>Hepsi</option>
           ${clsOptions.map(c=> `<option value="${c}">${c}</option>`).join('')}
         </select>
       </label>
@@ -5456,11 +5456,235 @@ function formatDateTRLong(input) {
   }
 }
 
+/* --------------------------------------------------------------------------
+   Admin: Yazdır (Modal) — Filtrelerden bağımsız sınıf seçimi
+   - Amaç: “Yazdır” tuşu mevcut filtrelere bakmadan, modaldan seçilen sınıflar
+     ve seçili gün (admDate) ile çalışsın.
+--------------------------------------------------------------------------- */
+
+function getAllStudentClasses(){
+  const set = new Set((students||[]).map(s => safe(s.SINIF)).filter(Boolean));
+  return Array.from(set).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+}
+
+async function openAdminPrintModal(){
+  const dStr = UI?.admDate?.value || toDateStr(nowTR());
+  const classes = getAllStudentClasses();
+
+  if(!classes.length){
+    Swal.fire('Uyarı','Sınıf listesi bulunamadı.','warning');
+    return;
+  }
+
+  const mkId = (c)=> `prc_${String(c).replace(/[^a-zA-Z0-9]/g,'_')}`;
+  const html = `
+    <div class="stack" style="text-align:left">
+      <div class="muted">Tarih: <span class="mono">${formatDateTRLong(dStr)}</span></div>
+
+      <div class="row" style="gap:8px; align-items:center">
+        <button type="button" class="btn ghost small" id="admPrintSelectAll">Tümünü Seç</button>
+        <button type="button" class="btn ghost small" id="admPrintClearAll">Temizle</button>
+      </div>
+
+      <div class="checkbox-group" id="admPrintClsBox" style="max-height:42vh; overflow:auto; padding:8px 2px;">
+        ${classes.map(c => `
+          <label style="padding:6px 10px; border:var(--stroke); border-radius:999px; background:var(--glass)">
+            <input type="checkbox" value="${c}" checked />
+            <span>${c}</span>
+          </label>
+        `).join('')}
+      </div>
+
+      <div class="muted" style="font-size:.9rem">
+        Not: Bu yazdırma işlemi, <b>filtrelerden bağımsız</b> olarak sadece burada seçtiğiniz sınıflar için çalışır.
+      </div>
+    </div>
+  `;
+
+  const res = await Swal.fire({
+    title: 'Yoklama Listesi Yazdır',
+    html,
+    width: 720,
+    showCancelButton: true,
+    confirmButtonText: 'Yazdır',
+    cancelButtonText: 'İptal',
+    focusConfirm: false,
+    didOpen: () => {
+      const box = document.getElementById('admPrintClsBox');
+      const btnAll = document.getElementById('admPrintSelectAll');
+      const btnClr = document.getElementById('admPrintClearAll');
+      if(btnAll) btnAll.addEventListener('click', () => {
+        box?.querySelectorAll('input[type="checkbox"]').forEach(ch => ch.checked = true);
+      });
+      if(btnClr) btnClr.addEventListener('click', () => {
+        box?.querySelectorAll('input[type="checkbox"]').forEach(ch => ch.checked = false);
+      });
+    },
+    preConfirm: () => {
+      const selected = Array.from(document.querySelectorAll('#admPrintClsBox input[type="checkbox"]:checked'))
+        .map(x => x.value)
+        .filter(Boolean);
+      if(selected.length === 0){
+        Swal.showValidationMessage('Lütfen en az 1 sınıf seçiniz.');
+        return false;
+      }
+      return { dStr, selected };
+    }
+  });
+
+  if(!res.isConfirmed || !res.value) return;
+  await printAttendanceForClasses(res.value.dStr, res.value.selected);
+}
+
+async function buildPrintRowsForClass(dStr, cls){
+  // Öğrenci havuzu (sadece sınıf)
+  const studentPool = (students||[]).filter(s => safe(s.SINIF) === safe(cls));
+  const byNo = new Map(studentPool.map(s => [safe(s.NO), { ad: s.ADSOYAD || '' }]));
+
+  // Günlük veriyi çek
+  const rootPath = attDayRoot(dStr, cls);
+  const snap = await get(ref(db, rootPath));
+  const dayData = snap.exists() ? (snap.val() || {}) : {};
+
+  const perStudent = new Map();
+  const ensure = (no) => {
+    if(!byNo.has(no)) return null; // neden: bu sınıfa ait olmayan kayıtlar
+    if(!perStudent.has(no)) {
+      const stu = byNo.get(no);
+      perStudent.set(no, { no, ad: stu.ad, present:new Set(), absent:new Set() });
+    }
+    return perStudent.get(no);
+  };
+
+  const labelFrom = (saatKodu, rec) => {
+    const n = rec?.saatNo ?? (String(saatKodu||'').match(/\d+/)?.[0] ?? '').toString();
+    return n ? `${n}. saat` : 'Saat';
+  };
+
+  const scanNode = (node) => {
+    if(!node) return;
+
+    // Eski şema tespiti
+    const isLegacy = Object.values(node||{}).some(v => v && typeof v === 'object' && ('var' in v || 'yok' in v));
+    if (isLegacy) {
+      Object.entries(node).forEach(([hour, recs])=>{
+        const label = `${String(hour)}. saat`;
+        Object.keys(recs?.var || {}).forEach(no => ensure(safe(no))?.present.add(label));
+        Object.keys(recs?.yok || {}).forEach(no => ensure(safe(no))?.absent.add(label));
+      });
+      return;
+    }
+
+    // Yeni şema
+    Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
+      Object.values(byTeacher || {}).forEach(byStudent=>{
+        Object.entries(byStudent || {}).forEach(([ogrNo, rec])=>{
+          const s = ensure(safe(ogrNo));
+          if(!s) return;
+          const label = labelFrom(saatKodu, rec);
+          if(rec?.durum === 'var') s.present.add(label);
+          else if(rec?.durum === 'yok') s.absent.add(label);
+        });
+      });
+    });
+  };
+
+  scanNode(dayData);
+
+  // Çakışma temizliği: aynı saat hem var hem yoksa "var" öncelikli
+  for (const s of perStudent.values()) {
+    s.absent = new Set([...s.absent].filter(h => !s.present.has(h)));
+  }
+
+  const rows = [...perStudent.values()]
+    .sort((a,b)=>(a.ad).localeCompare(b.ad,'tr',{numeric:true,sensitivity:'base'}))
+    .map(s => `
+      <tr>
+        <td>${s.no}</td>
+        <td>${s.ad}</td>
+        <td>${[...s.present].join(', ')}</td>
+        <td>${[...s.absent].join(', ')}</td>
+      </tr>`).join('');
+
+  return rows || `<tr><td colspan="4" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
+}
+
+async function printAttendanceForClasses(dStr, classes){
+  // Pop-up engeli kontrolü
+  const w = window.open('', '_blank');
+  if(!w){
+    Swal.fire('Uyarı','Tarayıcı yazdırma penceresini engelledi (pop-up). Lütfen izin verip tekrar deneyin.','warning');
+    return;
+  }
+
+  const style = `
+    <style>
+      :root{ color-scheme: light; }
+      body{
+        margin:0; padding:18px;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
+        color:#111;
+      }
+      h1{ margin:0 0 10px 0; font-size:18px; }
+      h2{ margin:0 0 6px 0; font-size:16px; }
+      .meta{ color:#555; font-size:12px; margin-bottom:14px; }
+      .sheet{ page-break-after:always; }
+      .sheet:last-child{ page-break-after:auto; }
+      .tbl{ width:100%; border-collapse:collapse; font-size:12.5px; }
+      .tbl th,.tbl td{ border:1px solid #e6e6e6; padding:6px 8px; vertical-align:top; word-break:break-word; }
+      .tbl thead th{ background:#fafafa; font-weight:800; }
+      @page{ size:A4; margin:12mm; }
+      @media print{ body{ padding:0; } }
+    </style>
+  `;
+
+  w.document.open();
+  w.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Yoklama Listesi</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    ${style}
+  </head><body>
+    <h1>Yoklama Listesi</h1>
+    <div class="meta">Tarih: ${formatDateTRLong(dStr)}</div>
+    <div id="content"></div>
+  </body></html>`);
+  w.document.close();
+
+  const content = w.document.getElementById('content');
+  for (let i=0; i<classes.length; i++){
+    const cls = classes[i];
+    const rows = await buildPrintRowsForClass(dStr, cls);
+    const section = w.document.createElement('section');
+    section.className = 'sheet';
+    section.innerHTML = `
+      <h2>Sınıf: ${cls}</h2>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:84px">No</th>
+            <th>Ad Soyad</th>
+            <th style="width:26%">Geldiği Saatler</th>
+            <th style="width:26%">Gelmediği Saatler</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+    content.appendChild(section);
+  }
+
+  // DOM yerleşsin sonra yazdır
+  setTimeout(() => {
+    w.focus();
+    w.print();
+  }, 60);
+}
+
 if (UI?.admPrint) {
   UI.admPrint.addEventListener('click', async () => {
-    await buildAdminPrintSheet();     // neden: yazdırmadan önce tabloyu hazırla
-    setTimeout(() => window.print(), 30); // neden: DOM boyama sonrası print
-  }, { passive:true });
+    await openAdminPrintModal();
+  });
 }
 
 // Admin: Yazdırmadan önce özet tabloyu hazırla
@@ -6691,7 +6915,7 @@ const html = `
     <label class="row"><span class="muted">Tarih:</span><input id="admHwDate" type="date" class="input" /></label>
     <label class="row"><span class="muted">Sınıf:</span>
       <select id="admHwClass" class="input">
-        <option value="hepsi">Hepsi</option>
+        <option value="hepsi" selected>Hepsi</option>
         ${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}
       </select>
     </label>
@@ -6859,7 +7083,7 @@ function openAdminQuizzes(){
       <label class="row"><span class="muted">Tarih:</span><input id="admQzDate" type="date" class="input" /></label>
       <label class="row"><span class="muted">Sınıf:</span>
         <select id="admQzClass" class="input">
-          <option value="hepsi">Hepsi</option>
+          <option value="hepsi" selected>Hepsi</option>
           ${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}
         </select>
       </label>
