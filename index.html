@@ -272,6 +272,67 @@
     .sk-table-row{ display:grid; grid-template-columns:70px 1fr 110px 110px 90px 140px 140px 1fr; gap:10px; padding:10px 0; border-bottom:var(--stroke); }
     .sk-table-row .skeleton{ border-radius:10px; }
 
+/* ===== Admin: Kategorize Araç Çubuğu (Modern) ===== */
+.admin-actions{
+  display:grid;
+  gap:10px;
+  grid-template-columns:1fr;
+}
+.action-group{
+  border:var(--stroke);
+  background:rgba(255,255,255,.02);
+  border-radius:16px;
+  padding:10px 10px 12px;
+}
+.action-group .group-title{
+  font-size:.78rem;
+  font-weight:900;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin:0 0 8px 2px;
+}
+.action-group .group-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
+.btn.tool-btn{
+  padding:8px 12px;
+  border-radius:12px;
+  font-size:.9rem;
+  line-height:1.1;
+}
+
+/* Grid kırılımları: geniş ekranda tek satır, tablette 2 sütun */
+@media (min-width: 720px){
+  #adminView .admin-actions{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+}
+@media (min-width: 1100px){
+  #adminView .admin-actions{ grid-template-columns:1.05fr 1.9fr 1fr .9fr; }
+}
+
+/* WhatsApp butonu: ikon + metin, yuvarlak yerine modern pill */
+#adminView .btn.whatsBtn{
+  width:auto;
+  height:auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:12px;
+}
+#adminView .btn.whatsBtn img{ width:18px; height:18px; display:block; }
+
+/* Küçük ekranda butonlar eşit ve okunur olsun */
+@media (max-width: 640px){
+  #adminView .action-group .group-buttons{ gap:8px; }
+  #adminView .action-group .group-buttons .btn{ flex:1 1 140px; }
+  #adminView .btn.whatsBtn{ flex:1 1 140px; }
+}
+
 /* WhatsApp ikon butonu — öğretmen satırları + admin */
     .btn.whatsBtn{
       padding:6px;
@@ -290,7 +351,7 @@
       transform:translateY(-2px);
       box-shadow:0 12px 28px rgba(37,211,102,.45);
     }
-    .btn.whatsBtn img{
+    #adminView .btn.whatsBtn img{
       width:18px;
       height:18px;
       display:block;
@@ -948,7 +1009,7 @@ div.admin-filters .button-row {
     padding:0 !important;
     border-radius:14px !important;
   }
-  #adminView .btn.whatsBtn img{ width:18px; height:18px; }
+  #adminView #adminView .btn.whatsBtn img{ width:18px; height:18px; }
 
   /* Detay alanı: ekran içinde kalsın, içerik burada kaydırılsın */
   #adminView #admDetailArea{
@@ -1414,22 +1475,46 @@ div.admin-filters .button-row {
 
         </div>
 
-        <div class="button-row" role="group" aria-label="İşlem butonları">
-          <button class="btn whatsBtn" id="admWhatsApp" type="button" title="WhatsApp raporu gönder">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
-          </button>
-          <button class="btn" id="admTeacherReport" type="button" title="Öğretmen uyum raporu">Öğrt. Uyum</button>
-          <button class="btn" id="admStudentStats" type="button" title="Öğrenci istatistiği">Öğrenci İstatistiği</button>
-          <button class="btn" id="admWeeklyAbsence" type="button" title="Haftalık devamsızlık (son 7 gün)">Haftalık Devamsızlık</button>
-          <button class="btn danger" id="admHistory" type="button" title="Eski kayıtları görüntüle/sil">Eski Kayıtlar</button>
+                <div class="admin-actions" role="group" aria-label="İşlemler">
+          <!-- İletişim -->
+          <div class="action-group" role="group" aria-label="İletişim">
+            <div class="group-title">İletişim</div>
+            <div class="group-buttons">
+              <button class="btn tool-btn whatsBtn" id="admWhatsApp" type="button" title="WhatsApp raporu gönder">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+                <span>WhatsApp</span>
+              </button>
+            </div>
+          </div>
 
-          <!-- Yeni: Ödev ve Quiz rapor düğmeleri -->
-          <button class="btn" id="admHomeworksBtn" type="button" title="Ödev raporları">Ödevler</button>
-          <button class="btn" id="admQuizzesBtn" type="button" title="Quiz raporları">Quizler</button>
+          <!-- Raporlar -->
+          <div class="action-group" role="group" aria-label="Raporlar">
+            <div class="group-title">Raporlar</div>
+            <div class="group-buttons">
+              <button class="btn tool-btn" id="admTeacherReport" type="button" title="Öğretmen uyum raporu">Öğrt. Uyum</button>
+              <button class="btn tool-btn" id="admStudentStats" type="button" title="Öğrenci istatistiği">Öğrenci İstatistiği</button>
+              <button class="btn tool-btn" id="admWeeklyAbsence" type="button" title="Haftalık devamsızlık (son 7 gün)">Haftalık Devamsızlık</button>
+              <button class="btn tool-btn danger" id="admHistory" type="button" title="Eski kayıtları görüntüle/sil">Eski Kayıtlar</button>
+            </div>
+          </div>
 
-          <span style="flex:1"></span><!-- butonları sağa/sola yaymak için -->
-          <button class="btn ghost" id="admRefresh" type="button">Yenile</button>
-          <button class="btn" id="admPrint" type="button">Yazdır</button>
+          <!-- Ödev / Quiz -->
+          <div class="action-group" role="group" aria-label="Ödev ve Quiz">
+            <div class="group-title">Ödev / Quiz</div>
+            <div class="group-buttons">
+              <button class="btn tool-btn" id="admHomeworksBtn" type="button" title="Ödev raporları">Ödevler</button>
+              <button class="btn tool-btn" id="admQuizzesBtn" type="button" title="Quiz raporları">Quizler</button>
+            </div>
+          </div>
+
+          <!-- Sistem -->
+          <div class="action-group" role="group" aria-label="Sistem">
+            <div class="group-title">Sistem</div>
+            <div class="group-buttons">
+              <button class="btn ghost tool-btn" id="admRefresh" type="button">Yenile</button>
+              <button class="btn tool-btn" id="admPrint" type="button">Yazdır</button>
+            </div>
+          </div>
         </div>
       </div>
 <!-- PRINT: Özet sayfa (sadece yazdırda görünür) -->
