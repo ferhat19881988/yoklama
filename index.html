@@ -917,6 +917,53 @@ div.admin-filters .button-row {
   justify-content:space-between;
   gap:0.75rem;
 }
+
+/* Ödev listesi: filtre + sekmeler hizalama */
+.hw-filter-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:10px 12px;
+  border:var(--stroke);
+  border-radius:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+}
+.hw-filter-left{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:1 1 240px;
+  min-width:220px;
+}
+.hw-filter-left .muted{ font-weight:800; }
+#hwFilterClass{
+  min-width:190px;
+  height:42px;
+  padding:10px 12px;
+  border-radius:12px;
+}
+.hw-tabs{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+}
+.hw-tabs .btn{
+  height:42px;
+  padding:0 14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+@media (max-width:520px){
+  .hw-filter-bar{ align-items:stretch; }
+  .hw-filter-left{ min-width:0; width:100%; }
+  #hwFilterClass{ width:100%; min-width:0; }
+  .hw-tabs{ width:100%; }
+  .hw-tabs .btn{ flex:1 1 0; }
+}
 .collapsible-card .card-toggle{
   display:inline-flex;
   align-items:center;
@@ -1267,17 +1314,17 @@ div.admin-filters .button-row {
           </div>
 
           <!-- Ödev Liste Filtreleri -->
-          <div class="row" id="hwFilterBar" style="gap:10px;flex-wrap:wrap;align-items:center;">
-            <label class="row" style="gap:6px;align-items:center;">
+          <div id="hwFilterBar" class="hw-filter-bar" aria-label="Ödev filtreleri">
+            <div class="hw-filter-left">
               <span class="muted">Sınıf:</span>
-              <select id="hwFilterClass" class="input" aria-label="Ödev sınıf filtresi" style="min-width:140px;">
+              <select id="hwFilterClass" class="input" aria-label="Ödev sınıf filtresi">
                 <option value="hepsi" selected>Hepsi</option>
               </select>
-            </label>
-            <div class="row" style="gap:6px;">
-              <button class="btn" id="hwTabCurrent" type="button">Güncel (Bugün)</button>
-              <button class="btn ghost" id="hwTabUpcoming" type="button">Yakında</button>
-              <button class="btn ghost" id="hwTabPast" type="button">Geçmiş</button>
+            </div>
+            <div class="hw-tabs" role="tablist" aria-label="Ödev sekmeleri">
+              <button class="btn" id="hwTabCurrent" type="button" role="tab" aria-selected="true">Güncel (Bugün)</button>
+              <button class="btn ghost" id="hwTabUpcoming" type="button" role="tab" aria-selected="false">Yakında</button>
+              <button class="btn ghost" id="hwTabPast" type="button" role="tab" aria-selected="false">Geçmiş</button>
             </div>
           </div>
 
@@ -5890,6 +5937,8 @@ function syncTeacherHwTabButtons(){
     btn.classList.toggle('ghost', !active);
     if(active) btn.classList.remove('ghost');
     else btn.classList.add('ghost');
+    // Erişilebilirlik: sekme seçimini belirt
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
   };
   setBtn(UI.hwTabCurrent, teacherHwTab==='current');
   setBtn(UI.hwTabUpcoming, teacherHwTab==='upcoming');
