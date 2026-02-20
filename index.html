@@ -2903,16 +2903,6 @@ if(qzToggle && qzBody && UI.quizCard){
       UI.userChip.textContent = `🏫 ${session.teacherName||'Öğretmen'}`;
       showTeacherToday();
 
-      // YENİ: Her 60 sn’de bir yalnızca görünürken tazele
-      teacherRefreshTimer = setInterval(() => {
-        if(document.visibilityState === 'visible') {
-          showTeacherToday();
-          if(typeof refreshTeacherDailyKpis === 'function'){
-            refreshTeacherDailyKpis();
-          }
-        }
-      }, 60000);
-
     }else if(session.role==='admin'){
       UI.userChip.textContent = `🛠️ Yönetici`;
       showAdminView();
@@ -3158,15 +3148,33 @@ async function showTeacherToday(){
   } catch(e) { console.error(e); }
 }
 
+    
     function restartTeacherAutoRefresh(){
+      // Donma sebebi: 3 saniyede bir Firebase okuması (getTakenSet / KPI) yoğun yük oluşturuyor.
+      // Çözüm: aralığı büyüt, görünürlük kontrolü yap, paralel çalışmayı kilitle.
       clearInterval(teacherRefreshTimer);
+      let running = false;
       teacherRefreshTimer = setInterval(async ()=>{
+        if(running) return;
+        if(document.visibilityState !== 'visible') return;
         if(UI.teacherView.classList.contains('hidden')) return;
-        if(!UI.attCard.classList.contains('hidden')) return;
-        await refreshLessonChips();
-        await refreshTeacherDailyKpis();
-      }, 3000);
+        if(!UI.attCard.classList.contains('hidden')) return; // yoklama açıkken otomatik yenileme yapma
+        running = true;
+        try{
+          await refreshLessonChips();
+          // KPI'yı daha seyrek güncelle (her 60 sn)
+          if(!restartTeacherAutoRefresh._lastKpi || (Date.now()-restartTeacherAutoRefresh._lastKpi) > 60000){
+            restartTeacherAutoRefresh._lastKpi = Date.now();
+            await refreshTeacherDailyKpis();
+          }
+        }catch(e){
+          console.error(e);
+        }finally{
+          running = false;
+        }
+      }, 15000); // 15 sn
     }
+
 
     async function refreshLessonChips(){
       const takenSet = attendanceEnabled ? await getTakenSetTodayForTeacher() : new Set();
