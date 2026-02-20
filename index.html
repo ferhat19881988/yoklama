@@ -964,6 +964,37 @@ div.admin-filters .button-row {
   .hw-tabs{ width:100%; }
   .hw-tabs .btn{ flex:1 1 0; }
 }
+
+/* ===== Öğretmen: Ödev Kategorileri (Sınıfa göre gruplama) ===== */
+.hw-section{
+  border: var(--stroke);
+  background: rgba(255,255,255,.02);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.hw-section + .hw-section{ margin-top: 12px; }
+.hw-section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(148,163,184,.16);
+  background: linear-gradient(90deg, rgba(249,115,22,.10), transparent 70%);
+  position: sticky;
+  top: 0; /* Ödev kartı içindeki liste uzun olursa başlık ekranda kalsın */
+  z-index: 1;
+}
+.hw-section-title{
+  font-weight: 900;
+  letter-spacing: .2px;
+}
+.hw-cards{ padding: 10px 10px 12px; }
+@media (max-width: 520px){
+  .hw-cards{ padding: 10px; }
+  .hw-section-head{ padding: 10px 12px; }
+}
+
 /* ===== Öğretmen: Ödev Kartı (Kontrol/Düzenle/Sil) — Mobil uyumlu ===== */
 .hw-item{
   position:relative;
@@ -6057,63 +6088,98 @@ function applyTeacherHwFiltersAndRender(){
 /* Not: Aşağıdaki render fonksiyonu, önceki loadTeacherHomeworks içindeki HTML üretimini aynen korur. */
 function renderTeacherHomeworks(items, gidMap){
   if(!UI.hwList) return;
+
+  const renderHwCard = (hw)=>{
+    const dueDate = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
+    // Özet: yalnız bu sınıfa ait öğrenciler
+    const classSet = new Set(students.filter(s=> safe(s.SINIF)===safe(hw.class)).map(s=>safe(s.NO)));
+    const statuses = (() => {
+      const gid = hw.groupId ?? (String(hw.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(hw.id).split('-')[0]) : null);
+      const g = gid ? (gidMap.get(gid)||{}) : null;
+      return g || (hw.statuses || {});
+    })();
+    const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
+    Object.entries(statuses).forEach(([sid,rec])=>{
+      if(!classSet.has(sid)) return;
+      const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++;
+    });
+    const summary = Object.entries(counts).filter(([_,v])=>v>0).map(([k,v])=>`${HW_STATUSES[k]}: ${v}`).join(', ') || 'Henüz kontrol edilmedi';
+
+    // Kalan süre etiketi
+    let leftClass='ok', timeLeft='—';
+    try{
+      if(hw.dueDate){
+        const diff = dayjs(hw.dueDate).endOf('day').diff(dayjs().startOf('day'),'day');
+        if(diff < 0){ timeLeft='Süre doldu'; leftClass='bad'; }
+        else if(diff===0){ timeLeft='Bugün teslim'; leftClass='bad'; }
+        else if(diff===1){ timeLeft='1 gün kaldı'; leftClass='bad'; }
+        else if(diff===2){ timeLeft='2 gün kaldı'; leftClass='warn'; }
+        else { timeLeft=`${diff} gün kaldı`; leftClass='ok'; }
+      }
+    }catch(_){}
+
+    return `<div class="lesson hw-item hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" role="button" tabindex="0">
+      <div>
+        <div class="title">${hw.class} • ${hw.title||''}</div>
+        <div class="muted">Ders: ${hw.subject||''}</div>
+        <div class="muted">Teslim: ${dueDate}</div>
+        <div class="muted">${summary}</div>
+      </div>
+      <div class="hw-actions">
+        <div class="chip ${leftClass}">${timeLeft}</div>
+        <button class="btn hw-control-btn hw-control"
+                data-hw-id="${hw.id}"
+                data-hw-class="${hw.class}"
+                type="button"
+                aria-label="Ödev Kontrol">
+          <span class="hw-progress" aria-hidden="true"></span>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 12l2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 4V2h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="lbl">Kontrol</span>
+        </button>
+        <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
+        <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
+      </div>
+    </div>`;
+  };
+
   if(items && items.length){
-    UI.hwList.innerHTML = items.map(hw => {
-      const dueDate = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
-      // Özet: yalnız bu sınıfa ait öğrenciler
-      const classSet = new Set(students.filter(s=> safe(s.SINIF)===safe(hw.class)).map(s=>safe(s.NO)));
-      const statuses = (() => {
-        const gid = hw.groupId ?? (String(hw.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(hw.id).split('-')[0]) : null);
-        const g = gid ? (gidMap.get(gid)||{}) : null;
-        return g || (hw.statuses || {});
-      })();
-      const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
-      Object.entries(statuses).forEach(([sid,rec])=>{
-        if(!classSet.has(sid)) return;
-        const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++;
-      });
-      const summary = Object.entries(counts).filter(([_,v])=>v>0).map(([k,v])=>`${HW_STATUSES[k]}: ${v}`).join(', ') || 'Henüz kontrol edilmedi';
 
-      // Kalan süre etiketi
-      let leftClass='ok', timeLeft='—';
-      try{
-        if(hw.dueDate){
-          const diff = dayjs(hw.dueDate).endOf('day').diff(dayjs().startOf('day'),'day');
-          if(diff < 0){ timeLeft='Süre doldu'; leftClass='bad'; }
-          else if(diff===0){ timeLeft='Bugün teslim'; leftClass='bad'; }
-          else if(diff===1){ timeLeft='1 gün kaldı'; leftClass='bad'; }
-          else if(diff===2){ timeLeft='2 gün kaldı'; leftClass='warn'; }
-          else { timeLeft=`${diff} gün kaldı`; leftClass='ok'; }
-        }
-      }catch(_){}
+    // Sıralama: sınıf + teslim tarihi (yakın -> uzak; tarih yoksa sona)
+    const sorted = [...items].sort((a,b)=>{
+      const c = safe(a.class).localeCompare(safe(b.class),'tr',{numeric:true,sensitivity:'base'});
+      if(c!==0) return c;
+      const da = a.dueDate ? dayjs(a.dueDate).valueOf() : Number.POSITIVE_INFINITY;
+      const db = b.dueDate ? dayjs(b.dueDate).valueOf() : Number.POSITIVE_INFINITY;
+      return da - db;
+    });
 
-      return `<div class="lesson hw-item hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" role="button" tabindex="0">
-        <div>
-          <div class="title">${hw.class} • ${hw.title||''}</div>
-          <div class="muted">Ders: ${hw.subject||''}</div>
-          <div class="muted">Teslim: ${dueDate}</div>
-          <div class="muted">${summary}</div>
-        </div>
-        <div class="hw-actions">
-  <div class="chip ${leftClass}">${timeLeft}</div>
-  <button class="btn hw-control-btn hw-control"
-          data-hw-id="${hw.id}"
-          data-hw-class="${hw.class}"
-          type="button"
-          aria-label="Ödev Kontrol">
-	    <span class="hw-progress" aria-hidden="true"></span>
-    <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M9 12l2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M9 4V2h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-	    <span class="lbl">Kontrol</span>
-  </button>
-  <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
-  <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
-</div>
-      </div>`;
-    }).join('');
+    // Kategorize görünüm: "Hepsi" seçiliyken sınıflara göre grupla
+    if((UI.hwFilterClass?.value || teacherHwClass || 'hepsi') === 'hepsi'){
+      const groups = {};
+      for(const hw of sorted){
+        const cls = safe(hw.class) || 'Sınıf';
+        (groups[cls] ||= []).push(hw);
+      }
+      const classOrder = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'tr',{numeric:true,sensitivity:'base'}));
+      UI.hwList.innerHTML = classOrder.map(cls=>{
+        const arr = groups[cls] || [];
+        return `<section class="hw-section" data-hw-section="${cls}">
+          <div class="hw-section-head">
+            <div class="hw-section-title">📌 ${cls}</div>
+            <div class="chip purple">${arr.length} ödev</div>
+          </div>
+          <div class="hw-cards stack">
+            ${arr.map(renderHwCard).join('')}
+          </div>
+        </section>`;
+      }).join('');
+    } else {
+      UI.hwList.innerHTML = `<div class="hw-cards stack">${sorted.map(renderHwCard).join('')}</div>`;
+    }
 
     // Olaylar
     Array.from(UI.hwList.querySelectorAll('button.edit-hw')).forEach(btn=>{
@@ -6132,34 +6198,97 @@ function renderTeacherHomeworks(items, gidMap){
         if(id && cls){ deleteHomework(cls,id); }
       });
     });
-// Kontrol düğmesi: sadece buradan kontrol paneli açılır
-// İyileştirme: basınca 4sn hazırlık/progress animasyonu (liste açılmadan önce hafif geçiş)
-const HW_CONTROL_OPEN_DELAY_MS = 2000;
-let hwControlDelayTimer = null;
-let hwControlDelayBtn = null;
 
-function startHwControlProgress(btn){
-  if(!btn) return;
-  // daha önce başka bir butonda bekleme varsa iptal et
-  if(hwControlDelayTimer){
-    clearTimeout(hwControlDelayTimer);
-    hwControlDelayTimer = null;
-  }
-  if(hwControlDelayBtn && hwControlDelayBtn !== btn){
-    stopHwControlProgress(hwControlDelayBtn);
-  }
-  hwControlDelayBtn = btn;
+    // Kontrol düğmesi: sadece buradan kontrol paneli açılır
+    // İyileştirme: basınca 2sn hazırlık/progress animasyonu
+    const HW_CONTROL_OPEN_DELAY_MS = 2000;
+    let hwControlDelayTimer = null;
+    let hwControlDelayBtn = null;
 
-  if(!btn.dataset.prevLbl){
-    const lbl = btn.querySelector('.lbl');
-    btn.dataset.prevLbl = lbl ? lbl.textContent : 'Kontrol';
-  }
-  const lblEl = btn.querySelector('.lbl');
-  if(lblEl) lblEl.textContent = 'Hazırlanıyor…';
+    function startHwControlProgress(btn){
+      if(!btn) return;
+      // daha önce başka bir butonda bekleme varsa iptal et
+      if(hwControlDelayTimer){
+        clearTimeout(hwControlDelayTimer);
+        hwControlDelayTimer = null;
+      }
+      if(hwControlDelayBtn && hwControlDelayBtn !== btn){
+        stopHwControlProgress(hwControlDelayBtn);
+      }
+      hwControlDelayBtn = btn;
 
-  btn.classList.add('is-loading');
-  btn.setAttribute('aria-busy','true');
-  btn.disabled = true;
+      if(!btn.dataset.prevLbl){
+        const lbl = btn.querySelector('.lbl');
+        btn.dataset.prevLbl = lbl ? lbl.textContent : 'Kontrol';
+      }
+      const lblEl = btn.querySelector('.lbl');
+      if(lblEl) lblEl.textContent = 'Hazırlanıyor…';
+
+      btn.classList.add('is-loading');
+      btn.setAttribute('aria-busy','true');
+      btn.disabled = true;
+    }
+
+    function stopHwControlProgress(btn){
+      if(!btn) return;
+      btn.classList.remove('is-loading');
+      btn.removeAttribute('aria-busy');
+      btn.disabled = false;
+      const lblEl = btn.querySelector('.lbl');
+      if(lblEl) lblEl.textContent = btn.dataset.prevLbl || 'Kontrol';
+    }
+
+    Array.from(UI.hwList.querySelectorAll('button.hw-control')).forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(btn.classList.contains('is-loading')) return;
+
+        const id  = btn.getAttribute('data-hw-id');
+        const cls = btn.getAttribute('data-hw-class');
+        if(!(id && cls)) return;
+
+        startHwControlProgress(btn);
+        hwControlDelayTimer = setTimeout(()=>{
+          stopHwControlProgress(btn);
+          hwControlDelayTimer = null;
+          hwControlDelayBtn = null;
+          openHomeworkControl(cls,id);
+        }, HW_CONTROL_OPEN_DELAY_MS);
+      });
+    });
+
+    // Kart tıklama: sadece görsel vurgu (2 sn sonra eski hal)
+    const clearPicked = ()=>{
+      Array.from(UI.hwList.querySelectorAll('.hw-item.is-picked')).forEach(x=>{
+        x.classList.remove('is-picked');
+        if(x.__pickT){ clearTimeout(x.__pickT); x.__pickT = null; }
+      });
+    };
+    Array.from(UI.hwList.querySelectorAll('.hw-item[data-hw-id]')).forEach(el=>{
+      const pick = () => {
+        clearPicked();
+        el.classList.add('is-picked');
+        el.__pickT = setTimeout(()=>{
+          el.classList.remove('is-picked');
+          el.__pickT = null;
+        }, 2000);
+      };
+
+      el.addEventListener('click', (e)=>{
+        if(e.target && e.target.closest && e.target.closest('button')) return;
+        pick();
+      });
+      el.addEventListener('keydown', (e)=>{
+        if(e.key==='Enter' || e.key===' '){
+          e.preventDefault();
+          pick();
+        }
+      });
+    });
+
+  } else {
+    UI.hwList.innerHTML = '<div class="muted">Ödev yok.</div>';
+  }
 }
 
 function stopHwControlProgress(btn){
