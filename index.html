@@ -6666,7 +6666,7 @@ async function deleteQuiz(cls,id){
    öğrencilerin durumlarının detaylı bir listesini gösterir.
 */
 
-async function showAdminHomeworkDetail(cls,id){
+async function showAdminHomeworkDetail(cls,id, reportState = null){
   if(!cls || !id) return;
   try{
     const snap = await get(ref(db, `homeworks/${cls}/${id}`));
@@ -6709,8 +6709,25 @@ async function showAdminHomeworkDetail(cls,id){
 
     const dueStr = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
     const titleHtml = `📘 Ödev Detayı — ${cls} • ${hw.title || ''}`;
-    const subHtml = `<div class="muted" style="margin-bottom:10px;">Teslim: ${dueStr} • Öğretmen: ${hw.teacherName || ''} • Ders: ${hw.subject || ''}</div>`;
-    await Swal.fire({ title: titleHtml, html: subHtml + htmlList, width: 600, showConfirmButton: false, showCloseButton: true });
+    const backHtml = `<div style="display:flex;justify-content:flex-start;margin:0 0 10px 0;"><button class="btn" id="admBackToHwReports" type="button">← Ödev Raporları</button></div>`;
+    const subHtml = backHtml + `<div class="muted" style="margin-bottom:10px;">Teslim: ${dueStr} • Öğretmen: ${hw.teacherName || ''} • Ders: ${hw.subject || ''}</div>`;
+    await Swal.fire({
+      title: titleHtml,
+      html: subHtml + htmlList,
+      width: 640,
+      showConfirmButton: false,
+      showCloseButton: true,
+      didOpen: ()=>{
+        const btn = Swal.getHtmlContainer()?.querySelector('#admBackToHwReports');
+        if(btn){
+          btn.addEventListener('click', ()=>{
+            __admHwRptState = reportState || __admHwRptState || null;
+            Swal.close();
+            openAdminHomeworks(__admHwRptState);
+          });
+        }
+      }
+    });
   }catch(err){ console.error(err); Swal.fire('Hata','Detaylar yüklenemedi.','error'); }
 }
 
@@ -6847,8 +6864,11 @@ async function loadParentQuizzes(){
   }
 }
 
+// Ödev Raporları: geri dönüş için geçici durum
+let __admHwRptState = null;
+
 // Admin: ödev raporları
-function openAdminHomeworks(){
+function openAdminHomeworks(state = null){
   // Not: Bu ekran artık students listesinin yüklenmesini şart koşmaz (neden: bazı cihazlarda/oturumlarda admin açılışı erken olabilir).
   try{
     const safeArr = (v)=> Array.isArray(v) ? v : [];
@@ -6931,6 +6951,8 @@ function openAdminHomeworks(){
       font-size:.9rem;
       margin-top:2px;
     }
+      .adm-rpt-pulse{ outline:2px solid rgba(249,115,22,.75); box-shadow:0 0 0 4px rgba(249,115,22,.14); border-radius:10px; }
+    .adm-rpt-pulse td{ font-weight:800; }
   </style>
 
   <div class="adm-rpt-top">
@@ -7008,6 +7030,12 @@ function openAdminHomeworks(){
       const printBtn = h.querySelector('#admHwPrint');
       const tbody = h.querySelector('#admHwBody');
       const kpis = h.querySelector('#admHwKpis');
+      const incoming = state || __admHwRptState || null;
+      let pendingClass = incoming && incoming.cls ? incoming.cls : null;
+      if(incoming){
+        if(incoming.date) dateInput.value = incoming.date;
+        if(typeof incoming.search === 'string') searchInput.value = incoming.search;
+      }
       // Seçenekler: sınıfları hem öğrencilerden hem de "homeworks" anahtarlarından toparla (filtre anahtarıyla uyumlu olsun)
       let classes = [];
       const setClassOptions = (list)=>{
@@ -7015,12 +7043,13 @@ function openAdminHomeworks(){
         classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
         classSelect.innerHTML = `<option value="hepsi" selected>Hepsi</option>${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}`;
         const lastClass = localStorage.getItem('admHwLastClass') || 'hepsi';
-        classSelect.value = (classes.includes(lastClass) || lastClass==='hepsi') ? lastClass : 'hepsi';
+        const target = pendingClass || lastClass;
+        classSelect.value = (classes.includes(target) || target==='hepsi') ? target : 'hepsi';
       };
 
       // Hafızalı seçimler (tarih)
       const lastDate = localStorage.getItem('admHwLastDate') || '';
-      dateInput.value = lastDate;
+      if(!dateInput.value) dateInput.value = lastDate;
 
       // 1) hızlıca öğrencilerden doldur
       const studentClasses = safeArr((window.students || students)).map(s => safe(s?.SINIF)).filter(Boolean);
@@ -7199,9 +7228,20 @@ function openAdminHomeworks(){
             tr.addEventListener('click', async ()=>{
               const c = tr.getAttribute('data-cls');
               const id = tr.getAttribute('data-id');
-              if(c && id) await showAdminHomeworkDetail(c, id);
+              __admHwRptState = { date: dateInput.value || '', cls: classSelect.value || 'hepsi', search: searchInput.value || '', focus: { cls: c, id } };
+              if(c && id) await showAdminHomeworkDetail(c, id, __admHwRptState);
             });
           });
+
+          // Geri dönüşte ilgili satıra odaklan
+          if(incoming && incoming.focus && incoming.focus.id){
+            const sel = tbody.querySelector(`tr[data-id="${esc(incoming.focus.id)}"][data-cls="${esc(incoming.focus.cls)}"]`);
+            if(sel){
+              sel.scrollIntoView({ block:'center', behavior:'smooth' });
+              sel.classList.add('adm-rpt-pulse');
+              setTimeout(()=> sel.classList.remove('adm-rpt-pulse'), 1400);
+            }
+          }
         }catch(e){
           console.error(e);
           tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#b91c1c;font-weight:900">Hata oluştu. Konsolu kontrol edin.</td></tr>`;
