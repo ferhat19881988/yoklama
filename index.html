@@ -1466,6 +1466,57 @@ div.admin-filters .button-row {
 .wa-filterHead .muted{ font-weight:900; }
 .wa-hint{ color: var(--muted); font-size:.9rem; font-weight:700; }
 
+
+/* ===== Toast (Kaydedildi ✓) ===== */
+#toastHost{
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+}
+@media (min-width: 720px){
+  #toastHost{ left:auto; right:16px; bottom:16px; max-width: 360px; }
+}
+.toast{
+  pointer-events: none;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: var(--stroke);
+  background: rgba(15, 23, 42, .92);
+  color: #fff;
+  box-shadow: 0 16px 44px rgba(0,0,0,.35);
+  backdrop-filter: blur(8px) saturate(130%);
+  transform: translateY(10px);
+  opacity: 0;
+  transition: transform .18s ease, opacity .18s ease;
+}
+@media (prefers-color-scheme: light){
+  .toast{
+    background: rgba(255,255,255,.92);
+    color: var(--ink);
+    box-shadow: 0 16px 44px rgba(2,6,23,.12);
+  }
+}
+.toast.show{ transform: translateY(0); opacity: 1; }
+.toast .t-ico{
+  width: 28px; height: 28px;
+  border-radius: 12px;
+  display:grid; place-items:center;
+  font-weight: 900;
+  flex: 0 0 auto;
+}
+.toast.ok .t-ico{ background: rgba(34,197,94,.22); border: 1px solid rgba(34,197,94,.35); }
+.toast.bad .t-ico{ background: rgba(239,68,68,.18); border: 1px solid rgba(239,68,68,.35); }
+.toast.warn .t-ico{ background: rgba(245,158,11,.18); border: 1px solid rgba(245,158,11,.35); }
+.toast .t-msg{ font-weight: 800; letter-spacing: .1px; }
+
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -1501,6 +1552,8 @@ div.admin-filters .button-row {
   <div id="statusBar" class="container hidden" role="status" aria-live="polite">
     <span id="statusMsg" class="mono"></span>
   </div>
+
+  <div id="toastHost" aria-live="polite" aria-atomic="true"></div>
 
   <!-- App -->
   <main id="app" class="container hidden">
@@ -2460,7 +2513,40 @@ function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0)
       return safe(ders) || (tInfo?.branch || 'Ders');
     }
 
-    function setStatus(msg, type='info'){
+    
+// ===== Toast helper (Kaydedildi ✓) =====
+function ensureToastHost(){
+  let host = document.getElementById('toastHost');
+  if(!host){
+    host = document.createElement('div');
+    host.id = 'toastHost';
+    host.setAttribute('aria-live','polite');
+    host.setAttribute('aria-atomic','true');
+    document.body.appendChild(host);
+  }
+  return host;
+}
+function showToast(message, type='ok', duration=1800){
+  try{
+    const host = ensureToastHost();
+    const t = document.createElement('div');
+    const cls = (type==='bad' || type==='warn' || type==='ok') ? type : 'ok';
+    t.className = `toast ${cls}`;
+    const ico = (cls==='ok') ? '✓' : (cls==='warn' ? '!' : '×');
+    t.innerHTML = `<span class="t-ico" aria-hidden="true">${ico}</span><span class="t-msg">${String(message||'')}</span>`;
+    host.appendChild(t);
+
+    requestAnimationFrame(()=> t.classList.add('show'));
+
+    const ms = Math.max(900, Number(duration)||1800);
+    setTimeout(()=>{
+      t.classList.remove('show');
+      setTimeout(()=> t.remove(), 220);
+    }, ms);
+  }catch(e){ /* sessiz */ }
+}
+// ===== /Toast helper =====
+function setStatus(msg, type='info'){
       UI.statusBar.classList.remove('hidden');
       UI.statusMsg.textContent = msg;
       UI.statusMsg.style.color = (type==='ok')?'#22c55e':(type==='bad')?'#ef4444':'inherit';
@@ -3793,6 +3879,7 @@ async function saveAttendance(){
       await update(ref(db), updates);
       await flushQueue(false);
       setStatus('Kaydedildi.', 'ok');
+      showToast('Kaydedildi ✓','ok');
       Swal.fire('Kaydedildi','Yoklama kaydedildi.','success');
     }else{
       // Offline kuyruk: çoklu yol güncellemesini tek paket sakla
@@ -6824,7 +6911,38 @@ ${companyName}`;
       };
     }
     if(UI.hwCancelBtn){
-      UI.hwCancelBtn.onclick = () => { UI.hwControlCard?.classList.add('hidden'); openHwCtx = null; };
+      UI.hwCancelBtn.onclick = () => {
+        // 1) paneli kapat
+        UI.hwControlCard?.classList.add('hidden');
+
+        // 2) listede o anda aktif olan ödev kartına geri dön (mobilde "neredeydim?" kaybolmasın)
+        try{
+          const ctx = openHwCtx ? { ...openHwCtx } : null;
+          openHwCtx = null;
+
+          if(ctx && UI.hwList){
+            const esc = (v)=>{ try{ return (window.CSS && CSS.escape) ? CSS.escape(String(v)) : String(v).replace(/[^a-zA-Z0-9_-]/g,'\$&'); }catch(_){ return String(v); } };
+            const sel = `.hw-item[data-hw-id="${esc(ctx.id)}"][data-hw-class="${esc(ctx.cls)}"]`;
+            const card = UI.hwList.querySelector(sel) || UI.hwList.querySelector(`.hw-item[data-hw-id="${esc(ctx.id)}"]`);
+            if(card){
+              // mevcut seçimi temizle + kısa vurgula
+              Array.from(UI.hwList.querySelectorAll('.hw-item.is-picked')).forEach(x=>{
+                x.classList.remove('is-picked');
+                if(x.__pickT){ clearTimeout(x.__pickT); x.__pickT = null; }
+              });
+              card.classList.add('is-picked');
+              card.__pickT = setTimeout(()=>{ card.classList.remove('is-picked'); card.__pickT = null; }, 2000);
+
+              // ekrana getir + odakla
+              card.scrollIntoView({ behavior:'smooth', block:'center', inline:'nearest' });
+              try{ card.focus({ preventScroll:true }); }catch(_){ }
+            }else{
+              // Kart bulunamazsa en azından listeye dön
+              UI.hwList.scrollIntoView({ behavior:'smooth', block:'start' });
+            }
+          }
+        }catch(e){ console.error('hwCancel back error', e); }
+      };
     }
   }catch(e){ console.error(e); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
 
