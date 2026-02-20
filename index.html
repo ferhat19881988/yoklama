@@ -977,80 +977,6 @@ div.admin-filters .button-row {
   background: linear-gradient(180deg, rgba(34,197,94,.08), transparent 40%), var(--glass);
 }
 .hw-item.is-picked .title{ color: rgba(34,197,94,.92); }
-
-/* Öğretmen — Ödev kartı: daha net kategorize görünüm */
-.hw-item{ align-items:flex-start; }
-.hw-content{
-  flex:1 1 auto;
-  min-width:0;
-  display:grid;
-  gap:6px;
-}
-.hw-head{
-  display:flex;
-  align-items:baseline;
-  gap:10px;
-  flex-wrap:wrap;
-}
-.hw-class-badge{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:4px 10px;
-  border-radius:999px;
-  border:1px solid rgba(168,85,247,.35);
-  background:rgba(168,85,247,.16);
-  font-weight:900;
-  letter-spacing:.2px;
-  white-space:nowrap;
-}
-.hw-title{
-  font-size:1.08rem;
-  font-weight:950;
-  letter-spacing:.1px;
-  line-height:1.15;
-}
-.hw-meta{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
-.hw-meta-item{
-  color:var(--muted);
-  font-weight:800;
-  font-size:.92rem;
-}
-.hw-meta-val{
-  color:var(--ink);
-  font-weight:900;
-}
-.hw-due-chip{
-  font-weight:950;
-  border-color: rgba(245,158,11,.40);
-  background: rgba(245,158,11,.18);
-}
-.hw-stats{
-  margin-top:2px;
-  padding-top:6px;
-  border-top:1px solid rgba(148,163,184,.18);
-  color:var(--muted);
-  font-weight:800;
-  font-size:.84rem; /* istatistik daha küçük */
-  line-height:1.25;
-}
-.hw-left-chip{ font-weight:900; }
-
-/* Telefon: Kontrol tuşu biraz küçülsün, düzen daha kompakt olsun */
-@media (max-width: 520px){
-  .btn.hw-control-btn{
-    padding:9px 12px;
-    min-height:40px;
-    border-radius:14px;
-  }
-  .btn.hw-control-btn .ico{ width:16px; height:16px; }
-  .btn.hw-mini{ width:38px; height:38px; }
-}
 .hw-actions{
   display:flex;
   align-items:center;
@@ -6162,41 +6088,31 @@ function renderTeacherHomeworks(items, gidMap){
       }catch(_){}
 
       return `<div class="lesson hw-item hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" role="button" tabindex="0">
-        <div class="hw-content">
-          <div class="hw-head">
-            <span class="hw-class-badge">${hw.class}</span>
-            <div class="title hw-title">${hw.title||''}</div>
-          </div>
-
-          <div class="hw-meta">
-            <span class="hw-meta-item">Ders: <span class="hw-meta-val">${hw.subject||''}</span></span>
-            <span class="chip due hw-due-chip">📅 ${dueDate || '—'}</span>
-          </div>
-
-          <div class="hw-stats" title="Ödev istatistiği">${summary}</div>
+        <div>
+          <div class="title">${hw.class} • ${hw.title||''}</div>
+          <div class="muted">Ders: ${hw.subject||''}</div>
+          <div class="muted">Teslim: ${dueDate}</div>
+          <div class="muted">${summary}</div>
         </div>
-
-        <div class="hw-actions" aria-label="Ödev işlemleri">
-          <div class="chip ${leftClass} hw-left-chip">${timeLeft}</div>
-
-          <button class="btn hw-control-btn hw-control"
-                  data-hw-id="${hw.id}"
-                  data-hw-class="${hw.class}"
-                  type="button"
-                  aria-label="Ödev Kontrol">
-            <span class="hw-progress" aria-hidden="true"></span>
-            <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 12l2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M9 4V2h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span class="lbl">Kontrol</span>
-          </button>
-
-          <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
-          <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
-        </div>
-      </div>``;
+        <div class="hw-actions">
+  <div class="chip ${leftClass}">${timeLeft}</div>
+  <button class="btn hw-control-btn hw-control"
+          data-hw-id="${hw.id}"
+          data-hw-class="${hw.class}"
+          type="button"
+          aria-label="Ödev Kontrol">
+	    <span class="hw-progress" aria-hidden="true"></span>
+    <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 12l2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M9 4V2h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+	    <span class="lbl">Kontrol</span>
+  </button>
+  <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
+  <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
+</div>
+      </div>`;
     }).join('');
 
     // Olaylar
@@ -6217,7 +6133,7 @@ function renderTeacherHomeworks(items, gidMap){
       });
     });
 // Kontrol düğmesi: sadece buradan kontrol paneli açılır
-// İyileştirme: basınca 2sn hazırlık/progress animasyonu (liste açılmadan önce hafif geçiş)
+// İyileştirme: basınca 4sn hazırlık/progress animasyonu (liste açılmadan önce hafif geçiş)
 const HW_CONTROL_OPEN_DELAY_MS = 2000;
 let hwControlDelayTimer = null;
 let hwControlDelayBtn = null;
