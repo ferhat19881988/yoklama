@@ -7095,6 +7095,7 @@ if(filterEl){
           btn.classList.toggle('hidden', !(v && v !== 'yapti')); // neden: yalnız olumsuzlarda bildir
         };
         syncBtn();
+
         sel.addEventListener('change', syncBtn);
         sel.addEventListener('change', applyHwFilterToDom);
 
@@ -7106,17 +7107,20 @@ if(filterEl){
             return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
           } catch { return '—'; }
         }
-        btn.addEventListener('click', () => {
+
+        // Tekil WhatsApp: modal önizleme -> gönder
+        btn.addEventListener('click', async () => {
           const stKey = sel.value;
           if (!stKey || stKey === 'yapti') return;
+
           const studentName = li.getAttribute('data-name') || '';
           const teacherName = session?.teacherName || '';
           const statusText  = (typeof HW_STATUSES !== 'undefined' && HW_STATUSES[stKey]) ? HW_STATUSES[stKey] : stKey;
-          const statusIcon  = STATUS_EMOJI?.[stKey] || 'ℹ️';
           const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
           const title       = hw?.title || 'Ödev';
           const dueStr      = hw?.dueDate ? formatDateTR(hw.dueDate) : '—';
           const lessonName  = hw?.subject || session?.teacherBranch || 'Ders';
+
           const DEADLINE_DAYS = 3; // isterseniz 2 yapabilirsiniz
           const deadlineStr = (() => {
             const d = new Date();
@@ -7135,13 +7139,14 @@ Rica etsem en geç *${deadlineStr}* tarihine kadar tamamlayıp teslim edebilir m
 Teşekkür ederim.
 
 ${companyName}`;
+
           const res = await openWhatsAppPreviewModal({ title:'Veli Bilgilendirme Mesajı', message: msg });
           if(res?.action === 'send') openWhatsAppSendUrl(res.message);
         });
-      
+      });
+
       // Filtreyi ilk render'da uygula
       applyHwFilterToDom();
-});
     }
 
     
