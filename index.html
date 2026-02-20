@@ -667,7 +667,6 @@ div.admin-filters .button-row {
 }
 .adm-sum-label.ok{ color: rgba(34,197,94,.95); }
 
-\1 color:var(--muted); }
 .adm-sum-kpi{
   font-size:1.8rem;
   font-weight:900;
@@ -1160,6 +1159,109 @@ div.admin-filters .button-row {
 .wa-filterHead .muted{ font-weight:900; }
 .wa-hint{ color: var(--muted); font-size:.9rem; font-weight:700; }
 
+
+    /* ===== Toast (Kaydedildi ✓ vb.) ===== */
+    #toastHost{
+      position: fixed;
+      left: 50%;
+      bottom: max(16px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: grid;
+      gap: 10px;
+      pointer-events: none;
+      width: min(92vw, 420px);
+    }
+    .toast{
+      pointer-events: none;
+      border: var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+      border-radius: 16px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      animation: toastIn .22s ease both;
+      backdrop-filter: blur(10px) saturate(140%);
+    }
+    @keyframes toastIn{
+      from{ opacity:0; transform: translateY(10px) scale(.98); }
+      to{ opacity:1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastOut{
+      from{ opacity:1; transform: translateY(0) scale(1); }
+      to{ opacity:0; transform: translateY(10px) scale(.98); }
+    }
+    .toast .t-main{ display:grid; gap:2px; }
+    .toast .t-title{ font-weight: 900; }
+    .toast .t-text{ color: var(--muted); font-weight: 700; font-size: .92rem; }
+    .toast.ok{ border-color: rgba(34,197,94,.30); }
+    .toast.warn{ border-color: rgba(245,158,11,.35); }
+    .toast.bad{ border-color: rgba(239,68,68,.35); }
+
+    /* ===== Ödev: Sekmeler + Filtre Çubuğu ===== */
+    .tabs{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+    .tab{
+      border: var(--stroke);
+      background: rgba(148,163,184,.08);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 900;
+      font-size: .9rem;
+      cursor: pointer;
+      transition: transform .12s ease, background .18s ease, border-color .18s ease;
+    }
+    .tab:hover{ transform: translateY(-1px); }
+    .tab[aria-selected="true"]{
+      background: linear-gradient(135deg,var(--brand),var(--brand-2));
+      color: #1b1007;
+      border-color: rgba(249,115,22,.35);
+    }
+    .hw-toolbar{
+      border: var(--stroke);
+      background: rgba(255,255,255,.02);
+      border-radius: 16px;
+      padding: 12px;
+      display:grid;
+      gap:10px;
+    }
+    .hw-filters{
+      display:grid;
+      gap:10px;
+      grid-template-columns: 1.05fr 1fr;
+      align-items:center;
+    }
+    .hw-filters .row{ flex-wrap:nowrap; }
+    .hw-filters .input{ min-height:42px; }
+    @media (max-width: 720px){
+      .hw-filters{ grid-template-columns: 1fr; }
+    }
+    .hw-actions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    @media (max-width: 520px){
+      .hw-actions{ justify-content:stretch; }
+      .hw-actions .btn{ flex: 1 1 140px; }
+    }
+
+    /* ===== Aç/Kapa animasyonu (200–250ms) ===== */
+    .slide{
+      overflow: hidden;
+      will-change: height;
+    }
+
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -1195,6 +1297,9 @@ div.admin-filters .button-row {
   <div id="statusBar" class="container hidden" role="status" aria-live="polite">
     <span id="statusMsg" class="mono"></span>
   </div>
+
+  <!-- Toasts -->
+  <div id="toastHost" aria-live="polite" aria-atomic="true"></div>
 
   <!-- App -->
   <main id="app" class="container hidden">
@@ -1265,6 +1370,35 @@ div.admin-filters .button-row {
               <button class="btn" id="hwCreateBtn" type="button">Oluştur</button>
             </div>
           </div>
+
+          <!-- Ödev: Profesyonel Liste Araçları -->
+          <div class="hw-toolbar" id="hwToolbar" aria-label="Ödev filtreleri ve arama">
+            <div class="tabs" role="tablist" aria-label="Ödev sekmeleri">
+              <button class="tab" id="hwTabToday"   type="button" role="tab" aria-selected="true"  data-tab="today">Güncel (Bugün)</button>
+              <button class="tab" id="hwTabSoon"    type="button" role="tab" aria-selected="false" data-tab="soon">Yakında</button>
+              <button class="tab" id="hwTabPast"    type="button" role="tab" aria-selected="false" data-tab="past">Geçmiş</button>
+            </div>
+
+            <div class="hw-filters" role="group" aria-label="Filtreler">
+              <label class="field" style="margin:0">
+                <span class="muted" style="font-weight:800">Sınıf</span>
+                <select id="hwClassFilter" class="input" aria-label="Sınıf filtresi">
+                  <option value="hepsi" selected>Tümü</option>
+                </select>
+              </label>
+
+              <label class="field" style="margin:0">
+                <span class="muted" style="font-weight:800">Arama</span>
+                <input id="hwSearch" class="input" placeholder="Ödev konusu / ders / sınıf..." aria-label="Ödev arama" />
+              </label>
+            </div>
+
+            <div class="hw-actions" aria-label="Sıralama ve hızlı işlemler">
+              <button class="btn ghost" id="hwSortBtn" type="button" title="Teslim tarihine göre sırala">Teslim Tarihi ↑↓</button>
+              <span class="muted" id="hwListMeta" style="font-weight:800"></span>
+            </div>
+          </div>
+
           <div id="hwList" class="stack" aria-label="Ödevler"></div>
         </div>
       </div>
@@ -1292,6 +1426,19 @@ div.admin-filters .button-row {
             <!-- İptal düğmesi: paneli kapatır -->
             <button class="btn danger" id="hwCancelBtn" type="button">İptal</button>
           </div>
+          
+          <div class="hw-toolbar" style="padding:10px 12px" aria-label="Ödev kontrol filtreleri">
+            <div class="row" style="justify-content:space-between;gap:10px;align-items:center;">
+              <div class="tabs" role="tablist" aria-label="Öğrenci durumu filtresi">
+                <button class="tab" type="button" data-stf="all"   aria-selected="true">Tümü</button>
+                <button class="tab" type="button" data-stf="done"  aria-selected="false">Yapanlar</button>
+                <button class="tab" type="button" data-stf="miss"  aria-selected="false">Yapmayanlar</button>
+                <button class="tab" type="button" data-stf="other" aria-selected="false">Diğerleri</button>
+              </div>
+              <input id="hwStudentSearch" class="input" placeholder="Öğrenci ara..." style="max-width:260px" />
+            </div>
+          </div>
+
           <ul id="hwStudentList" class="list" aria-label="Ödev Öğrenci Listesi"></ul>
         </div>
       </div>
@@ -1749,6 +1896,16 @@ div.admin-filters .button-row {
       hwClassSelect: document.getElementById('hwClassSelect'),
       hwCreateBtn: document.getElementById('hwCreateBtn'),
       hwList: document.getElementById('hwList'),
+      hwToolbar: document.getElementById('hwToolbar'),
+      hwTabToday: document.getElementById('hwTabToday'),
+      hwTabSoon: document.getElementById('hwTabSoon'),
+      hwTabPast: document.getElementById('hwTabPast'),
+      hwClassFilter: document.getElementById('hwClassFilter'),
+      hwSearch: document.getElementById('hwSearch'),
+      hwSortBtn: document.getElementById('hwSortBtn'),
+      hwListMeta: document.getElementById('hwListMeta'),
+      hwStudentSearch: document.getElementById('hwStudentSearch'),
+
       hwControlCard: document.getElementById('hwControlCard'),
       hwControlTitle: document.getElementById('hwControlTitle'),
       hwStudentList: document.getElementById('hwStudentList'),
@@ -2074,6 +2231,129 @@ const focusAndScroll = (cardEl, focusTarget) => {
     }
   });
 };
+
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+}
+
+// ===== UI Micro-Helpers (Toast + Slide) =====
+function showToast(title, text='', type='ok', ms=2200){
+  const host = document.getElementById('toastHost');
+  if(!host) return;
+  const el = document.createElement('div');
+  el.className = `toast ${type||'ok'}`;
+  el.innerHTML = `
+    <div class="t-main">
+      <div class="t-title">${escapeHtml(String(title||''))}</div>
+      ${text ? `<div class="t-text">${escapeHtml(String(text||''))}</div>` : ``}
+    </div>
+  `;
+  host.appendChild(el);
+  const kill = ()=>{
+    el.style.animation = 'toastOut .18s ease both';
+    setTimeout(()=>{ try{ el.remove(); }catch{} }, 210);
+  };
+  setTimeout(kill, ms);
+}
+
+// Slide Down/Up (200–250ms)
+function slideDown(el, ms=220){
+  if(!el) return;
+  el.classList.add('slide');
+  el.hidden = false;
+  const start = 0;
+  const end = el.scrollHeight;
+  el.style.height = start + 'px';
+  el.style.opacity = '0.02';
+  requestAnimationFrame(()=>{
+    el.style.transition = `height ${ms}ms ease, opacity ${ms}ms ease`;
+    el.style.height = end + 'px';
+    el.style.opacity = '1';
+  });
+  const done = ()=>{
+    el.style.transition = '';
+    el.style.height = '';
+    el.style.opacity = '';
+    el.classList.remove('slide');
+    el.removeEventListener('transitionend', done);
+  };
+  el.addEventListener('transitionend', done);
+}
+function slideUp(el, ms=220){
+  if(!el) return;
+  el.classList.add('slide');
+  const start = el.scrollHeight;
+  const end = 0;
+  el.style.height = start + 'px';
+  el.style.opacity = '1';
+  requestAnimationFrame(()=>{
+    el.style.transition = `height ${ms}ms ease, opacity ${ms}ms ease`;
+    el.style.height = end + 'px';
+    el.style.opacity = '0.02';
+  });
+  const done = ()=>{
+    el.hidden = true;
+    el.style.transition = '';
+    el.style.height = '';
+    el.style.opacity = '';
+    el.classList.remove('slide');
+    el.removeEventListener('transitionend', done);
+  };
+  el.addEventListener('transitionend', done);
+}
+
+// WhatsApp: Mesaj Önizleme + Düzenleme
+async function openWhatsAppPreview({title='WhatsApp Mesajı', message='', confirmText='WhatsApp\'ta Aç'}){
+  const esc = (s)=> escapeHtml(String(s ?? ''));
+  const { value: edited } = await Swal.fire({
+    title,
+    width: Math.min(innerWidth-24, 720),
+    showCancelButton: true,
+    confirmButtonText: confirmText,
+    cancelButtonText: 'İptal',
+    focusConfirm: false,
+    html: `
+      <div class="stack" style="text-align:left;gap:10px;">
+        <div class="muted" style="font-weight:800">Mesajı gönderilmeden önce düzenleyebilirsiniz:</div>
+        <textarea id="waMsg" class="swal2-textarea" style="min-height:180px;white-space:pre-wrap">${esc(message)}</textarea>
+        <div class="muted" style="font-weight:900;margin-top:2px;">Önizleme</div>
+        <div id="waPrev" style="border:var(--stroke);border-radius:14px;padding:12px;background:rgba(255,255,255,.02);white-space:pre-wrap;line-height:1.45;">${esc(message)}</div>
+        <div class="row" style="justify-content:flex-end;gap:8px;">
+          <button class="btn ghost" id="waCopy" type="button">Kopyala</button>
+        </div>
+      </div>
+    `,
+    didOpen: ()=>{
+      const ta = Swal.getHtmlContainer().querySelector('#waMsg');
+      const prev = Swal.getHtmlContainer().querySelector('#waPrev');
+      const copyBtn = Swal.getHtmlContainer().querySelector('#waCopy');
+      const sync = ()=>{ prev.textContent = ta.value; };
+      ta.addEventListener('input', sync);
+      copyBtn.addEventListener('click', async ()=>{
+        try{
+          await navigator.clipboard.writeText(ta.value);
+          showToast('Kopyalandı ✓', 'Mesaj panoya alındı.', 'ok', 1600);
+        }catch{
+          showToast('Uyarı', 'Kopyalama desteklenmiyor.', 'warn', 1800);
+        }
+      });
+      sync();
+    },
+    preConfirm: ()=>{
+      const ta = Swal.getHtmlContainer().querySelector('#waMsg');
+      const val = (ta?.value ?? '').trim();
+      if(!val){
+        Swal.showValidationMessage('Mesaj boş olamaz.');
+        return false;
+      }
+      return val;
+    }
+  });
+  if(!edited) return;
+  const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(edited);
+  location.href = url;
+}
+
 
 // ----------------------------------------------
 // Program Label Mapping
@@ -2436,6 +2716,57 @@ try{
 
       // Homework & Quiz event listeners
       UI.hwCreateBtn?.addEventListener('click', createHomework);
+
+      // Ödev: liste filtre/arama/sekme/sıralama
+      const bindHwToolbar = ()=>{
+        const setTabSelected = (tab)=>{
+          hwListState.tab = tab;
+          const allTabs = [UI.hwTabToday, UI.hwTabSoon, UI.hwTabPast].filter(Boolean);
+          allTabs.forEach(b=>{
+            const on = (b.getAttribute('data-tab') === tab);
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+          });
+        };
+        const refreshFromUI = ()=>{
+          hwListState.class = UI.hwClassFilter?.value || 'hepsi';
+          hwListState.q     = safe(UI.hwSearch?.value).toLowerCase();
+        };
+
+        // sınıfları doldur (checkbox'lardan)
+        const fillClasses = ()=>{
+          if(!UI.hwClassFilter) return;
+          const classes = Array.from(UI.hwClassSelect?.querySelectorAll('input[type="checkbox"]') || [])
+            .map(el=>el.value).filter(Boolean)
+            .sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+          const current = UI.hwClassFilter.value || 'hepsi';
+          UI.hwClassFilter.innerHTML = `<option value="hepsi">Tümü</option>` + classes.map(c=>`<option value="${c}">${c}</option>`).join('');
+          UI.hwClassFilter.value = classes.includes(current) ? current : 'hepsi';
+        };
+
+        fillClasses();
+
+        UI.hwTabToday?.addEventListener('click', ()=>{ setTabSelected('today'); loadTeacherHomeworks(); });
+        UI.hwTabSoon?.addEventListener('click',  ()=>{ setTabSelected('soon');  loadTeacherHomeworks(); });
+        UI.hwTabPast?.addEventListener('click',  ()=>{ setTabSelected('past');  loadTeacherHomeworks(); });
+
+        UI.hwClassFilter?.addEventListener('change', ()=>{ refreshFromUI(); loadTeacherHomeworks(); });
+        UI.hwSearch?.addEventListener('input', ()=>{ refreshFromUI(); loadTeacherHomeworks(); });
+
+        UI.hwSortBtn?.addEventListener('click', ()=>{
+          hwListState.sortDir = (hwListState.sortDir === 'asc') ? 'desc' : 'asc';
+          showToast('Sıralama', hwListState.sortDir === 'asc' ? 'Teslim Tarihi ↑' : 'Teslim Tarihi ↓', 'ok', 1400);
+          loadTeacherHomeworks();
+        });
+
+        // sınıf checkbox'ları güncellenirse dropdown'u güncelle
+        const obsRoot = UI.hwClassSelect;
+        if(obsRoot){
+          const mo = new MutationObserver(()=>{ fillClasses(); });
+          mo.observe(obsRoot, { childList:true, subtree:true });
+        }
+      };
+      bindHwToolbar();
+
       UI.qzCreateBtn?.addEventListener('click', createQuiz);
       UI.admHomeworksBtn?.addEventListener('click', openAdminHomeworks);
       UI.admQuizzesBtn?.addEventListener('click', openAdminQuizzes);
@@ -2445,41 +2776,52 @@ try{
       // Homework & Quiz collapsible toggles (teacher view)
       const hwToggle = document.getElementById('hwToggle');
       const hwBody   = document.getElementById('hwBody');
+      
       if (hwToggle && hwBody && UI.homeworkCard) {
         hwToggle.addEventListener('click', () => {
           const collapsed = UI.homeworkCard.classList.toggle('is-collapsed');
           const expanded  = !collapsed;
-          hwBody.hidden   = collapsed;
+
           hwToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           const lbl = hwToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
 
-          // Kart kapanırken alt detay kartını da kapat
+          // Animasyonlu aç/kapa (200–250ms)
+          if(expanded) slideDown(hwBody, 230);
+          else slideUp(hwBody, 230);
+
+          // Kart kapanırken alt detay kartını da kapat (ve geri kaydırma hedefini temizle)
           if (collapsed && UI.hwControlCard) {
             UI.hwControlCard.classList.add('hidden');
           }
-            openHwCtx = null;
+          openHwCtx = null;
+          lastHwReturnEl = null;
         });
       }
 
+
       const qzToggle = document.getElementById('qzToggle');
       const qzBody   = document.getElementById('qzBody');
+      
       if (qzToggle && qzBody && UI.quizCard) {
         qzToggle.addEventListener('click', () => {
           const collapsed = UI.quizCard.classList.toggle('is-collapsed');
           const expanded  = !collapsed;
-          qzBody.hidden   = collapsed;
+
           qzToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           const lbl = qzToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
 
-          // Kart kapanırken quiz kontrol kartını da kapat
+          if(expanded) slideDown(qzBody, 230);
+          else slideUp(qzBody, 230);
+
           if (collapsed && UI.qzControlCard) {
             UI.qzControlCard.classList.add('hidden');
           }
-            openQzCtx = null;
+          openQzCtx = null;
         });
       }
+
 
       // Parent filter buttons event binding
       if(UI.hwFilterCurrent && UI.hwFilterPast){
@@ -5819,6 +6161,8 @@ const HW_STATUSES = {
 // Açık kontrol panellerini takip et (neden: silinen ödev/quiz için paneli otomatik kapat)
 let openHwCtx = null; // { cls, id }
 let openQzCtx = null; // { cls, id }
+let lastHwReturnEl = null;
+let hwListState = { tab: 'today', sortDir: 'asc', class: 'hepsi', q: '' };
 
 
 // Öğretmen: sınıf listesini yükle (ödev/quiz için)
@@ -5866,7 +6210,7 @@ async function createHomework(){
   try{
     if(navigator.onLine) await update(ref(db), updates);
     else queueOfflineWrite('/', updates);
-    Swal.fire('Kaydedildi','Ödev oluşturuldu.','success');
+    showToast('Kaydedildi ✓','Ödev oluşturuldu.','ok');
     if(UI.hwTitle) UI.hwTitle.value='';
     if(UI.hwDueDate) UI.hwDueDate.value='';
     await loadTeacherHomeworks();
@@ -5918,9 +6262,47 @@ async function loadTeacherHomeworks(){
     }catch{ gidMap.set(gid, {}); }
   }
 
+
+  // UI filtreleri (sekme/sınıf/arama) — varsayılan: mevcut sıralama davranışını bozmaz
+  const tab = hwListState?.tab || 'today';
+  const clsFilter = safe(UI.hwClassFilter?.value || hwListState?.class || 'hepsi');
+  const q = safe((UI.hwSearch?.value ?? hwListState?.q ?? '')).toLowerCase();
+
+  const isMatchQuery = (hw)=>{
+    if(!q) return true;
+    const hay = `${safe(hw.title)} ${safe(hw.subject)} ${safe(hw.class)} ${safe(hw.teacherName)}`.toLowerCase();
+    return hay.includes(q);
+  };
+
+  const inTab = (hw)=>{
+    if(!hw?.dueDate) return tab !== 'today'; // teslim tarihi yoksa: Yakında/Geçmiş'te göster, Bugün'de gösterme
+    const due = dayjs(hw.dueDate).startOf('day');
+    const todayD = dayjs().startOf('day');
+    if(tab === 'today') return due.isSame(todayD,'day');
+    if(tab === 'soon')  return due.isAfter(todayD,'day');
+    if(tab === 'past')  return due.isBefore(todayD,'day');
+    return true;
+  };
+
+  let filtered = items
+    .filter(hw => (clsFilter==='hepsi' ? true : safe(hw.class)===clsFilter))
+    .filter(isMatchQuery)
+    .filter(inTab);
+
+  // Teslim tarihi sıralaması (↑↓)
+  const dir = (hwListState?.sortDir === 'desc') ? -1 : 1;
+  filtered.sort((a,b)=>{
+    const ad = a.dueDate ? String(a.dueDate) : '';
+    const bd = b.dueDate ? String(b.dueDate) : '';
+    if(!ad && bd) return 1;
+    if(!bd && ad) return -1;
+    if(ad && bd) return dir * ad.localeCompare(bd,'tr');
+    return 0;
+  });
+
   if(UI.hwList){
-    if(items.length){
-      UI.hwList.innerHTML = items.map(hw => {
+    if(filtered.length){
+      UI.hwList.innerHTML = filtered.map(hw => {
         const dueDate = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
         // Özet: yalnız bu sınıfa ait öğrenciler
         const classSet = new Set(students.filter(s=> safe(s.SINIF)===safe(hw.class)).map(s=>safe(s.NO)));
@@ -5958,11 +6340,19 @@ async function loadTeacherHomeworks(){
           </div>
           <div class="row" style="gap:6px;align-items:center;">
             <div class="chip ${leftClass}">${timeLeft}</div>
+            <button class="btn ghost small control-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">Kontrol</button>
             <button class="btn ghost small edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">✏️</button>
             <button class="btn ghost danger small delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">🗑️</button>
           </div>
         </div>`;
       }).join('');
+
+
+      if(UI.hwListMeta){
+        const total = items.length;
+        const shown = filtered.length;
+        UI.hwListMeta.textContent = `${shown}/${total} gösteriliyor`;
+      }
 
       // Olaylar
       Array.from(UI.hwList.querySelectorAll('button.edit-hw')).forEach(btn=>{
@@ -5981,6 +6371,19 @@ async function loadTeacherHomeworks(){
           if(id && cls){ deleteHomework(cls,id); }
         });
       });
+
+      Array.from(UI.hwList.querySelectorAll('button.control-hw')).forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const id  = btn.getAttribute('data-hw-id');
+          const cls = btn.getAttribute('data-hw-class');
+          if(id && cls){
+            lastHwReturnEl = UI.hwList.querySelector(`[data-hw-id="${CSS.escape(id)}"][data-hw-class="${CSS.escape(cls)}"]`);
+            openHomeworkControl(cls,id);
+          }
+        });
+      });
+
       Array.from(UI.hwList.querySelectorAll('[data-hw-id]')).forEach(el=>{
         const open = () => {
           const id  = el.getAttribute('data-hw-id');
@@ -5993,6 +6396,7 @@ async function loadTeacherHomeworks(){
 
     } else {
       UI.hwList.innerHTML = '<div class="muted">Ödev yok.</div>';
+      if(UI.hwListMeta) UI.hwListMeta.textContent = '0/0 gösteriliyor';
     }
   }
 }
@@ -6001,7 +6405,9 @@ async function loadTeacherHomeworks(){
 async function openHomeworkControl(cls,id){
   if(!cls || !id) return;
   openHwCtx = { cls, id };
-  UI.hwControlCard?.classList.remove('hidden');
+  // Kapatınca geri dönülecek kartı hatırla
+  try{ if(!lastHwReturnEl){ lastHwReturnEl = UI.hwList?.querySelector(`[data-hw-id="${CSS.escape(id)}"][data-hw-class="${CSS.escape(cls)}"]`); } }catch{}
+  if(UI.hwControlCard){ UI.hwControlCard.classList.remove('hidden'); showToast('Açıldı', 'Ödev kontrol paneli', 'ok', 1200);} 
   try{
     const snap = await get(ref(db, `homeworks/${cls}/${id}`));
     if(!snap.exists()){ Swal.fire('Hata','Ödev bulunamadı.','error'); return; }
@@ -6052,6 +6458,35 @@ async function openHomeworkControl(cls,id){
   </select>
 </li>`;
       }).join('');
+
+      // Öğrenci filtreleri: Yapanlar / Yapmayanlar / Diğerleri
+      const filterTabs = Array.from((UI.hwControlCard || document).querySelectorAll('[data-stf]') || []);
+      const searchBox = document.getElementById('hwStudentSearch');
+
+      let stFilter = 'all';
+      const applyStudentFilter = ()=>{
+        const q2 = safe(searchBox?.value).toLowerCase();
+        Array.from(UI.hwStudentList.querySelectorAll('li.student')).forEach(li=>{
+          const sid = li.getAttribute('data-id');
+          const name = safe(li.getAttribute('data-name')).toLowerCase();
+          const val = li.querySelector('select.statusSelect')?.value || '';
+          const inSearch = !q2 || name.includes(q2) || safe(sid).includes(q2);
+          let inStatus = true;
+          if(stFilter==='done') inStatus = (val==='yapti');
+          else if(stFilter==='miss') inStatus = (val==='yapmadi');
+          else if(stFilter==='other') inStatus = (!!val && val!=='yapti' && val!=='yapmadi');
+          li.classList.toggle('hidden', !(inSearch && inStatus));
+        });
+      };
+      filterTabs.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          stFilter = btn.getAttribute('data-stf') || 'all';
+          filterTabs.forEach(b=>b.setAttribute('aria-selected', (b===btn) ? 'true' : 'false'));
+          applyStudentFilter();
+        });
+      });
+      searchBox?.addEventListener('input', applyStudentFilter);
+
 
       // Satır başlatma + WhatsApp butonu
       Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
@@ -6105,8 +6540,7 @@ Rica etsem en geç *${deadlineStr}* tarihine kadar tamamlayıp teslim edebilir m
 Teşekkür ederim.
 
 ${companyName}`;
-          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
-          location.href = url;
+          openWhatsAppPreview({ title: 'Veli WhatsApp Mesajı', message: msg, confirmText: 'WhatsApp'ta Aç' });
         });
       });
     }
@@ -6125,8 +6559,10 @@ ${companyName}`;
         try{
           if(navigator.onLine) await update(ref(db), updates2);
           else queueOfflineWrite('/', updates2);
-          Swal.fire('Kaydedildi','Ödev durumları kaydedildi.','success');
+          showToast('Kaydedildi ✓','Ödev durumları kaydedildi.','ok');
           UI.hwControlCard?.classList.add('hidden');
+          // Kapanınca ilgili ödevin üzerine geri gel
+          try{ lastHwReturnEl && lastHwReturnEl.scrollIntoView({behavior:'smooth', block:'center'}); }catch{}
           await loadTeacherHomeworks();
         }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
       };
@@ -6169,13 +6605,12 @@ ${companyName}`;
 `Aşağıdaki öğrenciler ödevlerini zamanında teslim etti:\n` +
 `${listLines}\n\n` +
 `Öğrencilerimize teşekkür ederim. Bilginize\n`;
-          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
-          location.href = url;
+          openWhatsAppPreview({ title: 'Toplu WhatsApp Mesajı', message: msg, confirmText: 'WhatsApp'ta Aç' });
         }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
       };
     }
     if(UI.hwCancelBtn){
-      UI.hwCancelBtn.onclick = () => { UI.hwControlCard?.classList.add('hidden'); openHwCtx = null; };
+      UI.hwCancelBtn.onclick = () => { UI.hwControlCard?.classList.add('hidden'); openHwCtx = null; try{ lastHwReturnEl && lastHwReturnEl.scrollIntoView({behavior:'smooth', block:'center'}); }catch{} };
     }
   }catch(e){ console.error(e); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
 
@@ -6584,7 +7019,7 @@ async function deleteHomework(cls,id){
       if(navigator.onLine) await update(ref(db), updates);
       else queueOfflineWrite('/', updates);
       await loadTeacherHomeworks();
-      Swal.fire('Silindi','Ödev silindi.','success');
+      showToast('Silindi','Ödev silindi.','warn');
     }catch(e){ console.error(e); Swal.fire('Hata','Ödev silinemedi.','error'); }
   }
 }
@@ -6973,6 +7408,9 @@ const html = `
     const printBtn = h.querySelector('#admHwPrint');
     dateInput.value = '';
 
+    const studentClassByNo = new Map(students.map(s=>[safe(s.NO), safe(s.SINIF)]));
+    const statusCache = new Map();
+
     const run = async () => {
       const date = dateInput.value || '';
       const cls = classSelect.value || 'hepsi';
@@ -6989,9 +7427,33 @@ const html = `
             const dueDt = dayjs(hw.dueDate);
             if(!dueDt.isSame(sel, 'day')) continue;
           }
-          const statuses = hw.statuses || {};
+          // Statüler: yeni sistemde hwStatus/{groupId} altında tutulur (sınıftan bağımsız). Admin raporunda sınıfa göre filtrelenir.
+          const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
+          const groupId = hw.groupId ?? legacyGid ?? null;
+
+          let statuses = {};
+          if(groupId){
+            if(statusCache.has(groupId)) statuses = statusCache.get(groupId);
+            else{
+              try{
+                const sSnap = await get(ref(db, `hwStatus/${groupId}`));
+                statuses = sSnap.exists() ? (sSnap.val()||{}) : {};
+              }catch{ statuses = {}; }
+              statusCache.set(groupId, statuses);
+            }
+          }else{
+            statuses = hw.statuses || {};
+          }
+
           const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
-          Object.values(statuses).forEach(rec=>{ const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++; });
+          Object.entries(statuses).forEach(([sid,rec])=>{
+            if(cls !== 'hepsi'){
+              const sCls = studentClassByNo.get(safe(sid)) || '';
+              if(safe(sCls) !== safe(cls)) return;
+            }
+            const st = rec?.status;
+            if(st && counts.hasOwnProperty(st)) counts[st]++;
+          });
           rows.push({
             id,
             title: hw.title || '',
@@ -7007,7 +7469,7 @@ const html = `
       if(rows.length){
         const sorted = rows.sort((a,b)=> ((a.due||'').localeCompare(b.due||'','tr')));
         tbody.innerHTML = sorted.map(r=>`
-          <tr>
+          <tr class="adm-hw-row" data-hw-id="${r.id}" data-hw-class="${r.cls}">
             <td>${r.title}</td>
             <td>${r.subject}</td>
             <td>${r.cls}</td>
@@ -7019,6 +7481,15 @@ const html = `
             <td class="num">${r.counts.kitap}</td>
             <td class="num">${r.counts.gelmedi}</td>
           </tr>`).join('');
+        // satıra tıkla → detay
+        Array.from(tbody.querySelectorAll('tr.adm-hw-row')).forEach(tr=>{
+          tr.style.cursor='pointer';
+          tr.addEventListener('click', ()=>{
+            const cid = tr.getAttribute('data-hw-class');
+            const hid = tr.getAttribute('data-hw-id');
+            if(cid && hid) showAdminHomeworkDetail(cid,hid);
+          });
+        });
       }else{
         tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
       }
