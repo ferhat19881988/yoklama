@@ -2050,6 +2050,103 @@ div.admin-filters .button-row {
     import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
 
+// =========================
+// WhatsApp Mesaj Modalı (Önizleme / Düzenleme / Kopyalama / Gönderme)
+// Not: location.href ile sayfadan çıkmak yerine yeni sekmede açar; böylece aktif ekran korunur.
+function openWhatsAppComposer(opts){
+  try{
+    const cfg = opts || {};
+    const modalTitle = cfg.modalTitle || 'Veli Bilgilendirme Mesajı';
+    const msgTitle   = cfg.messageTitle || 'Mesaj Önizleme (Düzenlenebilir)';
+    const initialText = (cfg.text ?? '').toString();
+    const after = (typeof cfg.onAfterClose === 'function') ? cfg.onAfterClose : null;
+
+    // Basit escape (Swal html içinde güvenli başlık)
+    const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+
+    return Swal.fire({
+      title: modalTitle,
+      html: `
+        <div style="text-align:left; display:grid; gap:10px;">
+          <div class="muted" style="font-weight:800;">${esc(msgTitle)}</div>
+          <textarea id="waMsgBox" class="input" style="min-height:220px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"></textarea>
+          <div class="row" style="justify-content:flex-end; gap:10px; flex-wrap:wrap; margin-top:2px;">
+            <button type="button" class="btn ghost" id="waCopyBtn">Kopyala</button>
+            <button type="button" class="btn ghost" id="waCancelBtn">İptal</button>
+            <button type="button" class="btn" id="waSendBtn" style="background:#25D366; color:#0b1b10;">WhatsApp'a Gönder</button>
+          </div>
+          <div class="muted" style="font-size:.86rem;">
+            Yıldız (*) ile işaretli yerler WhatsApp'ta *kalın* görünebilir.
+          </div>
+        </div>
+      `,
+      showConfirmButton: false,
+      showCancelButton: false,
+      allowOutsideClick: true,
+      allowEscapeKey: true,
+      didOpen: (el) => {
+        const ta = el.querySelector('#waMsgBox');
+        const bCopy = el.querySelector('#waCopyBtn');
+        const bCancel = el.querySelector('#waCancelBtn');
+        const bSend = el.querySelector('#waSendBtn');
+        if(ta){
+          ta.value = initialText;
+          try{ ta.focus(); ta.setSelectionRange(0,0); }catch(_){ }
+        }
+
+        const copyText = async ()=>{
+          try{
+            const v = (ta ? ta.value : initialText) || '';
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              await navigator.clipboard.writeText(v);
+            }else{
+              // fallback
+              const tmp = document.createElement('textarea');
+              tmp.value = v;
+              tmp.style.position='fixed';
+              tmp.style.left='-9999px';
+              document.body.appendChild(tmp);
+              tmp.select();
+              document.execCommand('copy');
+              document.body.removeChild(tmp);
+            }
+            // hafif toast
+            try{ toast('Kopyalandı ✓','ok'); }
+            catch(_){ Swal.fire({ title:'Kopyalandı', icon:'success', timer:1200, showConfirmButton:false }); }
+          }catch(e){
+            console.error('copy err', e);
+            Swal.fire('Hata','Kopyalanamadı.','error');
+          }
+        };
+
+        const sendText = ()=>{
+          try{
+            const v = (ta ? ta.value : initialText) || '';
+            const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(v);
+            // yeni sekmede aç: aktif kart/alan korunur
+            window.open(url, '_blank', 'noopener,noreferrer');
+            Swal.close();
+          }catch(e){
+            console.error('send err', e);
+            Swal.fire('Hata','Gönderim başlatılamadı.','error');
+          }
+        };
+
+        if(bCopy) bCopy.addEventListener('click', copyText);
+        if(bCancel) bCancel.addEventListener('click', ()=>Swal.close());
+        if(bSend) bSend.addEventListener('click', sendText);
+      },
+      willClose: () => {
+        try{ after && after(); }catch(e){ console.error('wa afterClose err', e); }
+      }
+    });
+  }catch(e){
+    console.error('openWhatsAppComposer err', e);
+    Swal.fire('Hata','Mesaj penceresi açılamadı.','error');
+  }
+}
+// =========================
+
     const firebaseConfig = {
       apiKey: "AIzaSyA0jqzCSRFQYvLojoYEiBzfylXLqrL-NsQ",
       authDomain: "ders-ac884.firebaseapp.com",
@@ -6908,8 +7005,7 @@ Rica etsem en geç *${deadlineStr}* tarihine kadar tamamlayıp teslim edebilir m
 Teşekkür ederim.
 
 ${companyName}`;
-          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
-          location.href = url;
+          openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
         });
       
       // Filtreyi ilk render'da uygula
@@ -7037,8 +7133,7 @@ if(UI.hwSaveBtn){
 `Aşağıdaki öğrenciler ödevlerini zamanında teslim etti:\n` +
 `${listLines}\n\n` +
 `Öğrencilerimize teşekkür ederim. Bilginize\n`;
-          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
-          location.href = url;
+          openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
         }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
       };
     }
