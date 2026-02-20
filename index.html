@@ -325,6 +325,72 @@
   border-radius:12px;
 }
 #adminView .btn.whatsBtn img{ width:18px; height:18px; display:block; }
+/* WhatsApp Mesaj Modalı — modern / mobil uyumlu */
+.wa-popup{
+  width:min(640px, 92vw) !important;
+  border-radius:18px !important;
+  padding:14px 14px 12px !important;
+}
+.wa-popup .swal2-title{
+  font-size:1.02rem !important;
+  font-weight:900 !important;
+  margin:0 0 8px 0 !important;
+}
+.wa-modal{ text-align:left; display:grid; gap:10px; }
+.wa-section{
+  border:var(--stroke);
+  background:rgba(255,255,255,.03);
+  border-radius:16px;
+  padding:10px 10px 12px;
+}
+.wa-kicker{
+  font-weight:900;
+  color:var(--muted);
+  font-size:.82rem;
+  letter-spacing:.3px;
+}
+.wa-label{
+  font-size:.78rem;
+  font-weight:900;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin:0 0 8px 2px;
+}
+.wa-textarea{
+  min-height:210px;
+  resize:vertical;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.92rem;
+  line-height:1.35;
+}
+.wa-hint{ font-size:.82rem; margin-top:8px; }
+.wa-btnrow{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  justify-content:flex-end;
+}
+.btn.wa-btn{
+  padding:8px 12px;
+  border-radius:12px;
+  font-size:.9rem;
+  line-height:1.1;
+}
+.btn.wa-send{
+  background:#25D366 !important;
+  color:#0b1b10 !important;
+  box-shadow:0 10px 26px rgba(37,211,102,.22);
+}
+@media (max-width:520px){
+  .wa-popup{ width:94vw !important; padding:12px 10px 10px !important; }
+  .wa-popup .swal2-title{ font-size:.98rem !important; }
+  .wa-textarea{ min-height:190px; font-size:.88rem; }
+  .wa-btnrow{ justify-content:stretch; }
+  .btn.wa-btn{ flex:1 1 120px; padding:8px 10px; font-size:.88rem; }
+}
+
 
 /* Küçük ekranda butonlar eşit ve okunur olsun */
 @media (max-width: 640px){
@@ -2066,17 +2132,26 @@ function openWhatsAppComposer(opts){
 
     return Swal.fire({
       title: modalTitle,
+      customClass: { popup: 'wa-popup' },
       html: `
-        <div style="text-align:left; display:grid; gap:10px;">
-          <div class="muted" style="font-weight:800;">${esc(msgTitle)}</div>
-          <textarea id="waMsgBox" class="input" style="min-height:220px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"></textarea>
-          <div class="row" style="justify-content:flex-end; gap:10px; flex-wrap:wrap; margin-top:2px;">
-            <button type="button" class="btn ghost" id="waCopyBtn">Kopyala</button>
-            <button type="button" class="btn ghost" id="waCancelBtn">İptal</button>
-            <button type="button" class="btn" id="waSendBtn" style="background:#25D366; color:#0b1b10;">WhatsApp'a Gönder</button>
+        <div class="wa-modal">
+          <div class="wa-section wa-header">
+            <div class="wa-kicker">${esc(msgTitle)}</div>
           </div>
-          <div class="muted" style="font-size:.86rem;">
-            Yıldız (*) ile işaretli yerler WhatsApp'ta *kalın* görünebilir.
+
+          <div class="wa-section">
+            <div class="wa-label">Mesaj</div>
+            <textarea id="waMsgBox" class="input wa-textarea" spellcheck="false"></textarea>
+            <div class="wa-hint muted">*Yıldızlı* kısımlar WhatsApp'ta kalın görünebilir.</div>
+          </div>
+
+          <div class="wa-section wa-actions">
+            <div class="wa-label">İşlemler</div>
+            <div class="wa-btnrow">
+              <button type="button" class="btn ghost wa-btn" id="waCopyBtn">Kopyala</button>
+              <button type="button" class="btn ghost wa-btn" id="waCancelBtn">Kapat</button>
+              <button type="button" class="btn wa-btn wa-send" id="waSendBtn">WhatsApp'a Gönder</button>
+            </div>
           </div>
         </div>
       `,
@@ -2094,13 +2169,31 @@ function openWhatsAppComposer(opts){
           try{ ta.focus(); ta.setSelectionRange(0,0); }catch(_){ }
         }
 
+        const persistTeacherPanels = ()=>{
+          try{
+            const hwCard = document.getElementById('homeworkCard');
+            const qzCard = document.getElementById('quizCard');
+            if(hwCard){
+              const expanded = !hwCard.classList.contains('is-collapsed');
+              localStorage.setItem('hwCardExpanded', expanded ? '1' : '0');
+            }
+            if(qzCard){
+              const expanded = !qzCard.classList.contains('is-collapsed');
+              localStorage.setItem('qzCardExpanded', expanded ? '1' : '0');
+            }
+            const hwCtrl = document.getElementById('hwControlCard');
+            if(hwCtrl && !hwCtrl.classList.contains('hidden')){
+              localStorage.setItem('hwCardExpanded','1');
+            }
+          }catch(_){ }
+        };
+
         const copyText = async ()=>{
           try{
             const v = (ta ? ta.value : initialText) || '';
             if(navigator.clipboard && navigator.clipboard.writeText){
               await navigator.clipboard.writeText(v);
             }else{
-              // fallback
               const tmp = document.createElement('textarea');
               tmp.value = v;
               tmp.style.position='fixed';
@@ -2110,7 +2203,6 @@ function openWhatsAppComposer(opts){
               document.execCommand('copy');
               document.body.removeChild(tmp);
             }
-            // hafif toast
             try{ toast('Kopyalandı ✓','ok'); }
             catch(_){ Swal.fire({ title:'Kopyalandı', icon:'success', timer:1200, showConfirmButton:false }); }
           }catch(e){
@@ -2121,9 +2213,9 @@ function openWhatsAppComposer(opts){
 
         const sendText = ()=>{
           try{
+            persistTeacherPanels();
             const v = (ta ? ta.value : initialText) || '';
             const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(v);
-            // yeni sekmede aç: aktif kart/alan korunur
             window.open(url, '_blank', 'noopener,noreferrer');
             Swal.close();
           }catch(e){
@@ -2835,6 +2927,35 @@ function refreshVisibleView(){
     // bfcache'den dönüş (özellikle iOS/Safari)
     window.addEventListener('pageshow', (e)=>{
       if(e.persisted) scheduleRestoreScroll();
+      // WhatsApp / mobil dönüşlerinde: Ödev Yönetimi & Quiz durumunu geri yükle
+      try{
+        const hwCard = document.getElementById('homeworkCard');
+        const hwBody = document.getElementById('hwBody');
+        const hwToggle = document.getElementById('hwToggle');
+        if(hwCard){
+          const wantExpanded = (localStorage.getItem('hwCardExpanded')==='1');
+          hwCard.classList.toggle('is-collapsed', !wantExpanded);
+          if(hwBody) hwBody.hidden = !wantExpanded;
+          if(hwToggle){
+            hwToggle.setAttribute('aria-expanded', wantExpanded ? 'true' : 'false');
+            const lbl = hwToggle.querySelector('.toggle-label');
+            if(lbl) lbl.textContent = wantExpanded ? 'Kapat' : 'Aç';
+          }
+        }
+        const qzCard = document.getElementById('quizCard');
+        const qzBody = document.getElementById('qzBody');
+        const qzToggle = document.getElementById('qzToggle');
+        if(qzCard){
+          const wantExpanded = (localStorage.getItem('qzCardExpanded')==='1');
+          qzCard.classList.toggle('is-collapsed', !wantExpanded);
+          if(qzBody) qzBody.hidden = !wantExpanded;
+          if(qzToggle){
+            qzToggle.setAttribute('aria-expanded', wantExpanded ? 'true' : 'false');
+            const lbl2 = qzToggle.querySelector('.toggle-label');
+            if(lbl2) lbl2.textContent = wantExpanded ? 'Kapat' : 'Aç';
+          }
+        }
+      }catch(_){ }
     });
   }
 
@@ -3042,12 +3163,15 @@ try{
           hwToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           const lbl = hwToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
+          try{ localStorage.setItem('qzCardExpanded', expanded ? '1' : '0'); }catch(_){ }
+          try{ localStorage.setItem('hwCardExpanded', expanded ? '1' : '0'); }catch(_){ }
 
           // Kart kapanırken alt detay kartını da kapat
           if (collapsed && UI.hwControlCard) {
             UI.hwControlCard.classList.add('hidden');
           }
             openHwCtx = null;
+          try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
         });
       }
 
@@ -3474,27 +3598,36 @@ async function showTeacherToday(){
     // Öğretmenin ödev & quiz kartlarını aktif et, ancak varsayılan olarak kapalı getir
     if (UI.homeworkCard) {
       UI.homeworkCard.classList.remove('hidden');
-      UI.homeworkCard.classList.add('is-collapsed');
+
       const hwBody   = document.getElementById('hwBody');
       const hwToggle = document.getElementById('hwToggle');
-      if (hwBody) hwBody.hidden = true;
+
+      // Dönüşte (WhatsApp/app) kart durumunu koru
+      const wantExpanded = (localStorage.getItem('hwCardExpanded') === '1') || (!document.getElementById('hwControlCard')?.classList.contains('hidden'));
+      UI.homeworkCard.classList.toggle('is-collapsed', !wantExpanded);
+      if (hwBody) hwBody.hidden = !wantExpanded;
+
       if (hwToggle) {
-        hwToggle.setAttribute('aria-expanded', 'false');
+        hwToggle.setAttribute('aria-expanded', wantExpanded ? 'true' : 'false');
         const lbl = hwToggle.querySelector('.toggle-label');
-        if (lbl) lbl.textContent = 'Aç';
+        if (lbl) lbl.textContent = wantExpanded ? 'Kapat' : 'Aç';
       }
     }
 
     if (UI.quizCard) {
       UI.quizCard.classList.remove('hidden');
-      UI.quizCard.classList.add('is-collapsed');
+
       const qzBody   = document.getElementById('qzBody');
       const qzToggle = document.getElementById('qzToggle');
-      if (qzBody) qzBody.hidden = true;
+
+      const wantExpanded = (localStorage.getItem('qzCardExpanded') === '1');
+      UI.quizCard.classList.toggle('is-collapsed', !wantExpanded);
+      if (qzBody) qzBody.hidden = !wantExpanded;
+
       if (qzToggle) {
-        qzToggle.setAttribute('aria-expanded', 'false');
+        qzToggle.setAttribute('aria-expanded', wantExpanded ? 'true' : 'false');
         const lbl2 = qzToggle.querySelector('.toggle-label');
-        if (lbl2) lbl2.textContent = 'Aç';
+        if (lbl2) lbl2.textContent = wantExpanded ? 'Kapat' : 'Aç';
       }
     }
   } catch(e) { console.error(e); }
@@ -6868,6 +7001,7 @@ async function loadTeacherHomeworks(){
 async function openHomeworkControl(cls,id){
   if(!cls || !id) return;
   openHwCtx = { cls, id };
+  try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
   UI.hwControlCard?.classList.remove('hidden');
   try{
     const snap = await get(ref(db, `homeworks/${cls}/${id}`));
@@ -7022,6 +7156,7 @@ const backToActiveHwCard = () => {
   try{
     const ctx = openHwCtx ? { ...openHwCtx } : null;
     openHwCtx = null;
+          try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
 
     if(ctx && UI.hwList){
       const esc = (v)=>{ try{ return (window.CSS && CSS.escape) ? CSS.escape(String(v)) : String(v).replace(/[^a-zA-Z0-9_-]/g,'\$&'); }catch(_){ return String(v); } };
@@ -7146,6 +7281,7 @@ if(UI.hwSaveBtn){
         try{
           const ctx = openHwCtx ? { ...openHwCtx } : null;
           openHwCtx = null;
+          try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
 
           if(ctx && UI.hwList){
             const esc = (v)=>{ try{ return (window.CSS && CSS.escape) ? CSS.escape(String(v)) : String(v).replace(/[^a-zA-Z0-9_-]/g,'\$&'); }catch(_){ return String(v); } };
@@ -7571,6 +7707,7 @@ async function deleteHomework(cls,id){
     if(openHwCtx && safe(openHwCtx.cls)===safe(cls) && safe(openHwCtx.id)===safe(id)){
       UI.hwControlCard?.classList.add('hidden');
       openHwCtx = null;
+          try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
     }
     const updates = {};
     updates[`homeworks/${cls}/${id}`] = null;
