@@ -6115,7 +6115,7 @@ Array.from(UI.hwList.querySelectorAll('button.hw-control')).forEach(btn=>{
   });
 });
 
-// Kart tıklama: sadece görsel vurgu (10 sn sonra eski hal)
+// Kart tıklama: sadece görsel vurgu (5 sn sonra eski hal)
 const clearPicked = ()=>{
   Array.from(UI.hwList.querySelectorAll('.hw-item.is-picked')).forEach(x=>{
     x.classList.remove('is-picked');
@@ -6129,7 +6129,7 @@ Array.from(UI.hwList.querySelectorAll('.hw-item[data-hw-id]')).forEach(el=>{
     el.__pickT = setTimeout(()=>{
       el.classList.remove('is-picked');
       el.__pickT = null;
-    }, 10000);
+    }, 5000);
   };
 
   el.addEventListener('click', (e)=>{
