@@ -1005,7 +1005,17 @@ div.admin-filters .button-row {
   box-shadow: 0 18px 44px rgba(34,197,94,.22), 0 0 0 3px rgba(34,197,94,.18);
 }
 .btn.hw-control-btn:active{ transform: translateY(0); }
-.btn.hw-control-btn .ico{ width:18px; height:18px; display:block; }
+.btn.hw-control-btn .ico{
+  font-size:15px;          /* neden: tik biraz küçülsün */
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  transform: translateY(1px); /* neden: yazıyla hizala */
+}
+.btn.hw-control-btn .lbl{
+  line-height:1;
+}
 
 /* Kontrol butonu progress (5sn): buton içinde dolan ince bar */
 .btn.hw-control-btn .hw-progress{
@@ -1110,7 +1120,33 @@ div.admin-filters .button-row {
   gap:10px;
 }
 .hw-badges{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-.hw-title{ font-weight: 900; line-height: 1.2; }
+.hw-title{
+  font-weight: 900;
+  line-height: 1.2;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(239,68,68,.18);
+  background: linear-gradient(90deg, rgba(239,68,68,.22), rgba(245,158,11,.14));
+}
+.hw-title .pin{ margin-right:6px; }
+@media (prefers-color-scheme: light){
+  .hw-title{ border-color: rgba(239,68,68,.14); }
+}
+
+/* Ödev kartı: rozetler */
+.chip.due-pill{
+  font-weight: 900;
+  color: rgba(255,255,255,.92);
+  border-color: rgba(249,115,22,.35);
+  background: linear-gradient(90deg, rgba(249,115,22,.95), rgba(244,63,94,.85));
+}
+@media (prefers-color-scheme: light){
+  .chip.due-pill{ color: #fff; }
+}
+.chip.class-chip{
+  font-weight: 900;
+}
+
 .hw-meta{ color: var(--muted); font-weight: 700; font-size: .92rem; }
 .hw-summary{ border-top: 1px dashed rgba(148,163,184,.22); padding-top: 10px; }
 .hw-summary-chips{ display:flex; gap:8px; flex-wrap:wrap; }
@@ -6131,6 +6167,14 @@ function applyTeacherHwFiltersAndRender(){
 }
 
 /* Not: Aşağıdaki render fonksiyonu, önceki loadTeacherHomeworks içindeki HTML üretimini aynen korur. */
+function classChipStyle(cls){
+  const s = safe(cls);
+  let h = 0;
+  for(let i=0;i<s.length;i++) h = (h + s.charCodeAt(i) * (i+1)) % 360;
+  // HSL → şeffaf rozet (tema uyumlu)
+  return `background: hsla(${h}, 82%, 52%, .18); border-color: hsla(${h}, 82%, 52%, .35); color: var(--ink);`;
+}
+
 function renderTeacherHomeworks(items, gidMap){
   if(!UI.hwList) return;
 
@@ -6204,14 +6248,14 @@ function renderTeacherHomeworks(items, gidMap){
       <article class="hw-card hw-item hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" tabindex="0" role="button" aria-label="Ödev kartı">
         <div class="hw-top">
           <div class="hw-badges">
-            <span class="chip purple">${hw.class || '—'}</span>
+            <span class="chip class-chip" style="${classChipStyle(hw.class)}">${hw.class || '—'}</span>
             <span class="chip ${leftClass}">${timeLeft}</span>
           </div>
-          <span class="chip" title="Teslim tarihi">${dueText || '—'}</span>
+          <span class="chip due-pill" title="Teslim tarihi">${dueText || '—'}</span>
         </div>
 
-        <div class="hw-title">${(hw.title||'').trim()}</div>
-        <div class="hw-meta">Ders: ${(hw.subject||'—').trim()}${dueText ? ` • Teslim: ${dueText}` : ''}</div>
+        <div class="hw-title"><span class="pin" aria-hidden="true">📌</span>Ödev: ${(hw.title||'').trim()}</div>
+        <div class="hw-meta">Ders: ${(hw.subject||'—').trim()}</div>
 
         <div class="hw-summary">
           <div class="muted" style="font-weight:900;margin-bottom:6px;">Kontrol Özeti</div>
