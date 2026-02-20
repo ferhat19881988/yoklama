@@ -986,6 +986,30 @@ div.admin-filters .button-row {
   .hw-tabs{ width:100%; }
   .hw-tabs .btn{ flex:1 1 0; }
 }
+/* ===== Ödev Kontrol: Öğrenci Durum Filtresi (Hepsi / Yapanlar / Yapmayanlar / Diğerleri) ===== */
+.hw-status-filter{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:10px 12px;
+  border:var(--stroke);
+  border-radius:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+}
+.hw-status-filter .muted{ font-weight:900; }
+#hwStatusFilter{
+  min-width: 220px;
+  height: 42px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+@media (max-width: 520px){
+  .hw-status-filter{ align-items:stretch; }
+  #hwStatusFilter{ width:100%; min-width:0; }
+}
+
 /* ===== Öğretmen: Ödev Kartı (Kontrol/Düzenle/Sil) — Mobil uyumlu ===== */
 .hw-item{
   position:relative;
@@ -1673,6 +1697,15 @@ div.admin-filters .button-row {
             <!-- İptal düğmesi: paneli kapatır -->
             <button class="btn danger" id="hwCancelBtn" type="button">İptal</button>
           </div>
+          <div class="hw-status-filter" aria-label="Ödev durum filtresi">
+  <span class="muted">Filtre:</span>
+  <select id="hwStatusFilter" class="input" aria-label="Ödev durum filtresi seçimi">
+    <option value="all" selected>Hepsi</option>
+    <option value="done">Yapanlar</option>
+    <option value="notdone">Yapmayanlar</option>
+    <option value="other">Diğerleri</option>
+  </select>
+</div>
           <ul id="hwStudentList" class="list" aria-label="Ödev Öğrenci Listesi"></ul>
         </div>
       </div>
@@ -2143,6 +2176,7 @@ div.admin-filters .button-row {
       hwControlCard: document.getElementById('hwControlCard'),
       hwControlTitle: document.getElementById('hwControlTitle'),
       hwStudentList: document.getElementById('hwStudentList'),
+      hwStatusFilter: document.getElementById('hwStatusFilter'),
       hwSaveBtn: document.getElementById('hwSaveBtn'),
       hwCancelBtn: document.getElementById('hwCancelBtn'),
       // Yeni: toplu WhatsApp mesajı butonu
@@ -3146,11 +3180,11 @@ try{
       const s = parseTime(lesson.bas);
       const e = parseTime(lesson.bit);
       if(hasTaken) return {chip:'ok', text:'Alındı'};
-      if(now.isAfter(e)) return {chip:'bad', text:'Süresi Geçti'};
+      if(now.isAfter(e)) return {chip:'bad', text:'Henüz Almadın'};
       if(now.isAfter(s) && now.isBefore(e)) return {chip:'due', text:'Zamanı Geldi'};
       const mins = s.diff(now,'minute');
       if(mins<=30) return {chip:'purple', text:'Yaklaşıyor'};
-      return {chip:'future', text:'Beklemede'};
+      return {chip:'future', text:'Ders Bekleniyor'};
     }
 
 /* === Card Elevation: Son tıklanan ders kartı önde kalsın === */
@@ -6768,6 +6802,38 @@ async function openHomeworkControl(cls,id){
 
     const STATUS_EMOJI = { yapti:'✅', yapmadi:'❌', eksik:'⚠️', kitap:'📕', gelmedi:'🚫' }; // neden: platform uyumlu ikonlar
 
+// Ödev kontrol: durum filtresi (Hepsi / Yapanlar / Yapmayanlar / Diğerleri)
+const filterEl = UI.hwStatusFilter || document.getElementById('hwStatusFilter');
+const _norm = (v)=> (v || '').toString().trim();
+let hwListFilter = _norm(filterEl?.value) || 'all';
+if(filterEl && !filterEl.value) filterEl.value = 'all'; // ilk açılış: Hepsi
+
+const matchHwFilter = (st)=>{
+  const v = _norm(st);
+  if(hwListFilter === 'all') return true;
+  if(hwListFilter === 'done') return v === 'yapti';
+  if(hwListFilter === 'notdone') return v === 'yapmadi';
+  // Diğerleri: yapti & yapmadi dışındaki tüm durumlar + seçilmemiş(—)
+  if(hwListFilter === 'other') return (v !== 'yapti' && v !== 'yapmadi');
+  return true;
+};
+
+const applyHwFilterToDom = ()=>{
+  if(!UI.hwStudentList) return;
+  Array.from(UI.hwStudentList.querySelectorAll('li.student')).forEach(li=>{
+    const sel = li.querySelector('select.statusSelect');
+    const st = sel ? sel.value : '';
+    li.classList.toggle('hidden', !matchHwFilter(st));
+  });
+};
+
+if(filterEl){
+  filterEl.onchange = ()=>{
+    hwListFilter = _norm(filterEl.value) || 'all';
+    applyHwFilterToDom();
+  };
+}
+
     if(UI.hwStudentList){
       UI.hwStudentList.innerHTML = list.map(s => {
         return `<li class="student" data-id="${s.id}" data-name="${s.ad}">
@@ -6803,6 +6869,7 @@ async function openHomeworkControl(cls,id){
         };
         syncBtn();
         sel.addEventListener('change', syncBtn);
+        sel.addEventListener('change', applyHwFilterToDom);
 
         // WhatsApp yönlendirme (neden: hızlı veli bilgilendirme)
         function formatDateTR(dateInput) {
@@ -6844,7 +6911,10 @@ ${companyName}`;
           const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
           location.href = url;
         });
-      });
+      
+      // Filtreyi ilk render'da uygula
+      applyHwFilterToDom();
+});
     }
 
     
