@@ -1541,109 +1541,6 @@ div.admin-filters .button-row {
 .toast.warn .t-ico{ background: rgba(245,158,11,.18); border: 1px solid rgba(245,158,11,.35); }
 .toast .t-msg{ font-weight: 800; letter-spacing: .1px; }
 
-
-/* ===== WhatsApp Mesaj Önizleme Modali (Ödev Yönetimi) ===== */
-.wa-modal-backdrop{
-  position:fixed;
-  inset:0;
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(6px) saturate(130%);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:16px;
-  z-index: 10000;
-}
-.wa-modal-backdrop.show{ display:flex; }
-.wa-modal{
-  width:min(560px, 96vw);
-  border-radius: 18px;
-  border: var(--stroke);
-  background: var(--panel);
-  box-shadow: 0 24px 70px rgba(0,0,0,.55);
-  overflow:hidden;
-}
-.wa-modal-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding:14px 16px;
-  border-bottom: var(--stroke);
-}
-.wa-modal-title{
-  margin:0;
-  font-weight: 900;
-  font-size: 1.05rem;
-}
-.wa-modal-x{
-  border:none;
-  background: transparent;
-  color: var(--muted);
-  width:38px;
-  height:38px;
-  border-radius: 12px;
-  display:grid;
-  place-items:center;
-  cursor:pointer;
-}
-.wa-modal-x:hover{ background: rgba(148,163,184,.10); color: var(--ink); }
-.wa-modal-body{
-  padding: 14px 16px 10px;
-  display:grid;
-  gap:10px;
-}
-.wa-modal-sub{
-  font-size:.9rem;
-  color: var(--muted);
-  font-weight: 800;
-}
-#waMsgText{
-  width:100%;
-  min-height: 220px;
-  resize: vertical;
-  padding: 12px 12px;
-  border-radius: 14px;
-  border: var(--stroke);
-  background: rgba(255,255,255,.04);
-  color: var(--ink);
-  outline:none;
-  line-height:1.4;
-}
-@media (prefers-color-scheme: light){
-  #waMsgText{ background:#fff; }
-}
-.wa-modal-foot{
-  display:flex;
-  gap:10px;
-  justify-content:space-between;
-  align-items:center;
-  padding: 12px 16px 16px;
-  border-top: var(--stroke);
-  flex-wrap: wrap;
-}
-.wa-foot-left{
-  display:flex;
-  gap:10px;
-  flex-wrap: wrap;
-}
-.wa-send{
-  background:#25D366 !important;
-  color:#071b0f !important;
-  box-shadow: 0 12px 30px rgba(37,211,102,.28) !important;
-}
-.wa-send:hover{
-  background:#1ebe5d !important;
-  box-shadow: 0 18px 44px rgba(37,211,102,.35) !important;
-}
-@media (max-width: 420px){
-  .wa-modal{ width: 100%; }
-  .wa-modal-foot{ gap:8px; }
-  .wa-foot-left, .wa-modal-foot .wa-send{ width:100%; }
-  .wa-foot-left .btn{ flex:1 1 0; }
-  .wa-modal-foot .wa-send{ width:100%; }
-}
-
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -1681,29 +1578,6 @@ div.admin-filters .button-row {
   </div>
 
   <div id="toastHost" aria-live="polite" aria-atomic="true"></div>
-
-  <!-- WhatsApp Mesaj Önizleme Modali (Ödev Yönetimi) -->
-  <div id="waModalBackdrop" class="wa-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="waModalTitle">
-    <div class="wa-modal">
-      <div class="wa-modal-head">
-        <h4 id="waModalTitle" class="wa-modal-title">Veli Bilgilendirme Mesajı</h4>
-        <button id="waModalClose" class="wa-modal-x" type="button" aria-label="Kapat">✕</button>
-      </div>
-      <div class="wa-modal-body">
-        <div class="wa-modal-sub">Mesaj Önizleme (Düzenlenebilir)</div>
-        <textarea id="waMsgText" class="input" spellcheck="false"></textarea>
-        <div class="muted" style="font-size:.86rem; font-weight:800;">Yıldız (*) metni kalınlaştırır.</div>
-      </div>
-      <div class="wa-modal-foot">
-        <div class="wa-foot-left">
-          <button id="waCopyBtn" class="btn ghost" type="button">📋 Kopyala</button>
-          <button id="waCancelBtn" class="btn ghost" type="button">İptal</button>
-        </div>
-        <button id="waSendBtn" class="btn wa-send" type="button">WhatsApp'a Gönder</button>
-      </div>
-    </div>
-  </div>
-
 
   <!-- App -->
   <main id="app" class="container hidden">
@@ -2583,106 +2457,6 @@ const dayNameTRForDateStr = (dateStr) => turkishDays[dayjs.tz(dateStr).day()];
 const safe = (v)=> (v??'').toString().trim();
 const ordinal = (n)=> `${n}. Saat`;
 
-/* ===== WhatsApp Mesaj Önizleme Modali (Ödev Yönetimi) ===== */
-const WA_MODAL = {
-  backdrop: null,
-  title: null,
-  text: null,
-  btnCopy: null,
-  btnCancel: null,
-  btnSend: null,
-  btnClose: null,
-  _resolver: null,
-  _onKey: null
-};
-
-function initWhatsAppPreviewModal(){
-  WA_MODAL.backdrop = document.getElementById('waModalBackdrop');
-  WA_MODAL.title    = document.getElementById('waModalTitle');
-  WA_MODAL.text     = document.getElementById('waMsgText');
-  WA_MODAL.btnCopy  = document.getElementById('waCopyBtn');
-  WA_MODAL.btnCancel= document.getElementById('waCancelBtn');
-  WA_MODAL.btnSend  = document.getElementById('waSendBtn');
-  WA_MODAL.btnClose = document.getElementById('waModalClose');
-
-  if(!WA_MODAL.backdrop || !WA_MODAL.text) return;
-
-  const close = (reason='cancel')=>{
-    if(!WA_MODAL.backdrop.classList.contains('show')) return;
-    WA_MODAL.backdrop.classList.remove('show');
-    document.documentElement.style.overflow = '';
-    document.body.style.overflow = '';
-    if(WA_MODAL._onKey){
-      window.removeEventListener('keydown', WA_MODAL._onKey);
-      WA_MODAL._onKey = null;
-    }
-    const r = WA_MODAL._resolver;
-    WA_MODAL._resolver = null;
-    if(r) r({ action: reason, message: WA_MODAL.text.value || '' });
-  };
-
-  const copy = async ()=>{
-    try{
-      const txt = WA_MODAL.text.value || '';
-      if(navigator.clipboard && window.isSecureContext){
-        await navigator.clipboard.writeText(txt);
-      }else{
-        WA_MODAL.text.focus();
-        WA_MODAL.text.select();
-        document.execCommand('copy');
-        WA_MODAL.text.setSelectionRange(0,0);
-      }
-      if(typeof showToast === 'function') showToast('ok','Kopyalandı');
-      else if(typeof Swal !== 'undefined') Swal.fire({icon:'success', title:'Kopyalandı', timer:1200, showConfirmButton:false});
-    }catch(e){
-      console.error('copy error', e);
-      if(typeof Swal !== 'undefined') Swal.fire('Hata','Kopyalanamadı.','error');
-    }
-  };
-
-  WA_MODAL.btnCancel && (WA_MODAL.btnCancel.onclick = ()=> close('cancel'));
-  WA_MODAL.btnClose  && (WA_MODAL.btnClose.onclick  = ()=> close('cancel'));
-  WA_MODAL.backdrop.addEventListener('mousedown', (e)=>{
-    if(e.target === WA_MODAL.backdrop) close('cancel');
-  });
-  WA_MODAL.btnCopy && (WA_MODAL.btnCopy.onclick = copy);
-  WA_MODAL.btnSend && (WA_MODAL.btnSend.onclick = ()=> close('send'));
-  WA_MODAL._close = close;
-}
-
-async function openWhatsAppPreviewModal({ title='Veli Bilgilendirme Mesajı', message='' } = {}){
-  if(!WA_MODAL.backdrop) initWhatsAppPreviewModal();
-  if(!WA_MODAL.backdrop || !WA_MODAL.text){
-    // Modal yoksa fallback: doğrudan WhatsApp'a git
-    return { action:'send', message: message || '' };
-  }
-
-  WA_MODAL.title && (WA_MODAL.title.textContent = title || 'Veli Bilgilendirme Mesajı');
-  WA_MODAL.text.value = message || '';
-  WA_MODAL.backdrop.classList.add('show');
-
-  // Arkaplan scroll kilidi
-  document.documentElement.style.overflow = 'hidden';
-  document.body.style.overflow = 'hidden';
-
-  // Odak
-  setTimeout(()=>{ try{ WA_MODAL.text.focus(); WA_MODAL.text.setSelectionRange(WA_MODAL.text.value.length, WA_MODAL.text.value.length); }catch(_){} }, 50);
-
-  // ESC ile kapat
-  WA_MODAL._onKey = (e)=>{ if(e.key === 'Escape') WA_MODAL._close?.('cancel'); };
-  window.addEventListener('keydown', WA_MODAL._onKey);
-
-  return await new Promise((resolve)=>{ WA_MODAL._resolver = resolve; });
-}
-
-function openWhatsAppSendUrl(msg){
-  const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg || '');
-  // Pop-up engeli olursa aynı sekmede aç
-  const w = window.open(url, '_blank');
-  if(!w) location.href = url;
-}
-
-
 
 // --- Skeleton helpers (yükleme/hesaplama sırasında) ---
 function adminTableSkeletonRows(rowCount=8){
@@ -2968,7 +2742,6 @@ function refreshVisibleView(){
   }
 
     async function init(){
-  try{ initWhatsAppPreviewModal(); }catch(e){ console.error(e); }
       // Kaldığın yerden devam: scroll konumunu sakla/geri yükle
       setupScrollPersistence();
       const app = initializeApp(firebaseConfig); appFB=app; db=getDatabase(appFB);
@@ -7095,7 +6868,6 @@ if(filterEl){
           btn.classList.toggle('hidden', !(v && v !== 'yapti')); // neden: yalnız olumsuzlarda bildir
         };
         syncBtn();
-
         sel.addEventListener('change', syncBtn);
         sel.addEventListener('change', applyHwFilterToDom);
 
@@ -7107,20 +6879,17 @@ if(filterEl){
             return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
           } catch { return '—'; }
         }
-
-        // Tekil WhatsApp: modal önizleme -> gönder
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', () => {
           const stKey = sel.value;
           if (!stKey || stKey === 'yapti') return;
-
           const studentName = li.getAttribute('data-name') || '';
           const teacherName = session?.teacherName || '';
           const statusText  = (typeof HW_STATUSES !== 'undefined' && HW_STATUSES[stKey]) ? HW_STATUSES[stKey] : stKey;
+          const statusIcon  = STATUS_EMOJI?.[stKey] || 'ℹ️';
           const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
           const title       = hw?.title || 'Ödev';
           const dueStr      = hw?.dueDate ? formatDateTR(hw.dueDate) : '—';
           const lessonName  = hw?.subject || session?.teacherBranch || 'Ders';
-
           const DEADLINE_DAYS = 3; // isterseniz 2 yapabilirsiniz
           const deadlineStr = (() => {
             const d = new Date();
@@ -7139,14 +6908,13 @@ Rica etsem en geç *${deadlineStr}* tarihine kadar tamamlayıp teslim edebilir m
 Teşekkür ederim.
 
 ${companyName}`;
-
-          const res = await openWhatsAppPreviewModal({ title:'Veli Bilgilendirme Mesajı', message: msg });
-          if(res?.action === 'send') openWhatsAppSendUrl(res.message);
+          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
+          location.href = url;
         });
-      });
-
+      
       // Filtreyi ilk render'da uygula
       applyHwFilterToDom();
+});
     }
 
     
@@ -7234,7 +7002,7 @@ if(UI.hwSaveBtn){
 
 // Toplu WhatsApp butonu: "yaptı" olan öğrencileri listele ve teşekkür mesajı gönder
     if(UI.hwBulkWhatsBtn){
-      UI.hwBulkWhatsBtn.onclick = async () => {
+      UI.hwBulkWhatsBtn.onclick = () => {
         try{
           // Öğrencilerden "yapti" statüsünde olanları topla
           const done = [];
@@ -7269,8 +7037,8 @@ if(UI.hwSaveBtn){
 `Aşağıdaki öğrenciler ödevlerini zamanında teslim etti:\n` +
 `${listLines}\n\n` +
 `Öğrencilerimize teşekkür ederim. Bilginize\n`;
-          const res = await openWhatsAppPreviewModal({ title:'Veli Bilgilendirme Mesajı', message: msg });
-          if(res?.action === 'send') openWhatsAppSendUrl(res.message);
+          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
+          location.href = url;
         }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
       };
     }
