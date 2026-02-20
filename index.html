@@ -1542,90 +1542,107 @@ div.admin-filters .button-row {
 .toast .t-msg{ font-weight: 800; letter-spacing: .1px; }
 
 
-/* ===== WhatsApp Mesaj Önizleme (Ödev Yönetimi) ===== */
+/* ===== WhatsApp Mesaj Önizleme Modali (Ödev Yönetimi) ===== */
 .wa-modal-backdrop{
   position:fixed;
   inset:0;
   background: rgba(0,0,0,.55);
+  backdrop-filter: blur(6px) saturate(130%);
   display:none;
   align-items:center;
   justify-content:center;
   padding:16px;
-  z-index: 9998;
+  z-index: 10000;
 }
 .wa-modal-backdrop.show{ display:flex; }
 .wa-modal{
-  width:min(720px, 100%);
+  width:min(560px, 96vw);
   border-radius: 18px;
   border: var(--stroke);
   background: var(--panel);
-  box-shadow: var(--shadow);
+  box-shadow: 0 24px 70px rgba(0,0,0,.55);
   overflow:hidden;
 }
 .wa-modal-head{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:10px;
+  gap:12px;
   padding:14px 16px;
   border-bottom: var(--stroke);
 }
 .wa-modal-title{
   margin:0;
-  font-size:1.05rem;
   font-weight: 900;
+  font-size: 1.05rem;
 }
 .wa-modal-x{
-  width:36px;
-  height:36px;
+  border:none;
+  background: transparent;
+  color: var(--muted);
+  width:38px;
+  height:38px;
   border-radius: 12px;
   display:grid;
   place-items:center;
-  background: rgba(148,163,184,.10);
-  border: var(--stroke);
   cursor:pointer;
 }
-.wa-modal-body{ padding:14px 16px; display:grid; gap:10px; }
-.wa-modal-label{ font-weight:900; color: var(--muted); font-size:.9rem; }
-.wa-modal-text{
+.wa-modal-x:hover{ background: rgba(148,163,184,.10); color: var(--ink); }
+.wa-modal-body{
+  padding: 14px 16px 10px;
+  display:grid;
+  gap:10px;
+}
+.wa-modal-sub{
+  font-size:.9rem;
+  color: var(--muted);
+  font-weight: 800;
+}
+#waMsgText{
   width:100%;
-  min-height: 230px;
+  min-height: 220px;
   resize: vertical;
+  padding: 12px 12px;
   border-radius: 14px;
   border: var(--stroke);
-  background: rgba(34,197,94,.08);
-  padding: 12px 12px;
-  line-height: 1.45;
-  font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  font-size: .95rem;
+  background: rgba(255,255,255,.04);
+  color: var(--ink);
+  outline:none;
+  line-height:1.4;
 }
 @media (prefers-color-scheme: light){
-  .wa-modal-text{ background: rgba(34,197,94,.06); }
+  #waMsgText{ background:#fff; }
 }
 .wa-modal-foot{
+  display:flex;
+  gap:10px;
+  justify-content:space-between;
+  align-items:center;
   padding: 12px 16px 16px;
   border-top: var(--stroke);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
+  flex-wrap: wrap;
 }
-.wa-foot-left{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-.wa-hint-mini{ display:flex; align-items:center; gap:8px; color: var(--muted); font-weight:700; font-size:.85rem; }
-.wa-hint-mini .i{
-  width:18px; height:18px; border-radius:8px;
-  display:grid; place-items:center;
-  border: var(--stroke);
-  background: rgba(148,163,184,.08);
-  font-weight: 900;
+.wa-foot-left{
+  display:flex;
+  gap:10px;
+  flex-wrap: wrap;
 }
 .wa-send{
   background:#25D366 !important;
-  color:#ffffff !important;
-  box-shadow:0 12px 30px rgba(37,211,102,.28) !important;
+  color:#071b0f !important;
+  box-shadow: 0 12px 30px rgba(37,211,102,.28) !important;
 }
-.wa-send:hover{ background:#1ebe5d !important; box-shadow:0 18px 44px rgba(37,211,102,.32) !important; }
+.wa-send:hover{
+  background:#1ebe5d !important;
+  box-shadow: 0 18px 44px rgba(37,211,102,.35) !important;
+}
+@media (max-width: 420px){
+  .wa-modal{ width: 100%; }
+  .wa-modal-foot{ gap:8px; }
+  .wa-foot-left, .wa-modal-foot .wa-send{ width:100%; }
+  .wa-foot-left .btn{ flex:1 1 0; }
+  .wa-modal-foot .wa-send{ width:100%; }
+}
 
 </style>
   <!-- PWA -->
@@ -1664,6 +1681,29 @@ div.admin-filters .button-row {
   </div>
 
   <div id="toastHost" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- WhatsApp Mesaj Önizleme Modali (Ödev Yönetimi) -->
+  <div id="waModalBackdrop" class="wa-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="waModalTitle">
+    <div class="wa-modal">
+      <div class="wa-modal-head">
+        <h4 id="waModalTitle" class="wa-modal-title">Veli Bilgilendirme Mesajı</h4>
+        <button id="waModalClose" class="wa-modal-x" type="button" aria-label="Kapat">✕</button>
+      </div>
+      <div class="wa-modal-body">
+        <div class="wa-modal-sub">Mesaj Önizleme (Düzenlenebilir)</div>
+        <textarea id="waMsgText" class="input" spellcheck="false"></textarea>
+        <div class="muted" style="font-size:.86rem; font-weight:800;">Yıldız (*) metni kalınlaştırır.</div>
+      </div>
+      <div class="wa-modal-foot">
+        <div class="wa-foot-left">
+          <button id="waCopyBtn" class="btn ghost" type="button">📋 Kopyala</button>
+          <button id="waCancelBtn" class="btn ghost" type="button">İptal</button>
+        </div>
+        <button id="waSendBtn" class="btn wa-send" type="button">WhatsApp'a Gönder</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- App -->
   <main id="app" class="container hidden">
@@ -2543,6 +2583,106 @@ const dayNameTRForDateStr = (dateStr) => turkishDays[dayjs.tz(dateStr).day()];
 const safe = (v)=> (v??'').toString().trim();
 const ordinal = (n)=> `${n}. Saat`;
 
+/* ===== WhatsApp Mesaj Önizleme Modali (Ödev Yönetimi) ===== */
+const WA_MODAL = {
+  backdrop: null,
+  title: null,
+  text: null,
+  btnCopy: null,
+  btnCancel: null,
+  btnSend: null,
+  btnClose: null,
+  _resolver: null,
+  _onKey: null
+};
+
+function initWhatsAppPreviewModal(){
+  WA_MODAL.backdrop = document.getElementById('waModalBackdrop');
+  WA_MODAL.title    = document.getElementById('waModalTitle');
+  WA_MODAL.text     = document.getElementById('waMsgText');
+  WA_MODAL.btnCopy  = document.getElementById('waCopyBtn');
+  WA_MODAL.btnCancel= document.getElementById('waCancelBtn');
+  WA_MODAL.btnSend  = document.getElementById('waSendBtn');
+  WA_MODAL.btnClose = document.getElementById('waModalClose');
+
+  if(!WA_MODAL.backdrop || !WA_MODAL.text) return;
+
+  const close = (reason='cancel')=>{
+    if(!WA_MODAL.backdrop.classList.contains('show')) return;
+    WA_MODAL.backdrop.classList.remove('show');
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    if(WA_MODAL._onKey){
+      window.removeEventListener('keydown', WA_MODAL._onKey);
+      WA_MODAL._onKey = null;
+    }
+    const r = WA_MODAL._resolver;
+    WA_MODAL._resolver = null;
+    if(r) r({ action: reason, message: WA_MODAL.text.value || '' });
+  };
+
+  const copy = async ()=>{
+    try{
+      const txt = WA_MODAL.text.value || '';
+      if(navigator.clipboard && window.isSecureContext){
+        await navigator.clipboard.writeText(txt);
+      }else{
+        WA_MODAL.text.focus();
+        WA_MODAL.text.select();
+        document.execCommand('copy');
+        WA_MODAL.text.setSelectionRange(0,0);
+      }
+      if(typeof showToast === 'function') showToast('ok','Kopyalandı');
+      else if(typeof Swal !== 'undefined') Swal.fire({icon:'success', title:'Kopyalandı', timer:1200, showConfirmButton:false});
+    }catch(e){
+      console.error('copy error', e);
+      if(typeof Swal !== 'undefined') Swal.fire('Hata','Kopyalanamadı.','error');
+    }
+  };
+
+  WA_MODAL.btnCancel && (WA_MODAL.btnCancel.onclick = ()=> close('cancel'));
+  WA_MODAL.btnClose  && (WA_MODAL.btnClose.onclick  = ()=> close('cancel'));
+  WA_MODAL.backdrop.addEventListener('mousedown', (e)=>{
+    if(e.target === WA_MODAL.backdrop) close('cancel');
+  });
+  WA_MODAL.btnCopy && (WA_MODAL.btnCopy.onclick = copy);
+  WA_MODAL.btnSend && (WA_MODAL.btnSend.onclick = ()=> close('send'));
+  WA_MODAL._close = close;
+}
+
+async function openWhatsAppPreviewModal({ title='Veli Bilgilendirme Mesajı', message='' } = {}){
+  if(!WA_MODAL.backdrop) initWhatsAppPreviewModal();
+  if(!WA_MODAL.backdrop || !WA_MODAL.text){
+    // Modal yoksa fallback: doğrudan WhatsApp'a git
+    return { action:'send', message: message || '' };
+  }
+
+  WA_MODAL.title && (WA_MODAL.title.textContent = title || 'Veli Bilgilendirme Mesajı');
+  WA_MODAL.text.value = message || '';
+  WA_MODAL.backdrop.classList.add('show');
+
+  // Arkaplan scroll kilidi
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+
+  // Odak
+  setTimeout(()=>{ try{ WA_MODAL.text.focus(); WA_MODAL.text.setSelectionRange(WA_MODAL.text.value.length, WA_MODAL.text.value.length); }catch(_){} }, 50);
+
+  // ESC ile kapat
+  WA_MODAL._onKey = (e)=>{ if(e.key === 'Escape') WA_MODAL._close?.('cancel'); };
+  window.addEventListener('keydown', WA_MODAL._onKey);
+
+  return await new Promise((resolve)=>{ WA_MODAL._resolver = resolve; });
+}
+
+function openWhatsAppSendUrl(msg){
+  const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg || '');
+  // Pop-up engeli olursa aynı sekmede aç
+  const w = window.open(url, '_blank');
+  if(!w) location.href = url;
+}
+
+
 
 // --- Skeleton helpers (yükleme/hesaplama sırasında) ---
 function adminTableSkeletonRows(rowCount=8){
@@ -2828,6 +2968,7 @@ function refreshVisibleView(){
   }
 
     async function init(){
+  try{ initWhatsAppPreviewModal(); }catch(e){ console.error(e); }
       // Kaldığın yerden devam: scroll konumunu sakla/geri yükle
       setupScrollPersistence();
       const app = initializeApp(firebaseConfig); appFB=app; db=getDatabase(appFB);
@@ -6214,93 +6355,7 @@ async function printAttendanceForClasses(dStr, classes){
       .tbl thead th{ background:#fafafa; font-weight:800; }
       @page{ size:A4; margin:12mm; }
       @media print{ body{ padding:0; } }
-    
-/* ===== WhatsApp Mesaj Önizleme (Ödev Yönetimi) ===== */
-.wa-modal-backdrop{
-  position:fixed;
-  inset:0;
-  background: rgba(0,0,0,.55);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:16px;
-  z-index: 9998;
-}
-.wa-modal-backdrop.show{ display:flex; }
-.wa-modal{
-  width:min(720px, 100%);
-  border-radius: 18px;
-  border: var(--stroke);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  overflow:hidden;
-}
-.wa-modal-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  padding:14px 16px;
-  border-bottom: var(--stroke);
-}
-.wa-modal-title{
-  margin:0;
-  font-size:1.05rem;
-  font-weight: 900;
-}
-.wa-modal-x{
-  width:36px;
-  height:36px;
-  border-radius: 12px;
-  display:grid;
-  place-items:center;
-  background: rgba(148,163,184,.10);
-  border: var(--stroke);
-  cursor:pointer;
-}
-.wa-modal-body{ padding:14px 16px; display:grid; gap:10px; }
-.wa-modal-label{ font-weight:900; color: var(--muted); font-size:.9rem; }
-.wa-modal-text{
-  width:100%;
-  min-height: 230px;
-  resize: vertical;
-  border-radius: 14px;
-  border: var(--stroke);
-  background: rgba(34,197,94,.08);
-  padding: 12px 12px;
-  line-height: 1.45;
-  font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  font-size: .95rem;
-}
-@media (prefers-color-scheme: light){
-  .wa-modal-text{ background: rgba(34,197,94,.06); }
-}
-.wa-modal-foot{
-  padding: 12px 16px 16px;
-  border-top: var(--stroke);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-}
-.wa-foot-left{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-.wa-hint-mini{ display:flex; align-items:center; gap:8px; color: var(--muted); font-weight:700; font-size:.85rem; }
-.wa-hint-mini .i{
-  width:18px; height:18px; border-radius:8px;
-  display:grid; place-items:center;
-  border: var(--stroke);
-  background: rgba(148,163,184,.08);
-  font-weight: 900;
-}
-.wa-send{
-  background:#25D366 !important;
-  color:#ffffff !important;
-  box-shadow:0 12px 30px rgba(37,211,102,.28) !important;
-}
-.wa-send:hover{ background:#1ebe5d !important; box-shadow:0 18px 44px rgba(37,211,102,.32) !important; }
-
-</style>
+    </style>
   `;
 
   w.document.open();
@@ -7080,8 +7135,8 @@ Rica etsem en geç *${deadlineStr}* tarihine kadar tamamlayıp teslim edebilir m
 Teşekkür ederim.
 
 ${companyName}`;
-          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
-          openWaPreview({ title: 'Veli Bilgilendirme Mesajı', message: msg });
+          const res = await openWhatsAppPreviewModal({ title:'Veli Bilgilendirme Mesajı', message: msg });
+          if(res?.action === 'send') openWhatsAppSendUrl(res.message);
         });
       
       // Filtreyi ilk render'da uygula
@@ -7174,7 +7229,7 @@ if(UI.hwSaveBtn){
 
 // Toplu WhatsApp butonu: "yaptı" olan öğrencileri listele ve teşekkür mesajı gönder
     if(UI.hwBulkWhatsBtn){
-      UI.hwBulkWhatsBtn.onclick = () => {
+      UI.hwBulkWhatsBtn.onclick = async () => {
         try{
           // Öğrencilerden "yapti" statüsünde olanları topla
           const done = [];
@@ -7209,8 +7264,8 @@ if(UI.hwSaveBtn){
 `Aşağıdaki öğrenciler ödevlerini zamanında teslim etti:\n` +
 `${listLines}\n\n` +
 `Öğrencilerimize teşekkür ederim. Bilginize\n`;
-          const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
-          openWaPreview({ title: 'Veli Bilgilendirme Mesajı', message: msg });
+          const res = await openWhatsAppPreviewModal({ title:'Veli Bilgilendirme Mesajı', message: msg });
+          if(res?.action === 'send') openWhatsAppSendUrl(res.message);
         }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
       };
     }
@@ -8024,93 +8079,7 @@ function openAdminHomeworks(state = null){
     }
       .adm-rpt-pulse{ outline:2px solid rgba(249,115,22,.75); box-shadow:0 0 0 4px rgba(249,115,22,.14); border-radius:10px; }
     .adm-rpt-pulse td{ font-weight:800; }
-  
-/* ===== WhatsApp Mesaj Önizleme (Ödev Yönetimi) ===== */
-.wa-modal-backdrop{
-  position:fixed;
-  inset:0;
-  background: rgba(0,0,0,.55);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:16px;
-  z-index: 9998;
-}
-.wa-modal-backdrop.show{ display:flex; }
-.wa-modal{
-  width:min(720px, 100%);
-  border-radius: 18px;
-  border: var(--stroke);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  overflow:hidden;
-}
-.wa-modal-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  padding:14px 16px;
-  border-bottom: var(--stroke);
-}
-.wa-modal-title{
-  margin:0;
-  font-size:1.05rem;
-  font-weight: 900;
-}
-.wa-modal-x{
-  width:36px;
-  height:36px;
-  border-radius: 12px;
-  display:grid;
-  place-items:center;
-  background: rgba(148,163,184,.10);
-  border: var(--stroke);
-  cursor:pointer;
-}
-.wa-modal-body{ padding:14px 16px; display:grid; gap:10px; }
-.wa-modal-label{ font-weight:900; color: var(--muted); font-size:.9rem; }
-.wa-modal-text{
-  width:100%;
-  min-height: 230px;
-  resize: vertical;
-  border-radius: 14px;
-  border: var(--stroke);
-  background: rgba(34,197,94,.08);
-  padding: 12px 12px;
-  line-height: 1.45;
-  font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  font-size: .95rem;
-}
-@media (prefers-color-scheme: light){
-  .wa-modal-text{ background: rgba(34,197,94,.06); }
-}
-.wa-modal-foot{
-  padding: 12px 16px 16px;
-  border-top: var(--stroke);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-}
-.wa-foot-left{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-.wa-hint-mini{ display:flex; align-items:center; gap:8px; color: var(--muted); font-weight:700; font-size:.85rem; }
-.wa-hint-mini .i{
-  width:18px; height:18px; border-radius:8px;
-  display:grid; place-items:center;
-  border: var(--stroke);
-  background: rgba(148,163,184,.08);
-  font-weight: 900;
-}
-.wa-send{
-  background:#25D366 !important;
-  color:#ffffff !important;
-  box-shadow:0 12px 30px rgba(37,211,102,.28) !important;
-}
-.wa-send:hover{ background:#1ebe5d !important; box-shadow:0 18px 44px rgba(37,211,102,.32) !important; }
-
-</style>
+  </style>
 
   <div class="adm-rpt-top">
     <label class="row">
@@ -8435,93 +8404,7 @@ function openAdminHomeworks(state = null){
               col.cnt{width:5%}
               @page{size:A4 landscape; margin:10mm}
               @media print{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
-            
-/* ===== WhatsApp Mesaj Önizleme (Ödev Yönetimi) ===== */
-.wa-modal-backdrop{
-  position:fixed;
-  inset:0;
-  background: rgba(0,0,0,.55);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:16px;
-  z-index: 9998;
-}
-.wa-modal-backdrop.show{ display:flex; }
-.wa-modal{
-  width:min(720px, 100%);
-  border-radius: 18px;
-  border: var(--stroke);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  overflow:hidden;
-}
-.wa-modal-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  padding:14px 16px;
-  border-bottom: var(--stroke);
-}
-.wa-modal-title{
-  margin:0;
-  font-size:1.05rem;
-  font-weight: 900;
-}
-.wa-modal-x{
-  width:36px;
-  height:36px;
-  border-radius: 12px;
-  display:grid;
-  place-items:center;
-  background: rgba(148,163,184,.10);
-  border: var(--stroke);
-  cursor:pointer;
-}
-.wa-modal-body{ padding:14px 16px; display:grid; gap:10px; }
-.wa-modal-label{ font-weight:900; color: var(--muted); font-size:.9rem; }
-.wa-modal-text{
-  width:100%;
-  min-height: 230px;
-  resize: vertical;
-  border-radius: 14px;
-  border: var(--stroke);
-  background: rgba(34,197,94,.08);
-  padding: 12px 12px;
-  line-height: 1.45;
-  font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  font-size: .95rem;
-}
-@media (prefers-color-scheme: light){
-  .wa-modal-text{ background: rgba(34,197,94,.06); }
-}
-.wa-modal-foot{
-  padding: 12px 16px 16px;
-  border-top: var(--stroke);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-}
-.wa-foot-left{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-.wa-hint-mini{ display:flex; align-items:center; gap:8px; color: var(--muted); font-weight:700; font-size:.85rem; }
-.wa-hint-mini .i{
-  width:18px; height:18px; border-radius:8px;
-  display:grid; place-items:center;
-  border: var(--stroke);
-  background: rgba(148,163,184,.08);
-  font-weight: 900;
-}
-.wa-send{
-  background:#25D366 !important;
-  color:#ffffff !important;
-  box-shadow:0 12px 30px rgba(37,211,102,.28) !important;
-}
-.wa-send:hover{ background:#1ebe5d !important; box-shadow:0 18px 44px rgba(37,211,102,.32) !important; }
-
-</style>
+            </style>
             <h2>${esc(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Ödev Raporları</h2>
             <div class="meta"><div>Tarih: <strong>${esc(selDate)}</strong></div><div>Sınıf: <strong>${esc(selClass)}</strong></div></div>
             <table>
@@ -8848,140 +8731,6 @@ function buildSlotOrder(){
   slotOrderMap = new Map(first);
 }
 </script>
-
-  <!-- WhatsApp Mesaj Önizleme Modalı -->
-  <div id="waPreviewBackdrop" class="wa-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="waPreviewTitle">
-    <div class="wa-modal" role="document">
-      <div class="wa-modal-head">
-        <h4 id="waPreviewTitle" class="wa-modal-title">Veli Bilgilendirme Mesajı</h4>
-        <button id="waPreviewClose" type="button" class="wa-modal-x" aria-label="Kapat">✕</button>
-      </div>
-      <div class="wa-modal-body">
-        <div class="wa-modal-label">Mesaj Önizleme (Düzenlenebilir)</div>
-        <textarea id="waPreviewText" class="wa-modal-text" spellcheck="false"></textarea>
-        <div class="wa-hint-mini"><span class="i">i</span><span>Yıldız (*) metni kalınlaştırır.</span></div>
-      </div>
-      <div class="wa-modal-foot">
-        <div class="wa-foot-left">
-          <button id="waPreviewCopy" type="button" class="btn ghost">📋 Kopyala</button>
-          <button id="waPreviewCancel" type="button" class="btn ghost">İptal</button>
-        </div>
-        <button id="waPreviewSend" type="button" class="btn wa-send">WhatsApp'a Gönder</button>
-      </div>
-    </div>
-  </div>
-  <!-- /WhatsApp Mesaj Önizleme Modalı -->
-
-  <script>
-    (function(){
-      const elBack = document.getElementById('waPreviewBackdrop');
-      const elTitle= document.getElementById('waPreviewTitle');
-      const elTxt  = document.getElementById('waPreviewText');
-      const btnX   = document.getElementById('waPreviewClose');
-      const btnC   = document.getElementById('waPreviewCancel');
-      const btnCopy= document.getElementById('waPreviewCopy');
-      const btnSend= document.getElementById('waPreviewSend');
-
-      let lastFocus = null;
-
-      function showToastCompat(msg){
-        // Eğer projede toastHost varsa onu kullan, yoksa SweetAlert2 fallback
-        try{
-          if(typeof showToast === 'function'){ showToast(msg, 'ok'); return; }
-        }catch(_){}
-        try{
-          if(window.Swal && Swal.fire){
-            Swal.fire({ title:'Bilgi', text: msg, icon:'success', timer:1500, showConfirmButton:false });
-            return;
-          }
-        }catch(_){}
-        alert(msg);
-      }
-
-      function openWaPreview(payload){
-        const title = payload && payload.title ? String(payload.title) : 'Veli Bilgilendirme Mesajı';
-        const message = payload && payload.message ? String(payload.message) : '';
-        if(!elBack || !elTxt) return;
-
-        lastFocus = document.activeElement;
-
-        elTitle.textContent = title;
-        elTxt.value = message;
-
-        elBack.classList.add('show');
-
-        // focus textarea
-        setTimeout(()=>{ try{ elTxt.focus(); elTxt.setSelectionRange(elTxt.value.length, elTxt.value.length); }catch(_){ } }, 0);
-      }
-
-      function closeWaPreview(){
-        if(!elBack) return;
-        elBack.classList.remove('show');
-        if(lastFocus && typeof lastFocus.focus === 'function'){ try{ lastFocus.focus(); }catch(_){ } }
-      }
-
-      async function copyText(txt){
-        try{
-          if(navigator.clipboard && navigator.clipboard.writeText){
-            await navigator.clipboard.writeText(txt);
-            return true;
-          }
-        }catch(_){}
-        // fallback
-        try{
-          elTxt.select();
-          document.execCommand('copy');
-          return true;
-        }catch(_){}
-        return false;
-      }
-
-      function sendToWhatsapp(txt){
-        const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(txt || '');
-        // yeni sekme açmak daha güvenli; mobilde aynı sekmede de çalışır
-        window.open(url, '_blank', 'noopener');
-      }
-
-      // Events
-      if(btnX) btnX.addEventListener('click', closeWaPreview);
-      if(btnC) btnC.addEventListener('click', closeWaPreview);
-
-      if(elBack){
-        elBack.addEventListener('click', (e)=>{
-          if(e.target === elBack) closeWaPreview();
-        });
-      }
-
-      document.addEventListener('keydown', (e)=>{
-        if(!elBack || !elBack.classList.contains('show')) return;
-        if(e.key === 'Escape'){ e.preventDefault(); closeWaPreview(); }
-      });
-
-      if(btnCopy){
-        btnCopy.addEventListener('click', async ()=>{
-          const ok = await copyText(elTxt.value || '');
-          if(ok) showToastCompat('Mesaj kopyalandı.');
-          else showToastCompat('Kopyalama başarısız.');
-        });
-      }
-
-      if(btnSend){
-        btnSend.addEventListener('click', ()=>{
-          const txt = elTxt.value || '';
-          if(!txt.trim()){
-            try{ if(window.Swal && Swal.fire){ Swal.fire('Uyarı','Mesaj boş olamaz.','warning'); return; } }catch(_){}
-            alert('Mesaj boş olamaz.');
-            return;
-          }
-          sendToWhatsapp(txt);
-        });
-      }
-
-      // expose globally
-      window.openWaPreview = openWaPreview;
-    })();
-  </script>
-
   <!-- PWA Service Worker -->
   <script>
     (function () {
