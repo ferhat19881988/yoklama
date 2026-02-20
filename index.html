@@ -1150,6 +1150,38 @@ div.admin-filters .button-row {
 .hw-meta{ color: var(--muted); font-weight: 700; font-size: .92rem; }
 .hw-summary{ border-top: 1px dashed rgba(148,163,184,.22); padding-top: 10px; }
 .hw-summary-chips{ display:flex; gap:8px; flex-wrap:wrap; }
+.hw-summary-chips .chip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:12px;
+  font-weight:800;
+  font-size:.88rem;
+  line-height:1.1;
+}
+@media (max-width: 520px){
+  /* Mobilde: chip yazıları daha küçük ve “kategorili” hizalı görünüm */
+  .hw-summary-chips{
+    gap:8px;
+  }
+  .hw-summary-chips .chip{
+    flex: 1 1 calc(33.333% - 8px);
+    min-width: 0;
+    text-align:center;
+    font-size:.76rem;
+    padding:6px 8px;
+    justify-content:center;
+    white-space:nowrap;
+  }
+}
+@media (max-width: 360px){
+  /* Çok dar ekran: 2 sütuna düş */
+  .hw-summary-chips .chip{
+    flex: 1 1 calc(50% - 8px);
+  }
+}
 
 .hw-actions{
   display:flex;
@@ -6168,11 +6200,15 @@ function applyTeacherHwFiltersAndRender(){
 
 /* Not: Aşağıdaki render fonksiyonu, önceki loadTeacherHomeworks içindeki HTML üretimini aynen korur. */
 function classChipStyle(cls){
-  const s = safe(cls);
-  let h = 0;
-  for(let i=0;i<s.length;i++) h = (h + s.charCodeAt(i) * (i+1)) % 360;
-  // HSL → şeffaf rozet (tema uyumlu)
-  return `background: hsla(${h}, 82%, 52%, .18); border-color: hsla(${h}, 82%, 52%, .35); color: var(--ink);`;
+  const s = safe(cls).toUpperCase();
+  // Daha belirgin ve sınıflar arası daha çok ayrışan renkler (stabil)
+  let hash = 0;
+  for(let i=0;i<s.length;i++){
+    hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  const hues = [14, 32, 52, 108, 148, 172, 200, 222, 252, 276, 304, 332];
+  const h = hues[hash % hues.length];
+  return `background: hsla(${h}, 92%, 55%, .32); border-color: hsla(${h}, 92%, 55%, .62); color: var(--ink);`;
 }
 
 function renderTeacherHomeworks(items, gidMap){
