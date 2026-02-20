@@ -7124,14 +7124,41 @@ function openAdminHomeworks(){
           }));
 
           // 3) satırları üret
+          // NOT: hwStatus/{groupId} aynı ödevin farklı sınıfları için ortak tutulabiliyor.
+          // Bu yüzden raporda sınıfa göre sayım yaparken yalnızca ilgili sınıfın öğrencilerini say.
+          const allStudents = safeArr((window.students || students));
+          const classToIds = new Map();
+          const getIdsForClass = (c)=>{
+            const key = safe(c);
+            if(classToIds.has(key)) return classToIds.get(key);
+            const ids = allStudents
+              .filter(s => safe(s?.SINIF) === key)
+              .map(s => safe(s?.NO))
+              .filter(Boolean);
+            classToIds.set(key, ids);
+            return ids;
+          };
+
           const rows = items.map(({classKey, id, hw})=>{
             const gid = hw.groupId ?? legacyGidOf(id) ?? null;
             const statuses = (gid ? (gidMap.get(String(gid))||{}) : (hw.statuses||{})) || {};
             const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
-            Object.values(statuses).forEach(rec=>{
-              const st = rec?.status;
-              if(st && Object.prototype.hasOwnProperty.call(counts, st)) counts[st]++;
-            });
+
+            const clsIds = getIdsForClass(classKey);
+            if(clsIds.length){
+              // Sadece o sınıfın öğrencileri
+              clsIds.forEach(sid=>{
+                const st = statuses?.[sid]?.status;
+                if(st && Object.prototype.hasOwnProperty.call(counts, st)) counts[st]++;
+              });
+            }else{
+              // Fallback (öğrenci listesi yoksa): eldeki status kayıtlarını say
+              Object.values(statuses).forEach(rec=>{
+                const st = rec?.status;
+                if(st && Object.prototype.hasOwnProperty.call(counts, st)) counts[st]++;
+              });
+            }
+
             return {
               id,
               cls: classKey,
