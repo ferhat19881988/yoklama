@@ -964,6 +964,73 @@ div.admin-filters .button-row {
   .hw-tabs{ width:100%; }
   .hw-tabs .btn{ flex:1 1 0; }
 }
+/* ===== Öğretmen: Ödev Kartı (Kontrol/Düzenle/Sil) — Mobil uyumlu ===== */
+.hw-item{
+  position:relative;
+  border: 1px solid rgba(148,163,184,.25);
+  transition: transform .18s ease, box-shadow .25s ease, border-color .2s ease, background .25s ease;
+}
+.hw-item .title{ transition: color .2s ease; }
+.hw-item.is-picked{
+  border-color: rgba(34,197,94,.55);
+  box-shadow: 0 18px 46px rgba(34,197,94,.12), 0 0 0 2px rgba(34,197,94,.18);
+  background: linear-gradient(180deg, rgba(34,197,94,.08), transparent 40%), var(--glass);
+}
+.hw-item.is-picked .title{ color: rgba(34,197,94,.92); }
+.hw-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:nowrap;
+}
+.hw-actions .chip{ flex:0 0 auto; }
+.btn.hw-control-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:10px 14px;
+  border-radius:14px;
+  min-height:42px;
+  font-weight:900;
+  letter-spacing:.2px;
+  box-shadow: 0 14px 34px rgba(34,197,94,.18);
+  background: linear-gradient(135deg, rgba(34,197,94,.92), rgba(16,185,129,.92));
+  color: #06130c;
+}
+.btn.hw-control-btn:hover{ transform: translateY(-2px); box-shadow: 0 18px 44px rgba(34,197,94,.22); }
+.btn.hw-control-btn:active{ transform: translateY(0); }
+.btn.hw-control-btn .ico{ width:18px; height:18px; display:block; }
+.btn.hw-mini{
+  width:40px; height:40px;
+  padding:0;
+  border-radius:14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1.02rem;
+}
+/* Mobilde aksiyonlar: “Kontrol” tam genişlik, ikonlar yanına */
+@media (max-width: 520px){
+  .hw-actions{
+    width:100%;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+    row-gap:8px;
+  }
+  .btn.hw-control-btn{
+    order: 1;
+    width:100%;
+    justify-content:center;
+  }
+  .hw-actions .chip{ order: 0; }
+  .btn.hw-mini{ order: 2; flex:0 0 auto; }
+}
+/* Çok dar ekran: chip satır atlayabilir */
+@media (max-width: 390px){
+  .hw-actions .chip{ width:100%; text-align:center; }
+}
+
 .collapsible-card .card-toggle{
   display:inline-flex;
   align-items:center;
@@ -5994,18 +6061,30 @@ function renderTeacherHomeworks(items, gidMap){
         }
       }catch(_){}
 
-      return `<div class="lesson hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" role="button" tabindex="0">
+      return `<div class="lesson hw-item hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" role="button" tabindex="0">
         <div>
           <div class="title">${hw.class} • ${hw.title||''}</div>
           <div class="muted">Ders: ${hw.subject||''}</div>
           <div class="muted">Teslim: ${dueDate}</div>
           <div class="muted">${summary}</div>
         </div>
-        <div class="row" style="gap:6px;align-items:center;">
-          <div class="chip ${leftClass}">${timeLeft}</div>
-          <button class="btn ghost small edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">✏️</button>
-          <button class="btn ghost danger small delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button">🗑️</button>
-        </div>
+        <div class="hw-actions">
+  <div class="chip ${leftClass}">${timeLeft}</div>
+  <button class="btn hw-control-btn hw-control"
+          data-hw-id="${hw.id}"
+          data-hw-class="${hw.class}"
+          type="button"
+          aria-label="Ödev Kontrol">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 12l2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M9 4V2h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Kontrol</span>
+  </button>
+  <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
+  <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
+</div>
       </div>`;
     }).join('');
 
@@ -6026,15 +6105,44 @@ function renderTeacherHomeworks(items, gidMap){
         if(id && cls){ deleteHomework(cls,id); }
       });
     });
-    Array.from(UI.hwList.querySelectorAll('[data-hw-id]')).forEach(el=>{
-      const open = () => {
-        const id  = el.getAttribute('data-hw-id');
-        const cls = el.getAttribute('data-hw-class');
-        openHomeworkControl(cls,id);
-      };
-      el.addEventListener('click', open);
-      el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
-    });
+// Kontrol düğmesi: sadece buradan kontrol paneli açılır
+Array.from(UI.hwList.querySelectorAll('button.hw-control')).forEach(btn=>{
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const id  = btn.getAttribute('data-hw-id');
+    const cls = btn.getAttribute('data-hw-class');
+    if(id && cls){ openHomeworkControl(cls,id); }
+  });
+});
+
+// Kart tıklama: sadece görsel vurgu (10 sn sonra eski hal)
+const clearPicked = ()=>{
+  Array.from(UI.hwList.querySelectorAll('.hw-item.is-picked')).forEach(x=>{
+    x.classList.remove('is-picked');
+    if(x.__pickT){ clearTimeout(x.__pickT); x.__pickT = null; }
+  });
+};
+Array.from(UI.hwList.querySelectorAll('.hw-item[data-hw-id]')).forEach(el=>{
+  const pick = () => {
+    clearPicked();
+    el.classList.add('is-picked');
+    el.__pickT = setTimeout(()=>{
+      el.classList.remove('is-picked');
+      el.__pickT = null;
+    }, 10000);
+  };
+
+  el.addEventListener('click', (e)=>{
+    if(e.target && e.target.closest && e.target.closest('button')) return;
+    pick();
+  });
+  el.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter' || e.key===' '){
+      e.preventDefault();
+      pick();
+    }
+  });
+});
 
   } else {
     UI.hwList.innerHTML = '<div class="muted">Ödev yok.</div>';
