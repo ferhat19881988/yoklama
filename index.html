@@ -6847,28 +6847,92 @@ ${companyName}`;
       });
     }
 
-    // Kaydet: groupId varsa globale, yoksa eski path'e
-    if(UI.hwSaveBtn){
-      UI.hwSaveBtn.onclick = async () => {
-        const base = groupId ? `hwStatus/${groupId}` : `homeworks/${cls}/${id}/statuses`;
-        const updates2 = {};
-        Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
-          const sid = li.getAttribute('data-id');
-          const val = li.querySelector('select.statusSelect').value;
-          if(val){ updates2[`${base}/${sid}`] = { status: val, ts: Date.now() }; }
-          else   { updates2[`${base}/${sid}`] = null; }
+    
+// Kaydet: groupId varsa globale, yoksa eski path'e
+// Not: Kaydet'e basınca önce "Evet / Hayır" sorgusu açılır.
+// - Evet: kayıt başarılı olursa 2 sn içinde kapanan Swal mesajı gösterilir.
+// - Hayır: listeye geri dönülür, hiçbir işlem yapılmaz.
+const backToActiveHwCard = () => {
+  try{
+    const ctx = openHwCtx ? { ...openHwCtx } : null;
+    openHwCtx = null;
+
+    if(ctx && UI.hwList){
+      const esc = (v)=>{ try{ return (window.CSS && CSS.escape) ? CSS.escape(String(v)) : String(v).replace(/[^a-zA-Z0-9_-]/g,'\$&'); }catch(_){ return String(v); } };
+      const sel = `.hw-item[data-hw-id="${esc(ctx.id)}"][data-hw-class="${esc(ctx.cls)}"]`;
+      const card = UI.hwList.querySelector(sel) || UI.hwList.querySelector(`.hw-item[data-hw-id="${esc(ctx.id)}"]`);
+      if(card){
+        // mevcut seçimi temizle + kısa vurgula
+        Array.from(UI.hwList.querySelectorAll('.hw-item.is-picked')).forEach(x=>{
+          x.classList.remove('is-picked');
+          if(x.__pickT){ clearTimeout(x.__pickT); x.__pickT = null; }
         });
-        try{
-          if(navigator.onLine) await update(ref(db), updates2);
-          else queueOfflineWrite('/', updates2);
-          Swal.fire('Kaydedildi','Ödev durumları kaydedildi.','success');
-          UI.hwControlCard?.classList.add('hidden');
-          await loadTeacherHomeworks();
-        }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
-      };
+        card.classList.add('is-picked');
+        card.__pickT = setTimeout(()=>{ card.classList.remove('is-picked'); card.__pickT = null; }, 2000);
+
+        // ekrana getir + odakla
+        card.scrollIntoView({ behavior:'smooth', block:'center', inline:'nearest' });
+        try{ card.focus({ preventScroll:true }); }catch(_){ }
+      }else{
+        // Kart bulunamazsa en azından listeye dön
+        UI.hwList.scrollIntoView({ behavior:'smooth', block:'start' });
+      }
+    }
+  }catch(e){ console.error('hwBack error', e); }
+};
+
+if(UI.hwSaveBtn){
+  UI.hwSaveBtn.onclick = async () => {
+    // 1) Kaydet onayı
+    const ask = await Swal.fire({
+      title: 'Kaydet?',
+      text: 'Ödev durumlarını kaydetmek istiyor musunuz?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Evet',
+      cancelButtonText: 'Hayır',
+      reverseButtons: true,
+      allowOutsideClick: false
+    });
+
+    // 2) Hayır => listeye geri dön, işlem yapma
+    if(!ask.isConfirmed){
+      UI.hwControlCard?.classList.add('hidden');
+      backToActiveHwCard();
+      return;
     }
 
-    // Toplu WhatsApp butonu: "yaptı" olan öğrencileri listele ve teşekkür mesajı gönder
+    // 3) Evet => kaydet
+    const base = groupId ? `hwStatus/${groupId}` : `homeworks/${cls}/${id}/statuses`;
+    const updates2 = {};
+    Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
+      const sid = li.getAttribute('data-id');
+      const val = li.querySelector('select.statusSelect').value;
+      if(val){ updates2[`${base}/${sid}`] = { status: val, ts: Date.now() }; }
+      else   { updates2[`${base}/${sid}`] = null; }
+    });
+
+    try{
+      if(navigator.onLine) await update(ref(db), updates2);
+      else queueOfflineWrite('/', updates2);
+
+      // Başarılı => 2 sn içinde kapanan mesaj
+      await Swal.fire({
+        title: 'Kaydedildi',
+        text: 'Ödev durumları kaydedildi.',
+        icon: 'success',
+        timer: 2000,
+        timerProgressBar: true,
+        showConfirmButton: false
+      });
+
+      UI.hwControlCard?.classList.add('hidden');
+      await loadTeacherHomeworks();
+    }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
+  };
+}
+
+// Toplu WhatsApp butonu: "yaptı" olan öğrencileri listele ve teşekkür mesajı gönder
     if(UI.hwBulkWhatsBtn){
       UI.hwBulkWhatsBtn.onclick = () => {
         try{
