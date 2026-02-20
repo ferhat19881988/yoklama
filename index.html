@@ -985,6 +985,8 @@ div.admin-filters .button-row {
 }
 .hw-actions .chip{ flex:0 0 auto; }
 .btn.hw-control-btn{
+  position:relative;
+  overflow:hidden;
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -998,9 +1000,33 @@ div.admin-filters .button-row {
   background: linear-gradient(135deg, rgba(34,197,94,.92), rgba(16,185,129,.92));
   color: #06130c;
 }
-.btn.hw-control-btn:hover{ transform: translateY(-2px); box-shadow: 0 18px 44px rgba(34,197,94,.22); }
+.btn.hw-control-btn:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 44px rgba(34,197,94,.22), 0 0 0 3px rgba(34,197,94,.18);
+}
 .btn.hw-control-btn:active{ transform: translateY(0); }
 .btn.hw-control-btn .ico{ width:18px; height:18px; display:block; }
+
+/* Kontrol butonu progress (5sn): buton içinde dolan ince bar */
+.btn.hw-control-btn .hw-progress{
+  position:absolute;
+  left:0; right:0; bottom:0;
+  height:4px;
+  opacity:0;
+  background: linear-gradient(90deg, rgba(255,255,255,.15), rgba(255,255,255,.65), rgba(255,255,255,.15));
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events:none;
+}
+@keyframes hwFill5{ from{ transform:scaleX(0); } to{ transform:scaleX(1); } }
+.btn.hw-control-btn.is-loading{
+  cursor:wait;
+  opacity:.92;
+}
+.btn.hw-control-btn.is-loading .hw-progress{
+  opacity:1;
+  animation: hwFill5 5s linear forwards;
+}
 .btn.hw-mini{
   width:40px; height:40px;
   padding:0;
@@ -6075,12 +6101,13 @@ function renderTeacherHomeworks(items, gidMap){
           data-hw-class="${hw.class}"
           type="button"
           aria-label="Ödev Kontrol">
+	    <span class="hw-progress" aria-hidden="true"></span>
     <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M9 12l2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M9 4V2h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
-    <span>Kontrol</span>
+	    <span class="lbl">Kontrol</span>
   </button>
   <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
   <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
@@ -6106,16 +6133,64 @@ function renderTeacherHomeworks(items, gidMap){
       });
     });
 // Kontrol düğmesi: sadece buradan kontrol paneli açılır
+// İyileştirme: basınca 4sn hazırlık/progress animasyonu (liste açılmadan önce hafif geçiş)
+const HW_CONTROL_OPEN_DELAY_MS = 4000;
+let hwControlDelayTimer = null;
+let hwControlDelayBtn = null;
+
+function startHwControlProgress(btn){
+  if(!btn) return;
+  // daha önce başka bir butonda bekleme varsa iptal et
+  if(hwControlDelayTimer){
+    clearTimeout(hwControlDelayTimer);
+    hwControlDelayTimer = null;
+  }
+  if(hwControlDelayBtn && hwControlDelayBtn !== btn){
+    stopHwControlProgress(hwControlDelayBtn);
+  }
+  hwControlDelayBtn = btn;
+
+  if(!btn.dataset.prevLbl){
+    const lbl = btn.querySelector('.lbl');
+    btn.dataset.prevLbl = lbl ? lbl.textContent : 'Kontrol';
+  }
+  const lblEl = btn.querySelector('.lbl');
+  if(lblEl) lblEl.textContent = 'Hazırlanıyor…';
+
+  btn.classList.add('is-loading');
+  btn.setAttribute('aria-busy','true');
+  btn.disabled = true;
+}
+
+function stopHwControlProgress(btn){
+  if(!btn) return;
+  btn.classList.remove('is-loading');
+  btn.removeAttribute('aria-busy');
+  btn.disabled = false;
+  const lblEl = btn.querySelector('.lbl');
+  if(lblEl) lblEl.textContent = btn.dataset.prevLbl || 'Kontrol';
+}
+
 Array.from(UI.hwList.querySelectorAll('button.hw-control')).forEach(btn=>{
   btn.addEventListener('click', (e)=>{
     e.stopPropagation();
+    if(btn.classList.contains('is-loading')) return;
+
     const id  = btn.getAttribute('data-hw-id');
     const cls = btn.getAttribute('data-hw-class');
-    if(id && cls){ openHomeworkControl(cls,id); }
+    if(!(id && cls)) return;
+
+    startHwControlProgress(btn);
+    hwControlDelayTimer = setTimeout(()=>{
+      stopHwControlProgress(btn);
+      hwControlDelayTimer = null;
+      hwControlDelayBtn = null;
+      openHomeworkControl(cls,id);
+    }, HW_CONTROL_OPEN_DELAY_MS);
   });
 });
 
-// Kart tıklama: sadece görsel vurgu (5 sn sonra eski hal)
+// Kart tıklama: sadece görsel vurgu (3 sn sonra eski hal)
 const clearPicked = ()=>{
   Array.from(UI.hwList.querySelectorAll('.hw-item.is-picked')).forEach(x=>{
     x.classList.remove('is-picked');
@@ -6129,7 +6204,7 @@ Array.from(UI.hwList.querySelectorAll('.hw-item[data-hw-id]')).forEach(el=>{
     el.__pickT = setTimeout(()=>{
       el.classList.remove('is-picked');
       el.__pickT = null;
-    }, 5000);
+    }, 3000);
   };
 
   el.addEventListener('click', (e)=>{
