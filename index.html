@@ -6951,8 +6951,7 @@ function openAdminHomeworks(){
 
     <button class="btn" id="admHwLoad" type="button">Yükle</button>
     <button class="btn" id="admHwPrint" type="button" title="A4 yazdır">Yazdır</button>
-    <button class="btn ghost" id="admHwCsv" type="button" title="CSV indir">CSV</button>
-  </div>
+      </div>
 
   <div class="adm-rpt-hint">İpucu: Satıra tıklayınca ödev detayını (öğrenci durum listesi) açar.</div>
 
@@ -7007,20 +7006,37 @@ function openAdminHomeworks(){
       const searchInput = h.querySelector('#admHwSearch');
       const loadBtn = h.querySelector('#admHwLoad');
       const printBtn = h.querySelector('#admHwPrint');
-      const csvBtn = h.querySelector('#admHwCsv');
       const tbody = h.querySelector('#admHwBody');
       const kpis = h.querySelector('#admHwKpis');
+      // Seçenekler: sınıfları hem öğrencilerden hem de "homeworks" anahtarlarından toparla (filtre anahtarıyla uyumlu olsun)
+      let classes = [];
+      const setClassOptions = (list)=>{
+        const classSet = new Set(safeArr(list).map(x=> safe(x)).filter(Boolean));
+        classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+        classSelect.innerHTML = `<option value="hepsi" selected>Hepsi</option>${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}`;
+        const lastClass = localStorage.getItem('admHwLastClass') || 'hepsi';
+        classSelect.value = (classes.includes(lastClass) || lastClass==='hepsi') ? lastClass : 'hepsi';
+      };
 
-      // Seçenekler: mümkünse öğrencilerden sınıflar, yoksa "hepsi"
-      const classSet = new Set(safeArr(window.students).map(s => safe(s?.SINIF)).filter(Boolean));
-      const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
-      classSelect.innerHTML = `<option value="hepsi" selected>Hepsi</option>${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}`;
-
-      // Hafızalı seçimler
+      // Hafızalı seçimler (tarih)
       const lastDate = localStorage.getItem('admHwLastDate') || '';
-      const lastClass = localStorage.getItem('admHwLastClass') || 'hepsi';
       dateInput.value = lastDate;
-      classSelect.value = (classes.includes(lastClass) || lastClass==='hepsi') ? lastClass : 'hepsi';
+
+      // 1) hızlıca öğrencilerden doldur
+      const studentClasses = safeArr((window.students || students)).map(s => safe(s?.SINIF)).filter(Boolean);
+      setClassOptions(studentClasses);
+
+      // 2) ardından homeworks anahtarlarından da genişlet (asenkron)
+      (async ()=>{
+        try{
+          const hwSnap = await get(ref(db, 'homeworks'));
+          if(hwSnap.exists()){
+            const all = hwSnap.val() || {};
+            const keys = Object.keys(all||{});
+            setClassOptions([...studentClasses, ...keys]);
+          }
+        }catch(e){ /* sessizce geç */ }
+      })();
 
       let lastRows = []; // yazdır/CSV için
 
@@ -7172,30 +7188,6 @@ function openAdminHomeworks(){
       // İlk açılışta otomatik yükle
       run();
 
-      // CSV indir
-      csvBtn.addEventListener('click', ()=>{
-        const rows = Array.isArray(lastRows) ? lastRows : [];
-        if(!rows.length){
-          if(typeof Swal !== 'undefined') Swal.fire('Uyarı','İndirilecek veri yok.','warning');
-          return;
-        }
-        const head = ['Ödev','Ders','Sınıf','Öğretmen','Teslim','Yaptı','Yapmadı','Eksik','Kitap','Gelmedi'];
-        const csv = [
-          head.join(';'),
-          ...rows.map(r=>[
-            r.title, r.subject, r.cls, r.teacher, (r.due ? formatDateTRLong(r.due) : ''),
-            r.counts.yapti, r.counts.yapmadi, r.counts.eksik, r.counts.kitap, r.counts.gelmedi
-          ].map(v=> `"${String(v??'').replace(/"/g,'""')}"`).join(';'))
-        ].join('\n');
-        const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `Odev_Raporlari_${(dateInput.value||'tum').replaceAll('-','')}_${(classSelect.value||'hepsi')}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 250);
-      });
-
       // Yazdır: A4 + sabit sütun genişlikleri + uzun tarih (son render edilen tabloyu bas)
       printBtn.addEventListener('click', ()=>{
         const rowsHtml = tbody.innerHTML || `<tr><td colspan="10">Kayıt bulunamadı</td></tr>`;
@@ -7208,14 +7200,16 @@ function openAdminHomeworks(){
             <style>
               *{box-sizing:border-box}
               body{font:13px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif; color:#111; margin:0}
-              h2{margin:0 0 6px 0; text-align:center; font-size:18px}
-              .meta{display:flex; justify-content:space-between; margin:0 0 8px 0; font-size:12px; color:#444}
+              h2{margin:0 0 6px 0; text-align:center; font-size:14px; letter-spacing:.2px}
+              .meta{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin:0 0 8px 0; font-size:11px; color:#444}
               table{width:100%; border-collapse:collapse; table-layout:fixed}
-              th,td{border:1px solid #e6e6e6; padding:6px 8px; vertical-align:top; word-break:break-word}
+              th,td{border:1px solid #e6e6e6; padding:4px 6px; vertical-align:top; word-break:break-word}
+              th{font-size:11px}
+              td{font-size:11px}
               thead th{background:#fafafa}
               col.title{width:26%} col.subject{width:14%} col.class{width:8%} col.teacher{width:14%} col.date{width:12%}
               col.cnt{width:5%}
-              @page{size:A4 portrait; margin:12mm}
+              @page{size:A4 landscape; margin:10mm}
               @media print{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
             </style>
             <h2>${esc(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Ödev Raporları</h2>
@@ -7357,14 +7351,16 @@ function openAdminQuizzes(){
           <style>
             *{box-sizing:border-box}
             body{font:13px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif; color:#111; margin:0}
-            h2{margin:0 0 6px 0; text-align:center; font-size:18px}
-            .meta{display:flex; justify-content:space-between; margin:0 0 8px 0; font-size:12px; color:#444}
+            h2{margin:0 0 6px 0; text-align:center; font-size:14px; letter-spacing:.2px}
+            .meta{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin:0 0 8px 0; font-size:11px; color:#444}
             table{width:100%; border-collapse:collapse; table-layout:fixed}
-            th,td{border:1px solid #e6e6e6; padding:6px 8px; vertical-align:top; word-break:break-word}
+            th,td{border:1px solid #e6e6e6; padding:4px 6px; vertical-align:top; word-break:break-word}
+              th{font-size:11px}
+              td{font-size:11px}
             thead th{background:#fafafa}
             col.title{width:28%} col.subject{width:16%} col.class{width:10%} col.teacher{width:18%} col.date{width:12%}
             col.avg{width:8%} col.n{width:8%}
-            @page{size:A4 portrait; margin:12mm}
+            @page{size:A4 landscape; margin:10mm}
             @media print{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
           
           <h2>${(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Quiz Raporları</h2>
