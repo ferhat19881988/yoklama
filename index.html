@@ -6895,10 +6895,8 @@ if(UI.hwSaveBtn){
       allowOutsideClick: false
     });
 
-    // 2) Hayır => listeye geri dön, işlem yapma
+    // 2) Hayır => hiçbir işlem yapma, mevcut öğrenci listesinde kal
     if(!ask.isConfirmed){
-      UI.hwControlCard?.classList.add('hidden');
-      backToActiveHwCard();
       return;
     }
 
