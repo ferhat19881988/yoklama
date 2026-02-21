@@ -351,7 +351,11 @@
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
   padding-right:2px;
+  touch-action: pan-y; /* mobilde içerik kaydırmayı garanti et */
 }
+
+/* Drag-scroll aktifken (mobilde) sayfa scrollunu engelle */
+.wa-modal.is-dragging{ touch-action: none; }
 
 /* WhatsApp Modal — sürükle-kaydır (drag scroll) desteği */
 .wa-modal.wa-dragscroll{ cursor: grab; }
@@ -2151,6 +2155,7 @@ div.admin-filters .button-row {
 // WhatsApp Mesaj Modalı (Önizleme / Düzenleme / Kopyalama / Gönderme)
 // WhatsApp modal içinde "her yerden sürükle-kaydır" (drag scroll) — takılmadan yukarı/aşağı
 function enableDragScroll(container, opts){
+  // Mobil öncelikli: Touch + Pointer (varsa) birlikte
   try{
     if(!container || container.__dragScrollBound) return;
     container.__dragScrollBound = true;
@@ -2165,43 +2170,99 @@ function enableDragScroll(container, opts){
     let startTop = 0;
     let moved = false;
 
+    // iOS/Safari için: container içinde kendi sürükle-kaydırımız varken
+    // yanlış tıklamaları azaltmak için click engeli
     container.classList.add('wa-dragscroll');
 
-    const onDown = (e)=>{
-      // Mouse: sadece sol tuş
-      if(e.pointerType === 'mouse' && e.button !== 0) return;
-      if(isExcluded(e.target)) return;
-
+    const begin = (clientY, pid)=>{
       active = true;
       moved = false;
-      pointerId = e.pointerId;
-      startY = e.clientY;
+      pointerId = pid;
+      startY = clientY;
       startTop = container.scrollTop;
-
       container.classList.add('is-dragging');
-      try{ container.setPointerCapture(pointerId); }catch(_){}
     };
 
-    const onMove = (e)=>{
-      if(!active || e.pointerId !== pointerId) return;
-      const dy = e.clientY - startY;
+    const move = (clientY)=>{
+      if(!active) return;
+      const dy = clientY - startY;
       if(Math.abs(dy) > 2) moved = true;
       container.scrollTop = startTop - dy;
     };
 
-    const onEnd = (e)=>{
+    const end = ()=>{
       if(!active) return;
       active = false;
       pointerId = null;
       container.classList.remove('is-dragging');
     };
 
-    // Scroll performansı için move pasif değil (scrollTop set ediyoruz)
-    container.addEventListener('pointerdown', onDown, { passive:true });
-    container.addEventListener('pointermove', onMove, { passive:true });
-    container.addEventListener('pointerup', onEnd, { passive:true });
-    container.addEventListener('pointercancel', onEnd, { passive:true });
-    container.addEventListener('pointerleave', onEnd, { passive:true });
+    // ===== Pointer Events (destekliyse) =====
+    const supportsPointer = !!window.PointerEvent;
+
+    const onPointerDown = (e)=>{
+      if(e.pointerType === 'mouse' && e.button !== 0) return;
+      if(isExcluded(e.target)) return;
+
+      begin(e.clientY, e.pointerId);
+
+      // Touch/Pen'de sayfa kaymasını engelle
+      if(e.pointerType !== 'mouse'){
+        try{ e.preventDefault(); }catch(_){}
+      }
+      try{ container.setPointerCapture(e.pointerId); }catch(_){}
+    };
+
+    const onPointerMove = (e)=>{
+      if(!active || e.pointerId !== pointerId) return;
+      // Touch/Pen'de sayfa kaymasını engelle
+      if(e.pointerType !== 'mouse'){
+        try{ e.preventDefault(); }catch(_){}
+      }
+      move(e.clientY);
+    };
+
+    const onPointerUp = (e)=>{
+      if(!active) return;
+      end();
+    };
+
+    if(supportsPointer){
+      // passive:false => preventDefault çalışsın (mobil kritik)
+      container.addEventListener('pointerdown', onPointerDown, { passive:false });
+      container.addEventListener('pointermove', onPointerMove, { passive:false });
+      container.addEventListener('pointerup', onPointerUp, { passive:true });
+      container.addEventListener('pointercancel', onPointerUp, { passive:true });
+      container.addEventListener('lostpointercapture', onPointerUp, { passive:true });
+    }
+
+    // ===== Touch fallback (özellikle iOS için) =====
+    // PointerEvent olsa bile bazı webview'larda tutarsız olabildiği için ekliyoruz.
+    const onTouchStart = (e)=>{
+      if(!e.touches || e.touches.length !== 1) return;
+      if(isExcluded(e.target)) return;
+      const t = e.touches[0];
+      begin(t.clientY, 'touch');
+      // sayfa kaymasını engelle
+      try{ e.preventDefault(); }catch(_){}
+    };
+
+    const onTouchMove = (e)=>{
+      if(!active || pointerId !== 'touch') return;
+      if(!e.touches || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      try{ e.preventDefault(); }catch(_){}
+      move(t.clientY);
+    };
+
+    const onTouchEnd = ()=>{
+      if(pointerId === 'touch') end();
+    };
+
+    container.addEventListener('touchstart', onTouchStart, { passive:false });
+    container.addEventListener('touchmove', onTouchMove, { passive:false });
+    container.addEventListener('touchend', onTouchEnd, { passive:true });
+    container.addEventListener('touchcancel', onTouchEnd, { passive:true });
 
     // Sürüklemeden sonra "yanlış tıklama" engeli (örn. detay aç/kapa)
     container.addEventListener('click', (e)=>{
@@ -2216,7 +2277,8 @@ function enableDragScroll(container, opts){
   }
 }
 
-// Not: location.href ile sayfadan çıkmak yerine yeni sekmede açar; böylece aktif ekran korunur.
+// Not:
+ location.href ile sayfadan çıkmak yerine yeni sekmede açar; böylece aktif ekran korunur.
 function openWhatsAppComposer(opts){
   try{
     const cfg = opts || {};
