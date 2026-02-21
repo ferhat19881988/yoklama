@@ -7315,16 +7315,13 @@ if(filterEl){
           })();
 
           const msg =
-`Merhaba 🌿
-Ben *${teacherName}* (${lessonName}) öğretmeniyim.
-
-*${studentName}* öğrencimizin "${title}" ödevinin teslim tarihi *${dueStr}*.
-Şu an sistemde *${statusText}* görünüyor.
-
-Rica etsem en geç *${deadlineStr}* tarihine kadar tamamlayıp teslim edebilir mi?
-Teşekkür ederim.
-
-${companyName}`;
+`Merhaba, iyi günler dilerim. ☀️\n\n` +
+`Ben *${lessonName}* öğretmeni *${teacherName}*. 📚\n\n` +
+`Öğrencimiz *${studentName}*'nin *\"${title}\"* başlıklı ödevinin teslim tarihi *${dueStr}* olarak belirlenmişti. \n\n` +
+`Ancak sistemimizi kontrol ettiğimde ödevin mevcut durumu *_${statusText}_* olarak görünmektedir. 📊\n\n` +
+`Öğrencimizin öğrenme sürecini aksatmamak adına, ilgili ödevin en geç *${deadlineStr}* tarihine kadar tamamlanması konusunda desteğinizi rica ediyorum. 🎯\n\n` +
+`İlginiz ve iş birliğiniz için çok teşekkür ederim. \n\n` +
+`_${companyName}_`;
           openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
         });
       
@@ -7437,6 +7434,7 @@ if(UI.hwSaveBtn){
               return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
             }catch{ return '—'; }
           })() : '—';
+          const lessonName  = hw?.subject || session?.teacherBranch || 'Ders';
           let listLines = done.map((n,i) => `${i+1}. ${n}`).join('\n');
           if(!listLines){
             Swal.fire('Bilgi','Henüz "Yaptı" durumunda öğrenci yok.','info');
@@ -7447,13 +7445,15 @@ if(UI.hwSaveBtn){
           // kutlama emojisini kullanıyordu. Bu artık işletmenin adı ve daha ciddi bir kitap
           // emojisi ile değiştirildi. Sonunda "Bilginize" ifadesi eklendi.
           const msg =
-`*Fenomen Eğitim Kurumları Bilgi Sistemi* 📚\n\n` +
-`👤 *Öğretmen:* ${teacherName}\n` +
-`📘 *Ödev:* ${title}\n` +
-`📅 *Teslim Tarihi:* ${dueStr}\n\n` +
-`Aşağıdaki öğrenciler ödevlerini zamanında teslim etti:\n` +
+`*Fenomen Eğitim Kurumları Bilgi Sistemi* 📚\n` +
+`Merhaba Sayın Velilerim,\n` +
+`*Ödev:* ${title}\n` +
+`*Teslim Tarihi:* ${dueStr}\n\n` +
+`Ödev teslimini başarıyla tamamlayan öğrenciler:\n` +
 `${listLines}\n\n` +
-`Öğrencilerimize teşekkür ederim. Bilginize\n`;
+`Öğrencilerimize teşekkür ederim.\n` +
+`Bilgilerinize sunarım.\n` +
+`*${teacherName}* – *${lessonName}*\n`;
           openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
         }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
       };
