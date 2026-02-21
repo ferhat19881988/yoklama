@@ -336,6 +336,31 @@
   font-weight:900 !important;
   margin:0 0 8px 0 !important;
 }
+
+.wa-popup{
+  max-height:92vh !important; /* modal içinde tek scroll */
+}
+.wa-popup .swal2-html-container{
+  margin:0 !important;
+  padding:0 !important;
+  overflow:hidden !important; /* dış container scroll yapmasın */
+}
+.wa-modal{
+  max-height:calc(92vh - 110px);
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  padding-right:2px;
+}
+.wa-textarea{
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  touch-action:pan-y;
+}
+@media (max-width:520px){
+  .wa-modal{ max-height:calc(92vh - 104px); }
+}
+
 .wa-modal{ text-align:left; display:grid; gap:10px; }
 .wa-section{
   border:var(--stroke);
@@ -3163,15 +3188,15 @@ try{
           hwToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           const lbl = hwToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
-          try{ localStorage.setItem('qzCardExpanded', expanded ? '1' : '0'); }catch(_){ }
+          // Durumu kalıcılaştır (yalnızca Ödev kartı)
           try{ localStorage.setItem('hwCardExpanded', expanded ? '1' : '0'); }catch(_){ }
 
           // Kart kapanırken alt detay kartını da kapat
           if (collapsed && UI.hwControlCard) {
             UI.hwControlCard.classList.add('hidden');
           }
-            openHwCtx = null;
-          try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
+          openHwCtx = null;
+
         });
       }
 
@@ -3185,6 +3210,9 @@ try{
           qzToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           const lbl = qzToggle.querySelector('.toggle-label');
           if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
+
+          // Durumu kalıcılaştır (yalnızca Quiz kartı)
+          try{ localStorage.setItem('qzCardExpanded', expanded ? '1' : '0'); }catch(_){ }
 
           // Kart kapanırken quiz kontrol kartını da kapat
           if (collapsed && UI.qzControlCard) {
@@ -3603,7 +3631,7 @@ async function showTeacherToday(){
       const hwToggle = document.getElementById('hwToggle');
 
       // Dönüşte (WhatsApp/app) kart durumunu koru
-      const wantExpanded = (localStorage.getItem('hwCardExpanded') === '1') || (!document.getElementById('hwControlCard')?.classList.contains('hidden'));
+      const wantExpanded = (localStorage.getItem('hwCardExpanded') === '1');
       UI.homeworkCard.classList.toggle('is-collapsed', !wantExpanded);
       if (hwBody) hwBody.hidden = !wantExpanded;
 
