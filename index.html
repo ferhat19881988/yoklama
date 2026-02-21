@@ -347,9 +347,7 @@
 }
 .wa-modal{
   max-height:calc(92vh - 110px);
-  overflow-y:auto;
-  overflow-x:hidden;
-  touch-action: pan-y;
+  overflow:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
   padding-right:2px;
@@ -386,8 +384,7 @@
 }
 .wa-textarea{
   min-height:210px;
-  resize:none;
-  overflow:hidden;
+  resize:vertical;
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size:.92rem;
   line-height:1.35;
@@ -2194,17 +2191,6 @@ function openWhatsAppComposer(opts){
         const bSend = el.querySelector('#waSendBtn');
         if(ta){
           ta.value = initialText;
-
-          // Autosize: textarea kendi içinde scroll yapmasın, modal kayarak ilerlesin
-          const autosize = ()=>{
-            try{
-              ta.style.height = 'auto';
-              ta.style.height = (ta.scrollHeight + 2) + 'px';
-            }catch(_){}
-          };
-          autosize();
-          ta.addEventListener('input', autosize, { passive:true });
-
           try{ ta.focus(); ta.setSelectionRange(0,0); }catch(_){ }
         }
 
