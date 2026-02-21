@@ -327,18 +327,17 @@
 #adminView .btn.whatsBtn img{ width:18px; height:18px; display:block; }
 /* WhatsApp Mesaj Modalı — modern / mobil uyumlu */
 .wa-popup{
-  width:min(640px, 92vw) !important;
+  /* Daha kompakt ve dengeli boyut */
+  width:min(560px, 90vw) !important;
   border-radius:18px !important;
-  padding:14px 14px 12px !important;
+  padding:12px 12px 10px !important;
+  max-height:88vh !important; /* dış popup scroll yapmasın */
 }
 .wa-popup .swal2-title{
+  text-align:center !important;
   font-size:1.02rem !important;
   font-weight:900 !important;
   margin:0 0 8px 0 !important;
-}
-
-.wa-popup{
-  max-height:92vh !important; /* modal içinde tek scroll */
 }
 .wa-popup .swal2-html-container{
   margin:0 !important;
@@ -347,12 +346,11 @@
 }
 .wa-modal{
   /* iOS için kritik: overflow-scroll alanının kesin bir yüksekliği olmalı */
-  height:calc(100dvh - 110px);
-  max-height:calc(92vh - 110px);
+  height:clamp(340px, 62dvh, 540px);
+  max-height:clamp(340px, 62vh, 540px);
   overflow:auto;
   -webkit-overflow-scrolling:touch;
   padding-right:2px;
-  /* iOS Safari touch-action'ı her zaman uygulamaz; JS touch handler asıl çözümdür */
   touch-action: pan-y;
 }
 
@@ -370,16 +368,18 @@
   touch-action:pan-y;
 }
 @media (max-width:520px){
-  .wa-modal{ height:calc(100dvh - 104px); max-height:calc(92vh - 104px); }
+  .wa-modal{ height:clamp(320px, 72dvh, 520px); max-height:clamp(320px, 72vh, 520px); }
 }
 
 .wa-modal{ text-align:left; display:grid; gap:10px; }
 .wa-section{
   border:var(--stroke);
   background:rgba(255,255,255,.03);
-  border-radius:16px;
-  padding:10px 10px 12px;
+  border-radius:14px;
+  padding:12px 12px 14px;
 }
+.wa-section.wa-header{ padding:10px 12px; }
+.wa-section.wa-actions{ padding:12px 12px 12px; }
 .wa-kicker{
   font-weight:900;
   color:var(--muted);
@@ -395,7 +395,7 @@
   margin:0 0 8px 2px;
 }
 .wa-textarea{
-  min-height:210px;
+  min-height:200px;
   resize:vertical;
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size:.92rem;
@@ -408,6 +408,13 @@
   gap:8px;
   align-items:center;
   justify-content:flex-end;
+}
+
+/* Mobilde hizalama: 2 sütun + gönder tam genişlik */
+@media (max-width:520px){
+  .wa-btnrow{ display:grid; grid-template-columns:1fr 1fr; align-items:stretch; }
+  .btn.wa-btn{ width:100%; }
+  .btn.wa-send{ grid-column:1 / -1; }
 }
 .btn.wa-btn{
   padding:8px 12px;
@@ -423,8 +430,8 @@
 @media (max-width:520px){
   .wa-popup{ width:94vw !important; padding:12px 10px 10px !important; }
   .wa-popup .swal2-title{ font-size:.98rem !important; }
-  .wa-textarea{ min-height:190px; font-size:.88rem; }
-  .wa-btnrow{ justify-content:stretch; }
+  .wa-textarea{ min-height:180px; font-size:.88rem; }
+  /* .wa-btnrow mobil grid ile yönetiliyor */
   .btn.wa-btn{ flex:1 1 120px; padding:8px 10px; font-size:.88rem; }
 }
 
