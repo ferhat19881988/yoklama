@@ -7445,15 +7445,16 @@ if(UI.hwSaveBtn){
           // kutlama emojisini kullanıyordu. Bu artık işletmenin adı ve daha ciddi bir kitap
           // emojisi ile değiştirildi. Sonunda "Bilginize" ifadesi eklendi.
           const msg =
-`*Fenomen Eğitim Kurumları Bilgi Sistemi* 📚\n` +
-`Merhaba Sayın Velilerim,\n` +
-`*Ödev:* ${title}\n` +
-`*Teslim Tarihi:* ${dueStr}\n\n` +
-`Ödev teslimini başarıyla tamamlayan öğrenciler:\n` +
+`*Fenomen Eğitim Kurumları Bilgi Sistemi* 🏫\n\n` +
+`Merhaba Sayın Velilerim, ☀️\n\n` +
+`*Ödev:* ${title} 📝\n` +
+`*Teslim Tarihi:* ${dueStr} ⏳\n\n` +
+`Ödev teslimini başarıyla tamamlayan öğrencilerimiz: 👇\n\n` +
 `${listLines}\n\n` +
-`Öğrencilerimize teşekkür ederim.\n` +
-`Bilgilerinize sunarım.\n` +
-`*${teacherName}* – *${lessonName}*\n`;
+`Öğrencilerimize gayretleri için teşekkür ederim. 🌟\n` +
+`Bilgilerinize sunarım, iyi günler dilerim.\n\n` +
+`*${teacherName}*\n` +
+`_${lessonName}_ Öğretmeni\n`;
           openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
         }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
       };
