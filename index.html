@@ -352,6 +352,12 @@
   overscroll-behavior:contain;
   padding-right:2px;
 }
+
+/* WhatsApp Modal — sürükle-kaydır (drag scroll) desteği */
+.wa-modal.wa-dragscroll{ cursor: grab; }
+.wa-modal.wa-dragscroll.is-dragging{ cursor: grabbing; }
+.wa-modal.is-dragging{ user-select:none; }
+.wa-modal.is-dragging textarea{ user-select:text; cursor:text; }
 .wa-textarea{
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
@@ -2143,6 +2149,73 @@ div.admin-filters .button-row {
 
 // =========================
 // WhatsApp Mesaj Modalı (Önizleme / Düzenleme / Kopyalama / Gönderme)
+// WhatsApp modal içinde "her yerden sürükle-kaydır" (drag scroll) — takılmadan yukarı/aşağı
+function enableDragScroll(container, opts){
+  try{
+    if(!container || container.__dragScrollBound) return;
+    container.__dragScrollBound = true;
+
+    const cfg = opts || {};
+    const excludeSel = cfg.excludeSelector || 'textarea, input, select, button, a, label, [data-no-drag]';
+    const isExcluded = (t)=> !!(t && t.closest && t.closest(excludeSel));
+
+    let active = false;
+    let pointerId = null;
+    let startY = 0;
+    let startTop = 0;
+    let moved = false;
+
+    container.classList.add('wa-dragscroll');
+
+    const onDown = (e)=>{
+      // Mouse: sadece sol tuş
+      if(e.pointerType === 'mouse' && e.button !== 0) return;
+      if(isExcluded(e.target)) return;
+
+      active = true;
+      moved = false;
+      pointerId = e.pointerId;
+      startY = e.clientY;
+      startTop = container.scrollTop;
+
+      container.classList.add('is-dragging');
+      try{ container.setPointerCapture(pointerId); }catch(_){}
+    };
+
+    const onMove = (e)=>{
+      if(!active || e.pointerId !== pointerId) return;
+      const dy = e.clientY - startY;
+      if(Math.abs(dy) > 2) moved = true;
+      container.scrollTop = startTop - dy;
+    };
+
+    const onEnd = (e)=>{
+      if(!active) return;
+      active = false;
+      pointerId = null;
+      container.classList.remove('is-dragging');
+    };
+
+    // Scroll performansı için move pasif değil (scrollTop set ediyoruz)
+    container.addEventListener('pointerdown', onDown, { passive:true });
+    container.addEventListener('pointermove', onMove, { passive:true });
+    container.addEventListener('pointerup', onEnd, { passive:true });
+    container.addEventListener('pointercancel', onEnd, { passive:true });
+    container.addEventListener('pointerleave', onEnd, { passive:true });
+
+    // Sürüklemeden sonra "yanlış tıklama" engeli (örn. detay aç/kapa)
+    container.addEventListener('click', (e)=>{
+      if(moved && !isExcluded(e.target)){
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+
+  }catch(err){
+    console.error('enableDragScroll err', err);
+  }
+}
+
 // Not: location.href ile sayfadan çıkmak yerine yeni sekmede açar; böylece aktif ekran korunur.
 function openWhatsAppComposer(opts){
   try{
@@ -2189,6 +2262,8 @@ function openWhatsAppComposer(opts){
         const bCopy = el.querySelector('#waCopyBtn');
         const bCancel = el.querySelector('#waCancelBtn');
         const bSend = el.querySelector('#waSendBtn');
+        const modal = el.querySelector('.wa-modal');
+        if(modal) enableDragScroll(modal, { excludeSelector: '#waMsgBox, textarea, input, select, button, a, label' });
         if(ta){
           ta.value = initialText;
           try{ ta.focus(); ta.setSelectionRange(0,0); }catch(_){ }
