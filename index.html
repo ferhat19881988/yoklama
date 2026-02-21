@@ -346,12 +346,14 @@
   overflow:hidden !important; /* dış container scroll yapmasın */
 }
 .wa-modal{
+  /* iOS için kritik: overflow-scroll alanının kesin bir yüksekliği olmalı */
+  height:calc(100dvh - 110px);
   max-height:calc(92vh - 110px);
   overflow:auto;
   -webkit-overflow-scrolling:touch;
-  overscroll-behavior:contain;
   padding-right:2px;
-  touch-action: pan-y; /* mobilde içerik kaydırmayı garanti et */
+  /* iOS Safari touch-action'ı her zaman uygulamaz; JS touch handler asıl çözümdür */
+  touch-action: pan-y;
 }
 
 /* Drag-scroll aktifken (mobilde) sayfa scrollunu engelle */
@@ -368,7 +370,7 @@
   touch-action:pan-y;
 }
 @media (max-width:520px){
-  .wa-modal{ max-height:calc(92vh - 104px); }
+  .wa-modal{ height:calc(100dvh - 104px); max-height:calc(92vh - 104px); }
 }
 
 .wa-modal{ text-align:left; display:grid; gap:10px; }
@@ -2187,7 +2189,9 @@ function enableDragScroll(container, opts){
       if(!active) return;
       const dy = clientY - startY;
       if(Math.abs(dy) > 2) moved = true;
-      container.scrollTop = startTop - dy;
+      const next = startTop - dy;
+      const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+      container.scrollTop = Math.min(maxTop, Math.max(0, next));
     };
 
     const end = ()=>{
@@ -2243,15 +2247,25 @@ function enableDragScroll(container, opts){
       if(isExcluded(e.target)) return;
       const t = e.touches[0];
       begin(t.clientY, 'touch');
-      // sayfa kaymasını engelle
-      try{ e.preventDefault(); }catch(_){}
+
+      // iOS: touchstart'ta her zaman engelleme yapma; sadece scrollable ise engelle (daha stabil)
+      const scrollable = (container.scrollHeight - container.clientHeight) > 1;
+      try{
+        if(scrollable) e.preventDefault();
+      }catch(_){}
     };
 
     const onTouchMove = (e)=>{
       if(!active || pointerId !== 'touch') return;
       if(!e.touches || e.touches.length !== 1) return;
       const t = e.touches[0];
-      try{ e.preventDefault(); }catch(_){}
+
+      // iOS: preventDefault ancak gerçekten modal kaydırılabiliyorsa çalıştır (aksi halde sistem jestleri bozulabilir)
+      const scrollable = (container.scrollHeight - container.clientHeight) > 1;
+      try{
+        if(scrollable) e.preventDefault();
+      }catch(_){}
+
       move(t.clientY);
     };
 
