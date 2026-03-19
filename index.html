@@ -19,7 +19,6 @@
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/timezone.js" defer></script>
   <!-- Load Turkish locale for Day.js so month names appear in Turkish -->
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/tr.js" defer></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
 
   <style>
     :root{
@@ -1652,46 +1651,7 @@ div.admin-filters .button-row {
 .toast.warn .t-ico{ background: rgba(245,158,11,.18); border: 1px solid rgba(245,158,11,.35); }
 .toast .t-msg{ font-weight: 800; letter-spacing: .1px; }
 
-
-
-    /* ===== Core Data Studio ===== */
-    .site-footer{ margin-top: 32px; padding: 14px 18px; text-align: center; font-size: 0.95rem; color: var(--muted); background: var(--bg); border-top: var(--stroke); box-shadow: none; }
-    .site-footer strong{ color: var(--brand-2); }
-    .dm-popup{ width:min(1400px, 96vw) !important; max-width:96vw !important; padding:12px 12px 10px !important; border-radius:22px !important; max-height:92vh !important; }
-    .dm-popup .swal2-html-container{ margin:0 !important; padding:0 !important; overflow:hidden !important; }
-    .dm-shell{ display:grid; grid-template-rows:auto auto 1fr; gap:12px; min-height:62vh; max-height:72vh; text-align:left; }
-    .dm-toolbar,.dm-meta{ border:var(--stroke); background:rgba(255,255,255,.03); border-radius:16px; padding:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .dm-toolbar .input,.dm-meta .input{ min-width:180px; }
-    .dm-scroll{ border:var(--stroke); border-radius:18px; overflow:auto; background:rgba(255,255,255,.02); padding:12px; -webkit-overflow-scrolling:touch; }
-    .dm-table{ width:100%; min-width:960px; }
-    .dm-table th{ position:sticky; top:0; z-index:2; background:rgba(249,115,22,.14); }
-    .dm-empty{ border:1px dashed rgba(148,163,184,.35); border-radius:16px; padding:20px; text-align:center; color:var(--muted); font-weight:700; }
-    .dm-chip{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:var(--stroke); background:rgba(255,255,255,.03); font-size:.85rem; font-weight:800; white-space:nowrap; }
-    .dm-chip.firebase{ background:rgba(34,197,94,.14); }
-    .dm-chip.sheets{ background:rgba(59,130,246,.14); }
-    .dm-grid-2{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-    .dm-grid-4{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
-    .dm-form{ display:grid; gap:10px; text-align:left; }
-    .dm-form label{ display:grid; gap:6px; font-weight:800; color:var(--muted); }
-    .dm-form .input{ width:100%; }
-    .dm-source-card{ border:var(--stroke); border-radius:16px; background:rgba(255,255,255,.03); padding:14px; display:grid; gap:10px; }
-    .dm-assign-layout{ display:grid; grid-template-columns:360px minmax(0,1fr); gap:14px; text-align:left; min-height:58vh; }
-    .dm-panel{ border:var(--stroke); border-radius:18px; background:rgba(255,255,255,.03); padding:14px; overflow:auto; }
-    .dm-slots{ display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:10px; }
-    .dm-slot{ border:var(--stroke); border-radius:16px; padding:12px; background:rgba(255,255,255,.03); display:grid; gap:8px; cursor:pointer; transition:transform .15s ease, border-color .2s ease, box-shadow .2s ease; }
-    .dm-slot:hover{ transform:translateY(-1px); }
-    .dm-slot.busy-teacher{ border-color:rgba(239,68,68,.35); background:rgba(239,68,68,.08); cursor:not-allowed; }
-    .dm-slot.busy-class{ border-color:rgba(245,158,11,.35); background:rgba(245,158,11,.08); cursor:not-allowed; }
-    .dm-slot.free{ border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.06); }
-    .dm-slot input{ width:18px; height:18px; }
-    .dm-mini-list{ display:grid; gap:8px; }
-    .dm-mini-item{ border:var(--stroke); border-radius:14px; padding:10px 12px; background:rgba(255,255,255,.02); }
-    .dm-actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-    .dm-actions .btn{ min-height:42px; }
-    @media (max-width: 980px){ .dm-assign-layout{ grid-template-columns:1fr; } }
-    @media (max-width: 720px){ .dm-grid-2, .dm-grid-4{ grid-template-columns:1fr; } .dm-toolbar, .dm-meta{ align-items:stretch; } .dm-toolbar .btn, .dm-meta .btn{ width:100%; } .dm-shell{ max-height:76vh; } .dm-table{ min-width:780px; } }
-
-  </style>
+</style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0b1020">
@@ -2072,18 +2032,6 @@ div.admin-filters .button-row {
           </div>
 
           <!-- Sistem -->
-          <div class="action-group" role="group" aria-label="Veri Merkezi">
-            <div class="group-title">Veri Merkezi</div>
-            <div class="group-buttons">
-              <button class="btn tool-btn" id="admDataSourcesBtn" type="button" title="Veri kaynağı ayarları">Kaynak Ayarı</button>
-              <button class="btn tool-btn" id="admTeachersBtn" type="button" title="Öğretmen kayıtları">Öğretmenler</button>
-              <button class="btn tool-btn" id="admStudentsBtn" type="button" title="Öğrenci kayıtları">Öğrenciler</button>
-              <button class="btn tool-btn" id="admSlotsBtn" type="button" title="Ders saatleri">Ders Saatleri</button>
-              <button class="btn tool-btn" id="admPlansBtn" type="button" title="Ders planları">Ders Planları</button>
-              <button class="btn tool-btn" id="admAssignBtn" type="button" title="Öğretmen ders atama sihirbazı">Atama Sihirbazı</button>
-            </div>
-          </div>
-
           <div class="action-group" role="group" aria-label="Sistem">
             <div class="group-title">Sistem</div>
             <div class="group-buttons">
@@ -2635,14 +2583,6 @@ function openWhatsAppComposer(opts){
       // Admin: Homework & Quiz buttons
       admHomeworksBtn: document.getElementById('admHomeworksBtn'),
       admQuizzesBtn: document.getElementById('admQuizzesBtn'),
-
-      // Core Data Studio
-      admDataSourcesBtn: document.getElementById('admDataSourcesBtn'),
-      admTeachersBtn: document.getElementById('admTeachersBtn'),
-      admStudentsBtn: document.getElementById('admStudentsBtn'),
-      admSlotsBtn: document.getElementById('admSlotsBtn'),
-      admPlansBtn: document.getElementById('admPlansBtn'),
-      admAssignBtn: document.getElementById('admAssignBtn'),
     };
 
     // Yönetici listelemesi için sayfalama durumları
@@ -2677,21 +2617,7 @@ function openWhatsAppComposer(opts){
 
     // State
     let appFB, db;
-
-const ATT_CFG_PATH = 'config/attendanceEnabled';
-const CORE_DATA_ROOT = 'coreData';
-const CORE_DATA_SOURCE_CFG_PATH = 'config/coreDataSources';
-const DEFAULT_CORE_SOURCE_CFG = Object.freeze({ teachers:'sheets', students:'sheets', schedule:'sheets', slots:'sheets' });
-const CORE_DATA_META = {
-  teachers: { label:'Öğretmenler', sheetTab:'Ogretmenler', firebasePath:`${CORE_DATA_ROOT}/teachers`, keyField:'ID', columns:['ID','OGRETMEN_ADI','BRANS','TELEFON','AKTIF'], exportName:'ogretmenler' },
-  students: { label:'Öğrenciler', sheetTab:'Ogrenciler', firebasePath:`${CORE_DATA_ROOT}/students`, keyField:'NO', columns:['NO','ADSOYAD','SINIF','VELI_TELEFON','AKTIF'], exportName:'ogrenciler' },
-  slots: { label:'Ders Saatleri', sheetTab:'DersSaatleri', firebasePath:`${CORE_DATA_ROOT}/slots`, keyField:'SAAT_KODU', columns:['SAAT_KODU','BASLANGIC','BITIS','PROGRAM'], exportName:'ders_saatleri' },
-  schedule: { label:'Ders Planları', sheetTab:'DersProgrami', firebasePath:`${CORE_DATA_ROOT}/schedule`, keyField:'__rowKey', columns:['GUN','SAAT_KODU','SINIF','OGRETMEN_ID','DERS','PROGRAM','GRUP'], exportName:'ders_planlari' }
-};
-
 let teachers=[], students=[], schedule=[], slots=[];
-let coreDataSourceConfig = {...DEFAULT_CORE_SOURCE_CFG};
-let coreDataLoadedFrom = {...DEFAULT_CORE_SOURCE_CFG};
 let slotOrderMap = new Map();                 // legacy (tek program)
 let slotOrderMapByProgram = new Map();        // NEW: program -> Map(kod -> no)
 let session=null;
@@ -2705,6 +2631,9 @@ let teacherLessonsToday=[];
 let attendanceEnabled = true;               // varsayılan: aktif
 let attendanceConfigReady = false;          // config okundu mu?
 let attendancePanelMode = 'normal';         // 'normal' | 'holiday'
+
+// Config path in RTDB
+const ATT_CFG_PATH = 'config/attendanceEnabled';
 
 function setAttendancePanelControlsVisible(visible){
   const show = !!visible;
@@ -3220,9 +3149,7 @@ function refreshVisibleView(){
       
       // Yoklama aktif/pasif durumunu dinle (Admin -> Firebase)
       initAttendanceConfigListener();
-      await loadCoreDataSourceConfig();
-      await loadSheets();
-      buildSlotOrder();
+await loadSheets(); buildSlotOrder();
 
       const cached = localStorage.getItem('session');
       if(cached){ session = JSON.parse(cached); enterApp(); scheduleRestoreScroll(); }
@@ -3405,7 +3332,6 @@ try{
 
       UI.admHomeworksBtn?.addEventListener('click', openAdminHomeworks);
       UI.admQuizzesBtn?.addEventListener('click', openAdminQuizzes);
-      initCoreDataAdminBindings();
       UI.parentHwPrintBtn?.addEventListener('click', printParentHomeworks);
       UI.parentQzPrintBtn?.addEventListener('click', printParentQuizzes);
 
@@ -3514,896 +3440,74 @@ try{
       if(navigator.onLine) await flushQueue(false);
     }
 
-    function safeArr(v){ return Array.isArray(v) ? v : []; }
-    function cloneJson(v){ return JSON.parse(JSON.stringify(v ?? null)); }
-
-    function mergeCoreSourceConfig(raw){
-      const merged = { ...DEFAULT_CORE_SOURCE_CFG };
-      Object.keys(DEFAULT_CORE_SOURCE_CFG).forEach((key)=>{
-        const val = safe(raw?.[key]).toLowerCase();
-        merged[key] = (val === 'firebase') ? 'firebase' : 'sheets';
-      });
-      return merged;
-    }
-
-    function currentDataSourceLabel(source){
-      return source === 'firebase' ? 'Firebase' : 'E-Tablo';
-    }
-
-    function syncCoreDataGlobals(){
-      try{
-        window.teachers = teachers;
-        window.students = students;
-        window.schedule = schedule;
-        window.slots = slots;
-        window.coreDataSourceConfig = { ...coreDataSourceConfig };
-        window.coreDataLoadedFrom = { ...coreDataLoadedFrom };
-      }catch(_){ }
-    }
-
-    function persistCoreDataCache(){
-      const CACHE_KEY = 'fenomenSheetsCache_v2';
-      try{
-        const payload = JSON.stringify({
-          teachers, students, schedule, slots,
-          ts: Date.now(),
-          sourceConfig: coreDataSourceConfig,
-          loadedFrom: coreDataLoadedFrom
-        });
-        localStorage.setItem(CACHE_KEY, payload);
-        localStorage.setItem('fenomenSheetsCache_v1', payload);
-      }catch(e){ console.error('Core data cache save error', e); }
-    }
-
-    function tryUseCoreDataCache(){
-      const keys = ['fenomenSheetsCache_v2', 'fenomenSheetsCache_v1'];
-      for(const key of keys){
-        try{
-          const raw = localStorage.getItem(key);
-          if(!raw) continue;
-          const data = JSON.parse(raw);
-          if(!data || !data.teachers || !data.students || !data.schedule || !data.slots) continue;
-          teachers = safeArr(data.teachers);
-          students = safeArr(data.students);
-          schedule = safeArr(data.schedule);
-          slots    = safeArr(data.slots);
-          coreDataSourceConfig = mergeCoreSourceConfig(data.sourceConfig || coreDataSourceConfig);
-          coreDataLoadedFrom   = mergeCoreSourceConfig(data.loadedFrom   || coreDataLoadedFrom);
-          syncCoreDataGlobals();
-          return true;
-        }catch(e){ console.error('Core data cache parse error', e); }
-      }
-      return false;
-    }
-
-    async function loadCoreDataSourceConfig(){
-      const localKey = 'fenomenCoreDataSourceConfig_v1';
-      try{
-        const raw = localStorage.getItem(localKey);
-        if(raw) coreDataSourceConfig = mergeCoreSourceConfig(JSON.parse(raw));
-      }catch(e){ console.error('Local core source config parse error', e); }
-
-      try{
-        const snap = await get(ref(db, CORE_DATA_SOURCE_CFG_PATH));
-        if(snap.exists()){
-          coreDataSourceConfig = mergeCoreSourceConfig(snap.val());
-          try{ localStorage.setItem(localKey, JSON.stringify(coreDataSourceConfig)); }catch(_){ }
-        }
-      }catch(e){
-        console.warn('Core data source config read warning', e);
-      }
-      syncCoreDataGlobals();
-      return coreDataSourceConfig;
-    }
-
-    async function saveCoreDataSourceConfigRemote(cfg){
-      const merged = mergeCoreSourceConfig(cfg);
-      coreDataSourceConfig = { ...merged };
-      try{ localStorage.setItem('fenomenCoreDataSourceConfig_v1', JSON.stringify(coreDataSourceConfig)); }catch(_){ }
-      await update(ref(db), { [CORE_DATA_SOURCE_CFG_PATH]: coreDataSourceConfig });
-      syncCoreDataGlobals();
-      return coreDataSourceConfig;
-    }
-
-    async function fetchSheetDataset(datasetKey){
-      const meta = CORE_DATA_META[datasetKey];
-      const res = await fetch(sheetUrl(meta.sheetTab));
-      if(!res.ok) throw new Error(`${meta.label} e-tablo isteği başarısız: ${res.status}`);
-      return safeArr(await res.json());
-    }
-
-    async function fetchFirebaseDataset(datasetKey){
-      const meta = CORE_DATA_META[datasetKey];
-      const snap = await get(ref(db, meta.firebasePath));
-      if(!snap.exists()) return [];
-      const val = snap.val();
-      if(Array.isArray(val)) return val.filter(Boolean);
-      if(val && typeof val === 'object') return Object.values(val).filter(Boolean);
-      return [];
-    }
-
-    function getDatasetArrayValue(datasetKey){
-      if(datasetKey === 'teachers') return teachers;
-      if(datasetKey === 'students') return students;
-      if(datasetKey === 'schedule') return schedule;
-      if(datasetKey === 'slots') return slots;
-      return [];
-    }
-
-    function setDatasetArrayValue(datasetKey, rows){
-      const clean = safeArr(rows);
-      if(datasetKey === 'teachers') teachers = clean;
-      else if(datasetKey === 'students') students = clean;
-      else if(datasetKey === 'schedule') schedule = clean;
-      else if(datasetKey === 'slots') slots = clean;
-      syncCoreDataGlobals();
-      persistCoreDataCache();
-    }
-
-    function nextNumericValue(rows, field){
-      const nums = safeArr(rows)
-        .map(r => Number(String(r?.[field] ?? '').replace(/[^0-9]/g,'')))
-        .filter(n => Number.isFinite(n) && n > 0);
-      return nums.length ? (Math.max(...nums) + 1) : 1;
-    }
-
-    function ensureScheduleRowKey(row){
-      const parts = [safe(row.GUN), safe(row.SAAT_KODU), safe(row.SINIF), safe(row.OGRETMEN_ID), safe(row.PROGRAM), safe(row.GRUP), safe(row.DERS)].filter(Boolean);
-      return parts.join('|');
-    }
-
-    function normalizeRecordForDataset(datasetKey, rec = {}){
-      const raw = rec && typeof rec === 'object' ? rec : {};
-      if(datasetKey === 'teachers'){
-        const row = {
-          ID: safe(raw.ID || raw.id || raw.OGRETMEN_ID || raw['Öğretmen ID'] || raw['OGRETMEN_ID']),
-          OGRETMEN_ADI: safe(raw.OGRETMEN_ADI || raw.AD || raw.ADSOYAD || raw['Öğretmen Adı'] || raw['AD SOYAD']),
-          BRANS: safe(raw.BRANS || raw.BRANŞ || raw.BRANCH || raw['Branş']),
-          TELEFON: safe(raw.TELEFON || raw.TEL || raw.GSM || raw['Telefon']),
-          AKTIF: safe(raw.AKTIF || raw.AKTIFLIK || raw.DURUM || '1') || '1'
-        };
-        if(!row.ID) row.ID = String(nextNumericValue(teachers, 'ID'));
-        return row;
-      }
-      if(datasetKey === 'students'){
-        const row = {
-          NO: safe(raw.NO || raw.OGR_NO || raw.NUMARA || raw['Öğrenci No'] || raw['NO']),
-          ADSOYAD: safe(raw.ADSOYAD || raw.AD || raw['Ad Soyad'] || raw['AD SOYAD']),
-          SINIF: safe(raw.SINIF || raw.SUBE || raw['Sınıf']),
-          VELI_TELEFON: safe(raw.VELI_TELEFON || raw.VELI_GSM || raw.VELI_TEL || raw['Veli Telefon']),
-          AKTIF: safe(raw.AKTIF || raw.DURUM || '1') || '1'
-        };
-        if(!row.NO) row.NO = String(nextNumericValue(students, 'NO'));
-        return row;
-      }
-      if(datasetKey === 'slots'){
-        const row = {
-          SAAT_KODU: safe(raw.SAAT_KODU || raw.KOD || raw.ID || raw['Saat Kodu']),
-          BASLANGIC: safe(raw.BASLANGIC || raw.BASLAMA || raw.BAS || raw['Başlangıç']),
-          BITIS: safe(raw.BITIS || raw.BITIŞ || raw.BIT || raw['Bitiş']),
-          PROGRAM: safe(raw.PROGRAM || raw['Program'])
-        };
-        if(!row.SAAT_KODU){
-          row.SAAT_KODU = `S${nextNumericValue(slots.map(s=>({IDX:s.SAAT_KODU})), 'IDX')}`;
-        }
-        return row;
-      }
-      const row = {
-        GUN: safe(raw.GUN || raw.GÜN || raw['Gün']),
-        SAAT_KODU: safe(raw.SAAT_KODU || raw.KOD || raw['Saat Kodu']),
-        SINIF: safe(raw.SINIF || raw['Sınıf']),
-        OGRETMEN_ID: safe(raw.OGRETMEN_ID || raw['Öğretmen ID'] || raw.ID),
-        DERS: safe(raw.DERS || raw.DERS_ADI || raw['Ders']),
-        PROGRAM: safe(raw.PROGRAM || raw['Program']),
-        GRUP: safe(raw.GRUP || raw['Grup'])
-      };
-      row.__rowKey = ensureScheduleRowKey(row);
-      return row;
-    }
-
-    function normalizeDatasetRows(datasetKey, rows){
-      return safeArr(rows)
-        .map(r => normalizeRecordForDataset(datasetKey, r))
-        .filter(r => Object.values(r || {}).some(v => safe(v)));
-    }
-
-    function mergeRowsByKey(existingRows, incomingRows, keyField){
-      const out = [];
-      const index = new Map();
-      safeArr(existingRows).forEach((row)=>{
-        const norm = { ...row };
-        const key = safe(keyField === '__rowKey' ? ensureScheduleRowKey(norm) : norm[keyField]);
-        if(key){
-          index.set(key, out.length);
-          out.push(norm);
-        }else{
-          out.push(norm);
-        }
-      });
-      safeArr(incomingRows).forEach((row)=>{
-        const norm = { ...row };
-        const key = safe(keyField === '__rowKey' ? ensureScheduleRowKey(norm) : norm[keyField]);
-        if(!key){ out.push(norm); return; }
-        if(index.has(key)) out[index.get(key)] = norm;
-        else{
-          index.set(key, out.length);
-          out.push(norm);
-        }
-      });
-      return out;
-    }
-
-    function sortRowsForDataset(datasetKey, rows){
-      const list = safeArr(rows).slice();
-      if(datasetKey === 'teachers') return list.sort((a,b)=> safe(a.OGRETMEN_ADI).localeCompare(safe(b.OGRETMEN_ADI),'tr'));
-      if(datasetKey === 'students') return list.sort((a,b)=> (safe(a.SINIF).localeCompare(safe(b.SINIF),'tr',{numeric:true}) || safe(a.ADSOYAD).localeCompare(safe(b.ADSOYAD),'tr')));
-      if(datasetKey === 'slots') return list.sort((a,b)=> safe(a.BASLANGIC).localeCompare(safe(b.BASLANGIC),'tr'));
-      return list.sort((a,b)=> {
-        const dayCmp = safe(a.GUN).localeCompare(safe(b.GUN),'tr');
-        const slotCmp = safe(a.SAAT_KODU).localeCompare(safe(b.SAAT_KODU),'tr',{numeric:true});
-        return dayCmp || slotCmp || safe(a.SINIF).localeCompare(safe(b.SINIF),'tr',{numeric:true}) || safe(a.OGRETMEN_ID).localeCompare(safe(b.OGRETMEN_ID),'tr');
-      });
-    }
-
-    function buildSlotOrder(){
-      slotOrderMapByProgram = new Map();
-      const groups = new Map();
-      for(const s of safeArr(slots)){
-        const prog = safe(s.PROGRAM) || 'GENEL';
-        const kod  = safe(s.SAAT_KODU||s.KOD||s.ID);
-        const bas  = (s.BASLANGIC||'23:59').toString();
-        if(!kod) continue;
-        if(!groups.has(prog)) groups.set(prog, []);
-        groups.get(prog).push({ kod, bas });
-      }
-      groups.forEach((arr, prog) => {
-        arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
-        const m = new Map();
-        arr.forEach((x,i)=> m.set(x.kod, i+1));
-        slotOrderMapByProgram.set(prog, m);
-      });
-      const first = Array.from(slotOrderMapByProgram.values())[0] || new Map();
-      slotOrderMap = new Map(first);
-    }
-
-    function getSlotByCode(code, program){
-      const key = String(code||'').trim();
-      if(!key) return null;
-      const p = safe(program);
-      if(p){
-        const hit = safeArr(slots).find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim() === key && safe(r.PROGRAM) === p);
-        if(hit) return hit;
-      }
-      return safeArr(slots).find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim() === key) || null;
-    }
-
-    function slotOrderGet(code, program){
-      const key = String(code||'').trim();
-      const p = safe(program) || 'GENEL';
-      const m = slotOrderMapByProgram.get(p);
-      if(m && m.has(key)) return m.get(key);
-      return slotOrderMap.get(key) || null;
-    }
-
     async function loadSheets(){
-      if(!navigator.onLine && tryUseCoreDataCache()){
-        setStatus('Offline mod: Son kaydedilen çekirdek veri seti kullanılıyor.', 'bad');
-        return;
-      }
-      if(!navigator.onLine){
-        setStatus('Offline: Öğretmen / öğrenci / ders planı verileri için önce internetle en az bir kez açmalısınız.', 'bad');
-        return;
-      }
+      const CACHE_KEY = 'fenomenSheetsCache_v1';
 
-      const keys = ['teachers','students','schedule','slots'];
-      const results = {};
-      const loadedFrom = { ...coreDataSourceConfig };
+      const useCache = () => {
+        try{
+          const raw = localStorage.getItem(CACHE_KEY);
+          if(!raw) return false;
+          const data = JSON.parse(raw);
+          if(!data || !data.teachers || !data.students || !data.schedule || !data.slots) return false;
+          teachers = data.teachers;
+          students = data.students;
+          schedule = data.schedule;
+          slots    = data.slots;
+          return true;
+        }catch(e){
+          console.error('Cache parse error', e);
+          return false;
+        }
+      };
+
+      // Offline ise önce cache dene
+      if(!navigator.onLine){
+        if(useCache()){
+          setStatus('Offline mod: Son kaydedilen ders programı kullanılıyor.', 'bad');
+          return;
+        }else{
+          setStatus('Offline: Ders listeleri için önce internetle en az bir kez açmalısınız.', 'bad');
+          return;
+        }
+      }
 
       try{
-        await Promise.all(keys.map(async (datasetKey)=>{
-          const desiredSource = coreDataSourceConfig[datasetKey] || 'sheets';
-          try{
-            results[datasetKey] = desiredSource === 'firebase'
-              ? await fetchFirebaseDataset(datasetKey)
-              : await fetchSheetDataset(datasetKey);
-            loadedFrom[datasetKey] = desiredSource;
+        const [tRes,sRes,pRes,slRes] = await Promise.all([
+          fetch(sheetUrl('Ogretmenler')),
+          fetch(sheetUrl('Ogrenciler')),
+          fetch(sheetUrl('DersProgrami')),
+          fetch(sheetUrl('DersSaatleri')),
+        ]);
+        teachers = await tRes.json();
+        students = await sRes.json();
+        schedule = await pRes.json();
+        slots    = await slRes.json();
 
-            if((!Array.isArray(results[datasetKey]) || results[datasetKey].length === 0) && desiredSource === 'firebase'){
-              results[datasetKey] = await fetchSheetDataset(datasetKey);
-              loadedFrom[datasetKey] = 'sheets';
-            }
-          }catch(primaryErr){
-            console.warn(`Primary ${desiredSource} source failed for ${datasetKey}`, primaryErr);
-            const fallback = desiredSource === 'firebase' ? 'sheets' : 'firebase';
-            results[datasetKey] = fallback === 'firebase'
-              ? await fetchFirebaseDataset(datasetKey)
-              : await fetchSheetDataset(datasetKey);
-            loadedFrom[datasetKey] = fallback;
-          }
-        }));
-
-        teachers = normalizeDatasetRows('teachers', results.teachers);
-        students = normalizeDatasetRows('students', results.students);
-        schedule = normalizeDatasetRows('schedule', results.schedule);
-        slots    = normalizeDatasetRows('slots', results.slots);
-        coreDataLoadedFrom = mergeCoreSourceConfig(loadedFrom);
-        syncCoreDataGlobals();
-        persistCoreDataCache();
+        // Başarılı yüklemeden sonra offline kullanım için önbelleğe kaydet
+        try{
+          const payload = JSON.stringify({teachers, students, schedule, slots, ts: Date.now()});
+          localStorage.setItem(CACHE_KEY, payload);
+        }catch(e){
+          console.error('Cache save error', e);
+        }
       }catch(err){
         console.error('loadSheets error', err);
-        if(tryUseCoreDataCache()){
-          setStatus('Veri kaynaklarına ulaşılamadı, önbellekteki son çekirdek veri seti kullanılıyor.', 'bad');
+        // Online görünüyor ama sunucuya ulaşılamıyorsa son cache i dene
+        if(useCache()){
+          setStatus('Sunucuya ulaşılamıyor, önbellekteki son ders programı kullanılıyor.', 'bad');
         }else{
           throw err;
         }
       }
     }
-
-    function summarizeSourceConfig(cfg = coreDataSourceConfig){
-      return ['teachers','students','slots','schedule']
-        .map(key => `${CORE_DATA_META[key].label}: ${currentDataSourceLabel(cfg[key])}`)
-        .join(' • ');
+    function buildSlotOrder(){
+      const tmp = slots.map(s=>{
+        const bas = (s.BASLANGIC||'23:59').toString();
+        const kod = safe(s.SAAT_KODU||s.KOD||s.ID);
+        return {kod, bas};
+      }).sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+      tmp.forEach((x,i)=> slotOrderMap.set(x.kod, i+1));
     }
-
-    function afterCoreDataChanged(datasetKey){
-      if(datasetKey === 'slots' || datasetKey === 'schedule') buildSlotOrder();
-      persistCoreDataCache();
-      syncCoreDataGlobals();
-      try{
-        if(session?.role === 'admin' && UI?.adminView && !UI.adminView.classList.contains('hidden')) showAdminView();
-        if(session?.role === 'ogretmen' && UI?.teacherView && !UI.teacherView.classList.contains('hidden')) showTeacherToday();
-        if(session?.role === 'veli' && UI?.parentView && !UI.parentView.classList.contains('hidden')) showParentView();
-      }catch(e){ console.error('afterCoreDataChanged refresh error', e); }
-    }
-
-    function escapeHtml(value){
-      return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[ch]));
-    }
-
-    function datasetTableMarkup(datasetKey, rows){
-      const meta = CORE_DATA_META[datasetKey];
-      const cols = meta.columns;
-      if(!rows.length) return `<div class="dm-empty">Kayıt bulunamadı.</div>`;
-      return `
-        <div class="table-wrap">
-          <table class="table dm-table">
-            <thead>
-              <tr>
-                ${cols.map(col=>`<th>${col}</th>`).join('')}
-                <th style="width:140px">İşlem</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map((row, idx)=>`
-                <tr>
-                  ${cols.map(col=>`<td>${safe(row[col]) ? `<span>${escapeHtml(row[col])}</span>` : '<span class="muted">—</span>'}</td>`).join('')}
-                  <td>
-                    <div class="row" style="gap:6px; justify-content:flex-end;">
-                      <button class="btn ghost small" type="button" data-dm-edit="${idx}">Düzenle</button>
-                      <button class="btn ghost small danger" type="button" data-dm-delete="${idx}">Sil</button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>`;
-    }
-
-    async function openCoreRecordEditor(datasetKey, row = null){
-      const meta = CORE_DATA_META[datasetKey];
-      const initial = normalizeRecordForDataset(datasetKey, row || {});
-      const formHtml = `
-        <div class="dm-form">
-          ${meta.columns.map(col => {
-            const value = escapeHtml(initial[col] ?? '');
-            const type = (col.includes('BASLANGIC') || col.includes('BITIS')) ? 'time' : 'text';
-            return `
-              <label>
-                <span>${col}</span>
-                <input class="input" data-col="${col}" type="${type}" value="${value}" ${datasetKey !== 'schedule' && col === meta.keyField ? 'readonly' : ''} />
-              </label>`;
-          }).join('')}
-        </div>`;
-
-      const result = await Swal.fire({
-        title: row ? `${meta.label} kaydını düzenle` : `${meta.label} kaydı ekle`,
-        html: formHtml,
-        width: 720,
-        showCancelButton: true,
-        confirmButtonText: row ? 'Kaydet' : 'Ekle',
-        cancelButtonText: 'İptal',
-        focusConfirm: false,
-        preConfirm: () => {
-          const out = {};
-          Swal.getHtmlContainer().querySelectorAll('[data-col]').forEach(inp => {
-            out[inp.getAttribute('data-col')] = inp.value;
-          });
-          const normalized = normalizeRecordForDataset(datasetKey, out);
-          const primary = meta.keyField === '__rowKey' ? ensureScheduleRowKey(normalized) : normalized[meta.keyField];
-          if(!safe(primary)){
-            Swal.showValidationMessage(`Lütfen ${meta.keyField === '__rowKey' ? 'temel alanları' : meta.keyField + ' alanını'} doldurun.`);
-            return false;
-          }
-          return normalized;
-        }
-      });
-      return result.isConfirmed ? result.value : null;
-    }
-
-    async function importDatasetFromExcel(datasetKey){
-      if(!window.XLSX) throw new Error('SheetJS yüklenemedi.');
-      return new Promise((resolve, reject) => {
-        const inp = document.createElement('input');
-        inp.type = 'file';
-        inp.accept = '.xlsx,.xls,.csv';
-        inp.onchange = async () => {
-          try{
-            const file = inp.files?.[0];
-            if(!file) return resolve(null);
-            const buf = await file.arrayBuffer();
-            const wb = XLSX.read(buf);
-            const ws = wb.Sheets[wb.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
-            resolve(normalizeDatasetRows(datasetKey, rows));
-          }catch(err){ reject(err); }
-        };
-        inp.click();
-      });
-    }
-
-    function exportDatasetToExcel(datasetKey, rows){
-      if(!window.XLSX) throw new Error('SheetJS yüklenemedi.');
-      const meta = CORE_DATA_META[datasetKey];
-      const cleanRows = safeArr(rows).map(row => {
-        const out = {};
-        meta.columns.forEach(col => out[col] = row?.[col] ?? '');
-        return out;
-      });
-      const ws = XLSX.utils.json_to_sheet(cleanRows.length ? cleanRows : [Object.fromEntries(meta.columns.map(col => [col, '']))]);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, meta.label.substring(0, 31));
-      XLSX.writeFile(wb, `${meta.exportName}_${toDateStr(nowTR())}.xlsx`);
-    }
-
-    async function overwriteDatasetToFirebase(datasetKey, rows){
-      const meta = CORE_DATA_META[datasetKey];
-      const payload = {};
-      payload[meta.firebasePath] = sortRowsForDataset(datasetKey, normalizeDatasetRows(datasetKey, rows));
-      await update(ref(db), payload);
-    }
-
-    async function mergeDatasetIntoFirebase(datasetKey, rows){
-      const meta = CORE_DATA_META[datasetKey];
-      const existing = normalizeDatasetRows(datasetKey, await fetchFirebaseDataset(datasetKey));
-      const merged = mergeRowsByKey(existing, rows, meta.keyField);
-      await overwriteDatasetToFirebase(datasetKey, merged);
-      return merged;
-    }
-
-    function sourceSummaryBadges(){
-      return ['teachers','students','slots','schedule']
-        .map(key => `<span class="dm-chip ${coreDataSourceConfig[key] === 'firebase' ? 'firebase' : 'sheets'}">${CORE_DATA_META[key].label}: ${currentDataSourceLabel(coreDataSourceConfig[key])}</span>`)
-        .join('');
-    }
-
-    async function openCoreDataSourceModal(){
-      const cfg = { ...coreDataSourceConfig };
-      const html = `
-        <div class="dm-form">
-          <div class="dm-grid-4">
-            ${['teachers','students','slots','schedule'].map(key => `
-              <div class="dm-source-card">
-                <div style="font-weight:900;">${CORE_DATA_META[key].label}</div>
-                <select class="input" data-source-key="${key}">
-                  <option value="sheets" ${cfg[key] === 'sheets' ? 'selected' : ''}>E-Tablo</option>
-                  <option value="firebase" ${cfg[key] === 'firebase' ? 'selected' : ''}>Firebase</option>
-                </select>
-                <div class="muted" style="font-size:.88rem;">Aktif kayıt sayısı: ${safeArr(getDatasetArrayValue(key)).length}</div>
-              </div>`).join('')}
-          </div>
-          <div class="dm-meta">
-            <button class="btn ghost" type="button" id="dmPresetSheets">Tümünü E-Tablo Yap</button>
-            <button class="btn ghost" type="button" id="dmPresetFirebase">Tümünü Firebase Yap</button>
-            <span class="muted">Bu ayar uygulama açılışındaki veri yükleme davranışını belirler.</span>
-          </div>
-          <div class="dm-meta">${sourceSummaryBadges()}</div>
-        </div>`;
-
-      const res = await Swal.fire({
-        title:'Veri Kaynağı Ayarları',
-        html,
-        width: 1100,
-        customClass:{ popup:'dm-popup' },
-        showCancelButton:true,
-        confirmButtonText:'Kaydet ve Yeniden Yükle',
-        cancelButtonText:'İptal',
-        didOpen: () => {
-          const box = Swal.getHtmlContainer();
-          box.querySelector('#dmPresetSheets')?.addEventListener('click', ()=>{
-            box.querySelectorAll('[data-source-key]').forEach(sel => sel.value = 'sheets');
-          });
-          box.querySelector('#dmPresetFirebase')?.addEventListener('click', ()=>{
-            box.querySelectorAll('[data-source-key]').forEach(sel => sel.value = 'firebase');
-          });
-        },
-        preConfirm: async () => {
-          const nextCfg = {};
-          Swal.getHtmlContainer().querySelectorAll('[data-source-key]').forEach(sel => {
-            nextCfg[sel.getAttribute('data-source-key')] = sel.value;
-          });
-          await saveCoreDataSourceConfigRemote(nextCfg);
-          await loadSheets();
-          buildSlotOrder();
-          afterCoreDataChanged('schedule');
-          return nextCfg;
-        }
-      });
-      if(res.isConfirmed){
-        Swal.fire('Kaydedildi', 'Veri kaynakları güncellendi.', 'success');
-      }
-    }
-
-    async function openCoreDataModal(datasetKey){
-      const meta = CORE_DATA_META[datasetKey];
-      const state = {
-        rows: sortRowsForDataset(datasetKey, cloneJson(getDatasetArrayValue(datasetKey)) || []),
-        filter: '',
-      };
-
-      const html = `
-        <div class="dm-shell">
-          <div class="dm-meta">
-            <span class="dm-chip ${coreDataSourceConfig[datasetKey] === 'firebase' ? 'firebase' : 'sheets'}">Aktif Kaynak: ${currentDataSourceLabel(coreDataSourceConfig[datasetKey])}</span>
-            <span class="dm-chip ${coreDataLoadedFrom[datasetKey] === 'firebase' ? 'firebase' : 'sheets'}">Son Yüklenen: ${currentDataSourceLabel(coreDataLoadedFrom[datasetKey])}</span>
-            <span class="dm-chip">Kayıt: <strong id="dmCount">${state.rows.length}</strong></span>
-            <span class="muted">Elle ekle, düzenle, sil, Excel ile toplu içe/dışa aktar ve Firebase senkronu bu ekrandan yapılır.</span>
-          </div>
-          <div class="dm-toolbar">
-            <input id="dmSearch" class="input" placeholder="Ara..." />
-            <button class="btn" type="button" id="dmAddBtn">Elle Ekle</button>
-            <button class="btn ghost" type="button" id="dmImportBtn">Excel Yükle</button>
-            <button class="btn ghost" type="button" id="dmExportBtn">Excel'e Aktar</button>
-            <button class="btn ghost" type="button" id="dmApplyBtn">Uygulamaya Uygula</button>
-            <button class="btn ghost" type="button" id="dmMergeFirebaseBtn">Firebase'e Ekle</button>
-            <button class="btn" type="button" id="dmOverwriteFirebaseBtn">Firebase'e Tam Yaz</button>
-            ${datasetKey === 'schedule' ? '<button class="btn ghost" type="button" id="dmOpenAssignWizard">Atama Sihirbazı</button>' : ''}
-          </div>
-          <div class="dm-scroll"><div id="dmTableWrap"></div></div>
-        </div>`;
-
-      await Swal.fire({
-        title: `${meta.label} Veri Merkezi`,
-        html,
-        customClass:{ popup:'dm-popup' },
-        showConfirmButton:false,
-        showCloseButton:true,
-        didOpen: () => {
-          const root = Swal.getHtmlContainer();
-          const tableWrap = root.querySelector('#dmTableWrap');
-          const countEl = root.querySelector('#dmCount');
-          const getFilteredRows = () => {
-            const q = safe(state.filter).toLocaleLowerCase('tr-TR');
-            const all = sortRowsForDataset(datasetKey, state.rows);
-            if(!q) return all;
-            return all.filter(row => meta.columns.some(col => safe(row[col]).toLocaleLowerCase('tr-TR').includes(q)));
-          };
-          const render = () => {
-            const filtered = getFilteredRows();
-            tableWrap.innerHTML = datasetTableMarkup(datasetKey, filtered);
-            if(countEl) countEl.textContent = String(filtered.length);
-            tableWrap.querySelectorAll('[data-dm-edit]').forEach(btn => btn.addEventListener('click', async ()=>{
-              const idx = Number(btn.getAttribute('data-dm-edit'));
-              const row = filtered[idx];
-              const edited = await openCoreRecordEditor(datasetKey, row);
-              if(!edited) return;
-              const keyField = meta.keyField;
-              const key = keyField === '__rowKey' ? ensureScheduleRowKey(row) : safe(row[keyField]);
-              state.rows = state.rows.map(item => ((keyField === '__rowKey' ? ensureScheduleRowKey(item) : safe(item[keyField])) === key ? edited : item));
-              render();
-            }));
-            tableWrap.querySelectorAll('[data-dm-delete]').forEach(btn => btn.addEventListener('click', async ()=>{
-              const idx = Number(btn.getAttribute('data-dm-delete'));
-              const row = filtered[idx];
-              const ask = await Swal.fire({ title:'Kaydı sil', text:'Bu kayıt geçici listeden kaldırılacak. Devam edilsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Sil', cancelButtonText:'İptal' });
-              if(!ask.isConfirmed) return;
-              const keyField = meta.keyField;
-              const key = keyField === '__rowKey' ? ensureScheduleRowKey(row) : safe(row[keyField]);
-              state.rows = state.rows.filter(item => ((keyField === '__rowKey' ? ensureScheduleRowKey(item) : safe(item[keyField])) !== key));
-              render();
-            }));
-          };
-
-          root.querySelector('#dmSearch')?.addEventListener('input', (e)=>{ state.filter = e.target.value; render(); });
-          root.querySelector('#dmAddBtn')?.addEventListener('click', async ()=>{
-            const created = await openCoreRecordEditor(datasetKey, null);
-            if(!created) return;
-            state.rows = mergeRowsByKey(state.rows, [created], meta.keyField);
-            render();
-          });
-          root.querySelector('#dmImportBtn')?.addEventListener('click', async ()=>{
-            try{
-              const imported = await importDatasetFromExcel(datasetKey);
-              if(!imported || !imported.length){
-                Swal.fire('Bilgi','Dosyada içe aktarılacak kayıt bulunamadı.','info');
-                return;
-              }
-              state.rows = mergeRowsByKey(state.rows, imported, meta.keyField);
-              render();
-              showToast(`${imported.length} kayıt içe aktarıldı.`, 'ok');
-            }catch(err){
-              console.error(err);
-              Swal.fire('Hata','Excel içe aktarma başarısız oldu.','error');
-            }
-          });
-          root.querySelector('#dmExportBtn')?.addEventListener('click', ()=>{
-            try{ exportDatasetToExcel(datasetKey, state.rows); }
-            catch(err){ console.error(err); Swal.fire('Hata','Excel dışa aktarma başarısız oldu.','error'); }
-          });
-          root.querySelector('#dmApplyBtn')?.addEventListener('click', ()=>{
-            setDatasetArrayValue(datasetKey, normalizeDatasetRows(datasetKey, state.rows));
-            afterCoreDataChanged(datasetKey);
-            showToast(`${meta.label} uygulamaya uygulandı.`, 'ok');
-            render();
-          });
-          root.querySelector('#dmMergeFirebaseBtn')?.addEventListener('click', async ()=>{
-            try{
-              const merged = await mergeDatasetIntoFirebase(datasetKey, normalizeDatasetRows(datasetKey, state.rows));
-              state.rows = sortRowsForDataset(datasetKey, merged);
-              showToast(`${meta.label} Firebase üzerine eklendi.`, 'ok');
-              render();
-            }catch(err){ console.error(err); Swal.fire('Hata','Firebase ekleme işlemi başarısız oldu.','error'); }
-          });
-          root.querySelector('#dmOverwriteFirebaseBtn')?.addEventListener('click', async ()=>{
-            const ask = await Swal.fire({ title:'Firebase üzerine yaz', text:'Seçili veri seti Firebase üzerindeki ilgili koleksiyonun tamamını değiştirecek. Devam edilsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Yaz', cancelButtonText:'İptal' });
-            if(!ask.isConfirmed) return;
-            try{
-              const clean = normalizeDatasetRows(datasetKey, state.rows);
-              await overwriteDatasetToFirebase(datasetKey, clean);
-              showToast(`${meta.label} Firebase'e yazıldı.`, 'ok');
-            }catch(err){ console.error(err); Swal.fire('Hata','Firebase yazma işlemi başarısız oldu.','error'); }
-          });
-          root.querySelector('#dmOpenAssignWizard')?.addEventListener('click', async ()=>{
-            await openTeacherAssignmentWizard();
-            state.rows = sortRowsForDataset(datasetKey, cloneJson(getDatasetArrayValue(datasetKey)) || []);
-            render();
-          });
-          render();
-        }
-      });
-    }
-
-    function getProgramOptions(){
-      const fromSlots = safeArr(slots).map(s => safe(s.PROGRAM)).filter(Boolean);
-      const fromSchedule = safeArr(schedule).map(s => safe(s.PROGRAM)).filter(Boolean);
-      return Array.from(new Set([...fromSlots, ...fromSchedule])).sort((a,b)=> a.localeCompare(b,'tr'));
-    }
-
-    function getTeacherOptions(){
-      return safeArr(teachers)
-        .map(t => ({ id: safe(t.ID), name: safe(t.OGRETMEN_ADI || t.AD || t.ADSOYAD), branch: safe(t.BRANS || t.BRANŞ || t.BRANCH) }))
-        .filter(t => t.id)
-        .sort((a,b)=> a.name.localeCompare(b.name,'tr'));
-    }
-
-    function getStudentClassOptions(){
-      return Array.from(new Set(safeArr(students).map(s => safe(s.SINIF)).filter(Boolean))).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
-    }
-
-    function getScheduleConflicts({ teacherId, cls, day, program }){
-      const teacherBusy = new Set();
-      const classBusy = new Set();
-      safeArr(schedule).forEach(row => {
-        const sameDay = safe(row.GUN).toLocaleLowerCase('tr-TR') === safe(day).toLocaleLowerCase('tr-TR');
-        const sameProg = safe(program) ? safe(row.PROGRAM) === safe(program) : true;
-        if(!sameDay || !sameProg) return;
-        const slot = safe(row.SAAT_KODU);
-        if(slot && safe(row.OGRETMEN_ID) === safe(teacherId)) teacherBusy.add(slot);
-        if(slot && safe(row.SINIF) === safe(cls)) classBusy.add(slot);
-      });
-      return { teacherBusy, classBusy };
-    }
-
-    async function openTeacherAssignmentWizard(){
-      const programs = getProgramOptions();
-      const teachersList = getTeacherOptions();
-      const classes = getStudentClassOptions();
-      const days = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
-      if(!teachersList.length || !classes.length || !slots.length){
-        Swal.fire('Eksik veri', 'Atama sihirbazı için öğretmen, öğrenci sınıfı ve ders saati verileri yüklenmiş olmalı.', 'warning');
-        return;
-      }
-
-      const html = `
-        <div class="dm-assign-layout">
-          <div class="dm-panel dm-form">
-            <label><span>Öğretmen</span>
-              <select id="dmAssignTeacher" class="input">${teachersList.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}${t.branch ? ` • ${escapeHtml(t.branch)}` : ''}</option>`).join('')}</select>
-            </label>
-            <label><span>Ders Adı</span><input id="dmAssignLesson" class="input" type="text" placeholder="Örn. Fen Bilimleri" /></label>
-            <label><span>Sınıf</span>
-              <select id="dmAssignClass" class="input">${classes.map(cls => `<option value="${escapeHtml(cls)}">${escapeHtml(cls)}</option>`).join('')}</select>
-            </label>
-            <label><span>Gün</span>
-              <select id="dmAssignDay" class="input">${days.map(day => `<option value="${escapeHtml(day)}">${escapeHtml(day)}</option>`).join('')}</select>
-            </label>
-            <label><span>Program</span>
-              <select id="dmAssignProgram" class="input">
-                <option value="">Genel</option>
-                ${programs.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(labelProgram(p) || p)}</option>`).join('')}
-              </select>
-            </label>
-            <label><span>Grup</span><input id="dmAssignGroup" class="input" type="text" placeholder="İsteğe bağlı" /></label>
-            <div class="dm-meta" id="dmAssignSummary"></div>
-            <div class="dm-actions">
-              <button class="btn ghost" type="button" id="dmAssignPreviewBtn">Boşlukları Yenile</button>
-              <button class="btn" type="button" id="dmAssignSaveBtn">Seçili Saatleri Plan'a Ekle</button>
-              <button class="btn ghost" type="button" id="dmAssignFirebaseBtn">Firebase'e Ekle</button>
-            </div>
-          </div>
-          <div class="dm-panel">
-            <div class="muted" style="font-weight:900; margin-bottom:10px;">Öğretmen ve sınıf çakışmaları otomatik gösterilir. Yeşil kartlar seçilebilir.</div>
-            <div id="dmSlotGrid" class="dm-slots"></div>
-            <div style="height:12px"></div>
-            <div class="dm-grid-2">
-              <div>
-                <div style="font-weight:900; margin-bottom:8px;">Öğretmenin mevcut planı</div>
-                <div id="dmTeacherPlan" class="dm-mini-list"></div>
-              </div>
-              <div>
-                <div style="font-weight:900; margin-bottom:8px;">Sınıfın mevcut planı</div>
-                <div id="dmClassPlan" class="dm-mini-list"></div>
-              </div>
-            </div>
-          </div>
-        </div>`;
-
-      await Swal.fire({
-        title:'Öğretmen Ders Atama Sihirbazı',
-        html,
-        customClass:{ popup:'dm-popup' },
-        width: 1400,
-        showConfirmButton:false,
-        showCloseButton:true,
-        didOpen: () => {
-          const root = Swal.getHtmlContainer();
-          const els = {
-            teacher: root.querySelector('#dmAssignTeacher'),
-            lesson: root.querySelector('#dmAssignLesson'),
-            cls: root.querySelector('#dmAssignClass'),
-            day: root.querySelector('#dmAssignDay'),
-            program: root.querySelector('#dmAssignProgram'),
-            group: root.querySelector('#dmAssignGroup'),
-            summary: root.querySelector('#dmAssignSummary'),
-            slotGrid: root.querySelector('#dmSlotGrid'),
-            teacherPlan: root.querySelector('#dmTeacherPlan'),
-            classPlan: root.querySelector('#dmClassPlan'),
-            previewBtn: root.querySelector('#dmAssignPreviewBtn'),
-            saveBtn: root.querySelector('#dmAssignSaveBtn'),
-            firebaseBtn: root.querySelector('#dmAssignFirebaseBtn')
-          };
-
-          const readForm = () => {
-            const teacherId = safe(els.teacher.value);
-            const teacherInfo = teachersList.find(t => t.id === teacherId);
-            return {
-              teacherId,
-              teacherName: teacherInfo?.name || '',
-              teacherBranch: teacherInfo?.branch || '',
-              lesson: safe(els.lesson.value) || safe(teacherInfo?.branch) || 'Ders',
-              cls: safe(els.cls.value),
-              day: safe(els.day.value),
-              program: safe(els.program.value),
-              group: safe(els.group.value)
-            };
-          };
-
-          const renderList = (mount, rows, emptyText) => {
-            if(!rows.length){
-              mount.innerHTML = `<div class="dm-empty">${emptyText}</div>`;
-              return;
-            }
-            mount.innerHTML = rows.map(r => `
-              <div class="dm-mini-item">
-                <div style="font-weight:900;">${escapeHtml(safe(r.SINIF) || safe(r.DERS))}</div>
-                <div class="muted">${escapeHtml(safe(r.GUN))} • ${escapeHtml(safe(r.SAAT_KODU))}${safe(r.PROGRAM) ? ` • ${escapeHtml(labelProgram(r.PROGRAM) || r.PROGRAM)}` : ''}</div>
-                <div>${escapeHtml(safe(r.DERS))}${safe(r.OGRETMEN_ID) ? ` • Öğrt: ${escapeHtml(safe(r.OGRETMEN_ID))}` : ''}</div>
-              </div>`).join('');
-          };
-
-          const render = () => {
-            const form = readForm();
-            if(!els.lesson.value && form.teacherBranch) els.lesson.value = form.teacherBranch;
-            const relevantSlots = sortRowsForDataset('slots', safeArr(slots).filter(s => !form.program || safe(s.PROGRAM) === safe(form.program) || (!safe(s.PROGRAM) && !form.program)));
-            const { teacherBusy, classBusy } = getScheduleConflicts(form);
-            const teacherPlanRows = sortRowsForDataset('schedule', safeArr(schedule).filter(r => safe(r.OGRETMEN_ID) === form.teacherId && safe(r.GUN).toLocaleLowerCase('tr-TR') === form.day.toLocaleLowerCase('tr-TR') && (!form.program || safe(r.PROGRAM) === form.program)));
-            const classPlanRows = sortRowsForDataset('schedule', safeArr(schedule).filter(r => safe(r.SINIF) === form.cls && safe(r.GUN).toLocaleLowerCase('tr-TR') === form.day.toLocaleLowerCase('tr-TR') && (!form.program || safe(r.PROGRAM) === form.program)));
-            renderList(els.teacherPlan, teacherPlanRows, 'Seçili gün/program için öğretmenin planı yok.');
-            renderList(els.classPlan, classPlanRows, 'Seçili gün/program için sınıfın planı yok.');
-            els.summary.innerHTML = [
-              `<span class="dm-chip">Öğretmen: ${escapeHtml(form.teacherName || form.teacherId)}</span>`,
-              `<span class="dm-chip">Sınıf: ${escapeHtml(form.cls)}</span>`,
-              `<span class="dm-chip">Gün: ${escapeHtml(form.day)}</span>`,
-              `<span class="dm-chip">Program: ${escapeHtml(form.program ? (labelProgram(form.program) || form.program) : 'Genel')}</span>`
-            ].join('');
-            if(!relevantSlots.length){
-              els.slotGrid.innerHTML = `<div class="dm-empty">Bu program için tanımlı ders saati yok.</div>`;
-              return;
-            }
-            els.slotGrid.innerHTML = relevantSlots.map(slot => {
-              const code = safe(slot.SAAT_KODU || slot.KOD || slot.ID);
-              const tBusy = teacherBusy.has(code);
-              const cBusy = classBusy.has(code);
-              const clsName = tBusy ? 'busy-teacher' : (cBusy ? 'busy-class' : 'free');
-              const disabled = tBusy || cBusy;
-              const reason = tBusy ? 'Öğretmen bu saatte dolu' : (cBusy ? 'Sınıf bu saatte dolu' : 'Seçilebilir');
-              return `
-                <label class="dm-slot ${clsName}">
-                  <div class="row" style="justify-content:space-between; align-items:center;">
-                    <strong>${escapeHtml(code)}</strong>
-                    <input type="checkbox" data-slot-code="${escapeHtml(code)}" ${disabled ? 'disabled' : ''} />
-                  </div>
-                  <div>${escapeHtml(safe(slot.BASLANGIC))} - ${escapeHtml(safe(slot.BITIS))}</div>
-                  <div class="muted">${escapeHtml(reason)}</div>
-                </label>`;
-            }).join('');
-          };
-
-          const collectDraftRows = () => {
-            const form = readForm();
-            const selectedCodes = Array.from(root.querySelectorAll('[data-slot-code]:checked')).map(inp => inp.getAttribute('data-slot-code')).filter(Boolean);
-            if(!selectedCodes.length){
-              Swal.fire('Seçim gerekli', 'Lütfen en az bir boş ders saati seçin.', 'warning');
-              return null;
-            }
-            return selectedCodes.map(code => normalizeRecordForDataset('schedule', {
-              GUN: form.day,
-              SAAT_KODU: code,
-              SINIF: form.cls,
-              OGRETMEN_ID: form.teacherId,
-              DERS: form.lesson,
-              PROGRAM: form.program,
-              GRUP: form.group
-            }));
-          };
-
-          [els.teacher, els.lesson, els.cls, els.day, els.program, els.group].forEach(el => el?.addEventListener('change', render));
-          [els.teacher, els.lesson, els.cls, els.day, els.program, els.group].forEach(el => el?.addEventListener('input', render));
-          els.previewBtn?.addEventListener('click', render);
-          els.saveBtn?.addEventListener('click', ()=>{
-            const rowsToAdd = collectDraftRows();
-            if(!rowsToAdd) return;
-            const merged = mergeRowsByKey(schedule, rowsToAdd, '__rowKey');
-            setDatasetArrayValue('schedule', merged);
-            afterCoreDataChanged('schedule');
-            showToast(`${rowsToAdd.length} ders planı satırı eklendi.`, 'ok');
-            render();
-          });
-          els.firebaseBtn?.addEventListener('click', async ()=>{
-            const rowsToAdd = collectDraftRows();
-            if(!rowsToAdd) return;
-            try{
-              const merged = await mergeDatasetIntoFirebase('schedule', rowsToAdd);
-              setDatasetArrayValue('schedule', merged);
-              afterCoreDataChanged('schedule');
-              showToast(`${rowsToAdd.length} ders ataması Firebase'e işlendi.`, 'ok');
-              render();
-            }catch(err){ console.error(err); Swal.fire('Hata','Firebase ders ataması başarısız oldu.','error'); }
-          });
-          render();
-        }
-      });
-    }
-
-    function initCoreDataAdminBindings(){
-      UI.admDataSourcesBtn?.addEventListener('click', openCoreDataSourceModal);
-      UI.admTeachersBtn?.addEventListener('click', ()=> openCoreDataModal('teachers'));
-      UI.admStudentsBtn?.addEventListener('click', ()=> openCoreDataModal('students'));
-      UI.admSlotsBtn?.addEventListener('click', ()=> openCoreDataModal('slots'));
-      UI.admPlansBtn?.addEventListener('click', ()=> openCoreDataModal('schedule'));
-      UI.admAssignBtn?.addEventListener('click', openTeacherAssignmentWizard);
-    }
-
 
     async function validateLogin(){
       const code = safe(UI.loginCode.value);
@@ -5498,8 +4602,6 @@ async function loadParentRange(kind){
       UI.admHour && (UI.admHour.value = 'hepsi'); // ilk açılış: Hepsi
       // Özet/Detay görünümü uygula
       setAdminViewMode(adminViewMode);
-      const adminTitleEl = document.getElementById('adminTitle');
-      if(adminTitleEl) adminTitleEl.setAttribute('title', summarizeSourceConfig());
       refreshAdmin();
     }
 function getAdminFilters(){
@@ -9764,6 +8866,63 @@ function printParentQuizzes(){
     <footer class="site-footer">
     <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong></p>
   </footer>
+ <style>
+.site-footer{
+  margin-top: 32px;
+  padding: 14px 18px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--muted);
+  background: var(--bg);
+  border-top: var(--stroke);
+  box-shadow: none;
+}
+.site-footer strong{
+  color: var(--brand-2);
+}
+
+ 
+<script>
+function getSlotByCode(code, program){
+  const key = String(code||'').trim(); if(!key) return null;
+  const p = safe(program);
+  if(p){
+    const hit = slots.find(r =>
+      String(r.SAAT_KODU??r.KOD??r.ID).trim()===key && safe(r.PROGRAM)===p
+    );
+    if(hit) return hit;
+  }
+  return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim()===key) || null;
+}
+function slotOrderGet(code, program){
+  const key = String(code||'').trim();
+  const p = safe(program) || 'GENEL';
+  const m = slotOrderMapByProgram.get(p);
+  if(m && m.has(key)) return m.get(key);
+  return slotOrderMap.get(key) || null; // fallback (eski tek program)
+}
+function buildSlotOrder(){
+  slotOrderMapByProgram = new Map();
+  const groups = new Map(); // program -> [{kod, bas}]
+  for(const s of slots){
+    const prog = safe(s.PROGRAM) || 'GENEL';
+    const kod  = safe(s.SAAT_KODU||s.KOD||s.ID);
+    const bas  = (s.BASLANGIC||'23:59').toString();
+    if(!kod) continue;
+    if(!groups.has(prog)) groups.set(prog, []);
+    groups.get(prog).push({kod, bas});
+  }
+  groups.forEach((arr, prog) => {
+    arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+    const m = new Map();
+    arr.forEach((x,i)=> m.set(x.kod, i+1));
+    slotOrderMapByProgram.set(prog, m);
+  });
+  // legacy haritayı ilk programla doldur (bazı admin görünümleri kullanıyor)
+  const first = Array.from(slotOrderMapByProgram.values())[0] || new Map();
+  slotOrderMap = new Map(first);
+}
+</script>
   <!-- PWA Service Worker -->
   <script>
     (function () {
