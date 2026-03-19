@@ -19,6 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/timezone.js" defer></script>
   <!-- Load Turkish locale for Day.js so month names appear in Turkish -->
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/tr.js" defer></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
 
   <style>
     :root{
@@ -303,6 +304,247 @@
   border-radius:12px;
   font-size:.9rem;
   line-height:1.1;
+}
+
+
+/* ===== Admin Data Hub Modals ===== */
+.admin-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 10px;
+  border-radius:999px;
+  border:var(--stroke);
+  background:rgba(249,115,22,.12);
+  font-size:.82rem;
+  font-weight:900;
+}
+.data-admin-modal{
+  position:fixed;
+  inset:0;
+  z-index:1400;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+.data-admin-modal.hidden{ display:none !important; }
+.data-admin-modal__backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(2,6,23,.58);
+  backdrop-filter:blur(6px) saturate(120%);
+}
+.data-admin-modal__dialog{
+  position:relative;
+  width:min(1480px, 96vw);
+  max-height:92vh;
+  display:grid;
+  grid-template-rows:auto auto minmax(0,1fr) auto;
+  border-radius:24px;
+  overflow:hidden;
+  background:var(--panel);
+  border:var(--stroke);
+  box-shadow:0 30px 80px rgba(0,0,0,.42);
+}
+.data-admin-modal__dialog.is-compact{ width:min(820px, 94vw); }
+.data-admin-modal__head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:16px 18px;
+  border-bottom:var(--stroke);
+  background:linear-gradient(90deg, rgba(249,115,22,.14), rgba(255,255,255,.02));
+}
+.data-admin-modal__title{ margin:0; font-size:1.1rem; font-weight:900; }
+.data-admin-modal__subtitle{ margin-top:4px; color:var(--muted); font-size:.9rem; }
+.data-admin-modal__toolbar,
+.data-admin-modal__footer{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:12px 18px;
+  border-bottom:var(--stroke);
+  background:rgba(255,255,255,.02);
+}
+.data-admin-modal__footer{
+  border-top:var(--stroke);
+  border-bottom:none;
+  justify-content:space-between;
+}
+.data-admin-modal__body{
+  min-height:0;
+  overflow:auto;
+  padding:16px 18px 18px;
+  display:grid;
+  gap:14px;
+}
+.data-toolbar-section{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.data-toolbar-spacer{ flex:1 1 auto; }
+.data-search{
+  min-width:240px;
+  max-width:320px;
+}
+.data-grid-table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  min-width:980px;
+  border:var(--stroke);
+  border-radius:16px;
+  overflow:hidden;
+}
+.data-grid-table thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:rgba(249,115,22,.14);
+  font-weight:900;
+}
+.data-grid-table th,
+.data-grid-table td{
+  padding:10px 10px;
+  border-bottom:1px solid rgba(148,163,184,.18);
+  text-align:left;
+  vertical-align:top;
+}
+.data-grid-table tbody tr:nth-child(even){ background:rgba(255,255,255,.02); }
+.data-grid-wrap{
+  min-height:0;
+  overflow:auto;
+  border-radius:18px;
+  border:var(--stroke);
+  background:rgba(255,255,255,.02);
+}
+.data-grid-input,
+.data-grid-select{
+  width:100%;
+  min-width:120px;
+  padding:9px 10px;
+  border-radius:12px;
+  border:var(--stroke);
+  background:rgba(255,255,255,.04);
+  color:inherit;
+}
+.data-grid-input.slim,
+.data-grid-select.slim{ min-width:90px; }
+.data-grid-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  justify-content:flex-end;
+}
+.data-summary-strip{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.data-summary-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 11px;
+  border-radius:999px;
+  border:var(--stroke);
+  background:rgba(255,255,255,.03);
+  font-weight:800;
+}
+.data-empty{
+  border:1px dashed rgba(148,163,184,.34);
+  border-radius:18px;
+  padding:18px;
+  color:var(--muted);
+  text-align:center;
+  background:rgba(255,255,255,.02);
+}
+.data-source-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:14px;
+}
+.data-source-card,
+.data-panel{
+  border:var(--stroke);
+  border-radius:18px;
+  padding:16px;
+  background:rgba(255,255,255,.03);
+}
+.data-source-card.is-active{
+  border-color:rgba(249,115,22,.5);
+  box-shadow:0 0 0 2px rgba(249,115,22,.18);
+}
+.data-source-card h4,
+.data-panel h4{ margin:0 0 6px; font-size:1rem; }
+.data-source-card p,
+.data-panel p{ margin:0; color:var(--muted); }
+.planner-grid{
+  display:grid;
+  grid-template-columns:minmax(0, 1.45fr) minmax(320px, .95fr);
+  gap:14px;
+  min-height:0;
+}
+.planner-slot-table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+}
+.planner-slot-table th,
+.planner-slot-table td{
+  padding:10px;
+  border-bottom:1px solid rgba(148,163,184,.18);
+  text-align:left;
+}
+.planner-slot-table thead th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:rgba(249,115,22,.14);
+}
+.planner-slot-table tbody tr.is-selected{
+  background:rgba(249,115,22,.14);
+}
+.planner-stack{ display:grid; gap:12px; }
+.planner-form-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:10px;
+}
+.planner-form-grid .field{ width:100%; }
+.planner-form-grid .field.full{ grid-column:1 / -1; }
+.conflict-box{
+  border-radius:16px;
+  padding:12px 14px;
+  border:1px dashed rgba(245,158,11,.42);
+  background:rgba(245,158,11,.10);
+}
+.conflict-box.ok{
+  border-color:rgba(34,197,94,.35);
+  background:rgba(34,197,94,.10);
+}
+@media (max-width: 980px){
+  .planner-grid,
+  .data-source-grid{ grid-template-columns:1fr; }
+}
+@media (max-width: 760px){
+  .data-admin-modal{ padding:10px; }
+  .data-admin-modal__dialog{ width:100vw; max-height:96vh; border-radius:18px; }
+  .data-admin-modal__head,
+  .data-admin-modal__toolbar,
+  .data-admin-modal__body,
+  .data-admin-modal__footer{ padding-left:12px; padding-right:12px; }
+  .data-admin-modal__toolbar,
+  .data-admin-modal__footer{ align-items:stretch; }
+  .data-toolbar-section{ width:100%; }
+  .data-search{ min-width:0; max-width:none; width:100%; }
+  .data-grid-table{ min-width:760px; }
+  .planner-form-grid{ grid-template-columns:1fr; }
 }
 
 /* Grid kırılımları: geniş ekranda tek satır, tablette 2 sütun */
@@ -777,7 +1019,7 @@ div.admin-filters .button-row {
 }
 .adm-sum-label.ok{ color: rgba(34,197,94,.95); }
 
-\1 color:var(--muted); }
+.adm-sum-meta{ color:var(--muted); }
 .adm-sum-kpi{
   font-size:1.8rem;
   font-weight:900;
@@ -2039,6 +2281,26 @@ div.admin-filters .button-row {
               <button class="btn tool-btn" id="admPrint" type="button">Yazdır</button>
             </div>
           </div>
+
+          <!-- Veri Yönetimi -->
+          <div class="action-group" role="group" aria-label="Veri Yönetimi">
+            <div class="group-title">Veri Yönetimi</div>
+            <div class="group-buttons">
+              <button class="btn ghost tool-btn" id="admDataSourceBtn" type="button" title="Veri kaynağı seçimi ve senkron">Kaynak</button>
+              <button class="btn tool-btn" id="admTeachersBtn" type="button" title="Öğretmen kayıtlarını yönet">Öğretmenler</button>
+              <button class="btn tool-btn" id="admStudentsBtn" type="button" title="Öğrenci kayıtlarını yönet">Öğrenciler</button>
+              <button class="btn tool-btn" id="admSlotsBtn" type="button" title="Ders saatlerini yönet">Ders Saatleri</button>
+              <button class="btn tool-btn" id="admScheduleBtn" type="button" title="Ders planlarını yönet">Ders Planları</button>
+            </div>
+          </div>
+
+          <!-- Planlama -->
+          <div class="action-group" role="group" aria-label="Planlama">
+            <div class="group-title">Planlama</div>
+            <div class="group-buttons">
+              <button class="btn tool-btn" id="admAssignmentsBtn" type="button" title="Öğretmen ders atama planlayıcısı">Ders Atama</button>
+            </div>
+          </div>
         </div>
       </div>
 <!-- PRINT: Özet sayfa (sadece yazdırda görünür) -->
@@ -2134,6 +2396,25 @@ div.admin-filters .button-row {
     </section>
   </main>
 
+  <div id="adminDataModal" class="data-admin-modal hidden" aria-hidden="true">
+    <div class="data-admin-modal__backdrop" data-close-admin-modal="1"></div>
+    <div id="adminDataModalDialog" class="data-admin-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="adminDataModalTitle">
+      <div class="data-admin-modal__head">
+        <div>
+          <h3 id="adminDataModalTitle" class="data-admin-modal__title">Veri Yönetimi</h3>
+          <div id="adminDataModalSubtitle" class="data-admin-modal__subtitle">Yönetim paneli</div>
+        </div>
+        <div class="data-toolbar-section">
+          <span id="adminDataModalBadge" class="admin-badge">Hazır</span>
+          <button class="btn ghost tool-btn" type="button" id="adminDataModalCloseBtn">Kapat</button>
+        </div>
+      </div>
+      <div id="adminDataModalToolbar" class="data-admin-modal__toolbar"></div>
+      <div id="adminDataModalBody" class="data-admin-modal__body"></div>
+      <div id="adminDataModalFooter" class="data-admin-modal__footer"></div>
+    </div>
+  </div>
+
   <!-- Giriş -->
   <section class="card container" id="loginCard" role="form" aria-labelledby="loginTitle">
     <h3 id="loginTitle">🔐 Giriş</h3>
@@ -2157,7 +2438,7 @@ div.admin-filters .button-row {
     dayjs.locale('tr');
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, get, set, update, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
 
 // =========================
@@ -2627,6 +2908,25 @@ let currentRoster=[]; // yoklama panelindeki mevcut sınıf/grup listesi (SMS i�
 
 let teacherRefreshTimer=null;
 let teacherLessonsToday=[];
+const MASTER_DATA_ROOT = 'masterData';
+const MASTER_SOURCE_KEY = 'fenomen_master_source_v3';
+const MASTER_SOURCE_LABELS = {
+  sheets: 'E-Tablolar',
+  firebase: 'Firebase'
+};
+let masterDataSource = (localStorage.getItem(MASTER_SOURCE_KEY) === 'firebase') ? 'firebase' : 'sheets';
+let adminDataModalState = { mode:'', kind:'', rows:[], search:'', compact:false };
+let assignmentPlannerState = {
+  rows: [],
+  teacherId: '',
+  day: 'Pazartesi',
+  program: '',
+  slotCode: '',
+  className: '',
+  groupName: '',
+  subject: '',
+  selectedRowId: ''
+};
 // Attendance (Yoklama) enable/disable (Admin -> Firebase config)
 let attendanceEnabled = true;               // varsayılan: aktif
 let attendanceConfigReady = false;          // config okundu mu?
@@ -2919,7 +3219,744 @@ function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0)
       return safe(ders) || (tInfo?.branch || 'Ders');
     }
 
-    
+    function deepClone(v){
+      try{ return structuredClone(v); }catch(_){ return JSON.parse(JSON.stringify(v)); }
+    }
+    function makeRowId(prefix='row'){
+      return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+    }
+    function currentSourceLabel(){
+      return MASTER_SOURCE_LABELS[masterDataSource] || 'Veri';
+    }
+    function setMasterDataSource(mode){
+      masterDataSource = (mode === 'firebase') ? 'firebase' : 'sheets';
+      localStorage.setItem(MASTER_SOURCE_KEY, masterDataSource);
+    }
+    function firebaseNodeToList(node){
+      if(!node) return [];
+      if(Array.isArray(node)) return node.filter(Boolean).map((item, idx)=> ({ ...(item||{}), __rowId: safe(item?.__rowId) || `row_${idx+1}` }));
+      return Object.entries(node).map(([key, value])=> ({ ...(value||{}), __rowId: safe(value?.__rowId) || key }));
+    }
+    function stripHelperFields(row){
+      const out = { ...(row||{}) };
+      delete out.__rowId;
+      delete out.__teacherLabel;
+      delete out.__slotLabel;
+      return out;
+    }
+    function normalizeCollection(kind, list){
+      const arr = Array.isArray(list) ? list : [];
+      return arr.map((row, index)=> normalizeRow(kind, row || {}, index)).filter(Boolean);
+    }
+    function normalizeRow(kind, row, index=0){
+      const out = { ...(row||{}) };
+      if(kind === 'teachers'){
+        out.ID = safe(out.ID || out.id || out.TeacherID || out.teacherId);
+        out.OGRETMEN_ADI = safe(out.OGRETMEN_ADI || out.ADSOYAD || out.AD || out.OGRETMEN || out.name);
+        out.BRANS = safe(out.BRANS || out['BRANŞ'] || out.BRANCH || out.DERS || out.SUBJECT);
+        out.TELEFON = safe(out.TELEFON || out.TEL || out.GSM || out.Phone || '');
+        if(!out.ID && !out.OGRETMEN_ADI) return null;
+        out.__rowId = safe(out.__rowId) || out.ID || makeRowId('teacher');
+        return out;
+      }
+      if(kind === 'students'){
+        out.NO = safe(out.NO || out.OGR_NO || out.OGRENCI_NO || out.id);
+        out.ADSOYAD = safe(out.ADSOYAD || out.AD_SOYAD || out.AD || out.OGRENCI || out.name);
+        out.SINIF = safe(out.SINIF || out.SUBE || out.CLASS || '');
+        out.GRUP = safe(out.GRUP || out.GROUP || '');
+        const phone = safe(out.VeliTel || out.VELITEL || out.velitel || out.VELI_TEL || out.PARENT_PHONE || out.GSM || '');
+        out.VeliTel = phone;
+        out.VELITEL = phone;
+        if(!out.NO && !out.ADSOYAD) return null;
+        out.__rowId = safe(out.__rowId) || out.NO || makeRowId('student');
+        return out;
+      }
+      if(kind === 'slots'){
+        out.PROGRAM = safe(out.PROGRAM || out.Program || '') || 'GENEL';
+        out.SAAT_KODU = safe(out.SAAT_KODU || out.KOD || out.ID || out.SLOT_CODE);
+        out.BASLANGIC = safe(out.BASLANGIC || out.BASLAMA || out.START || out.SAAT_BAS || out.BAS || '');
+        out.BITIS = safe(out.BITIS || out.BITIS_SAATI || out.END || out.SAAT_BIT || out.BIT || '');
+        if(!out.SAAT_KODU) return null;
+        out.__rowId = safe(out.__rowId) || `${out.PROGRAM}_${out.SAAT_KODU}` || makeRowId('slot');
+        return out;
+      }
+      if(kind === 'schedule'){
+        out.GUN = safe(out.GUN || out.DAY || out.Gün || '');
+        out.PROGRAM = safe(out.PROGRAM || out.Program || '') || 'GENEL';
+        out.SINIF = safe(out.SINIF || out.CLASS || '');
+        out.GRUP = safe(out.GRUP || out.GROUP || '');
+        out.DERS = safe(out.DERS || out.DERS_ADI || out.SUBJECT || '');
+        out.OGRETMEN_ID = safe(out.OGRETMEN_ID || out.TEACHER_ID || out.ID || out.teacherId);
+        out.SAAT_KODU = safe(out.SAAT_KODU || out.KOD || out.SLOT_CODE || '');
+        if(!out.GUN && !out.SINIF && !out.DERS && !out.OGRETMEN_ID && !out.SAAT_KODU && !out.GRUP) return null;
+        out.__rowId = safe(out.__rowId) || [out.GUN, out.PROGRAM, out.SINIF || out.GRUP, out.SAAT_KODU, out.OGRETMEN_ID].filter(Boolean).join('__') || makeRowId('plan');
+        return out;
+      }
+      return { ...out, __rowId: safe(out.__rowId) || makeRowId(kind || 'row') };
+    }
+    function applyNormalizedMasterData(){
+      teachers = normalizeCollection('teachers', teachers);
+      students = normalizeCollection('students', students);
+      schedule = normalizeCollection('schedule', schedule);
+      slots = normalizeCollection('slots', slots);
+    }
+    async function loadFirebaseMasterData(){
+      const snap = await get(ref(db, MASTER_DATA_ROOT));
+      if(!snap.exists()) return false;
+      const data = snap.val() || {};
+      teachers = normalizeCollection('teachers', firebaseNodeToList(data.teachers));
+      students = normalizeCollection('students', firebaseNodeToList(data.students));
+      schedule = normalizeCollection('schedule', firebaseNodeToList(data.schedule));
+      slots = normalizeCollection('slots', firebaseNodeToList(data.slots));
+      return !!(teachers.length || students.length || schedule.length || slots.length);
+    }
+    async function loadMasterData(){
+      const source = masterDataSource;
+      if(source === 'firebase'){
+        const ok = await loadFirebaseMasterData();
+        if(ok){
+          applyNormalizedMasterData();
+          setStatus('Veriler Firebase kaynağından yüklendi.', 'ok');
+        }else{
+          await loadSheets();
+          applyNormalizedMasterData();
+          setStatus('Firebase veri deposu boş; e-tablolar kullanıldı.', 'bad');
+        }
+      }else{
+        await loadSheets();
+        applyNormalizedMasterData();
+      }
+      buildSlotOrder();
+    }
+    function getDatasetRows(kind){
+      if(kind === 'teachers') return teachers;
+      if(kind === 'students') return students;
+      if(kind === 'slots') return slots;
+      if(kind === 'schedule') return schedule;
+      return [];
+    }
+    function setDatasetRows(kind, rows){
+      const normalized = normalizeCollection(kind, rows);
+      if(kind === 'teachers') teachers = normalized;
+      if(kind === 'students') students = normalized;
+      if(kind === 'slots') slots = normalized;
+      if(kind === 'schedule') schedule = normalized;
+      if(kind === 'slots') buildSlotOrder();
+    }
+    function datasetTitle(kind){
+      return ({
+        teachers: 'Öğretmenler',
+        students: 'Öğrenciler',
+        slots: 'Ders Saatleri',
+        schedule: 'Ders Planları'
+      })[kind] || 'Veri';
+    }
+    function datasetColumns(kind){
+      if(kind === 'teachers') return [
+        { key:'ID', label:'ID', type:'text', required:true, slim:true },
+        { key:'OGRETMEN_ADI', label:'Ad Soyad', type:'text', required:true },
+        { key:'BRANS', label:'Branş', type:'text' },
+        { key:'TELEFON', label:'Telefon', type:'text' }
+      ];
+      if(kind === 'students') return [
+        { key:'NO', label:'No', type:'text', required:true, slim:true },
+        { key:'ADSOYAD', label:'Ad Soyad', type:'text', required:true },
+        { key:'SINIF', label:'Sınıf', type:'text', slim:true },
+        { key:'GRUP', label:'Grup', type:'text', slim:true },
+        { key:'VeliTel', label:'Veli Tel', type:'text' }
+      ];
+      if(kind === 'slots') return [
+        { key:'PROGRAM', label:'Program', type:'select-program', slim:true },
+        { key:'SAAT_KODU', label:'Saat Kodu', type:'text', required:true, slim:true },
+        { key:'BASLANGIC', label:'Başlangıç', type:'time', slim:true },
+        { key:'BITIS', label:'Bitiş', type:'time', slim:true }
+      ];
+      return [
+        { key:'GUN', label:'Gün', type:'select-day', slim:true },
+        { key:'PROGRAM', label:'Program', type:'select-program', slim:true },
+        { key:'SINIF', label:'Sınıf', type:'text', slim:true },
+        { key:'GRUP', label:'Grup', type:'text', slim:true },
+        { key:'SAAT_KODU', label:'Saat Kodu', type:'select-slot', slim:true },
+        { key:'DERS', label:'Ders', type:'text' },
+        { key:'OGRETMEN_ID', label:'Öğretmen', type:'select-teacher' }
+      ];
+    }
+    function blankRowForDataset(kind){
+      const row = normalizeRow(kind, {}, 0) || {};
+      if(kind === 'teachers') return { ID:'', OGRETMEN_ADI:'', BRANS:'', TELEFON:'', __rowId: makeRowId('teacher') };
+      if(kind === 'students') return { NO:'', ADSOYAD:'', SINIF:'', GRUP:'', VeliTel:'', VELITEL:'', __rowId: makeRowId('student') };
+      if(kind === 'slots') return { PROGRAM:(getProgramOptions()[0] || 'GENEL'), SAAT_KODU:'', BASLANGIC:'', BITIS:'', __rowId: makeRowId('slot') };
+      return {
+        GUN: turkishDays[1], PROGRAM:(getProgramOptions()[0] || 'GENEL'), SINIF:'', GRUP:'', SAAT_KODU:'', DERS:'', OGRETMEN_ID:'', __rowId: makeRowId('plan')
+      };
+    }
+    function getProgramOptions(){
+      const set = new Set();
+      (slots || []).forEach(s => set.add(safe(s.PROGRAM) || 'GENEL'));
+      (schedule || []).forEach(s => set.add(safe(s.PROGRAM) || 'GENEL'));
+      const arr = Array.from(set).filter(Boolean).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+      return arr.length ? arr : ['GENEL'];
+    }
+    function getClassOptions(){
+      return Array.from(new Set((students || []).map(s => safe(s.SINIF)).filter(Boolean))).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+    }
+    function getTeacherOptions(){
+      return (teachers || []).map(t => ({ id: safe(t.ID), label: safe(t.OGRETMEN_ADI || t.ADSOYAD || t.AD) || `Öğretmen #${safe(t.ID)}` })).sort((a,b)=> a.label.localeCompare(b.label,'tr',{sensitivity:'base'}));
+    }
+    function getSlotOptions(program=''){
+      const items = (slots || []).filter(s => !program || safe(s.PROGRAM || 'GENEL') === safe(program || 'GENEL'));
+      const sorted = items.slice().sort((a,b)=> `${safe(a.PROGRAM)}_${safe(a.BASLANGIC)}`.localeCompare(`${safe(b.PROGRAM)}_${safe(b.BASLANGIC)}`,'tr'));
+      return sorted.map(s => ({
+        value: safe(s.SAAT_KODU),
+        label: `${safe(s.SAAT_KODU)}${s.BASLANGIC || s.BITIS ? ` • ${safe(s.BASLANGIC)}-${safe(s.BITIS)}` : ''}${safe(s.PROGRAM) ? ` • ${labelProgram(s.PROGRAM)}` : ''}`
+      }));
+    }
+    function mergeRowsByPrimary(kind, baseRows, incomingRows){
+      const next = normalizeCollection(kind, baseRows);
+      const primaryKey = (row)=> {
+        if(kind === 'teachers') return safe(row.ID);
+        if(kind === 'students') return safe(row.NO);
+        if(kind === 'slots') return `${safe(row.PROGRAM || 'GENEL')}__${safe(row.SAAT_KODU)}`;
+        return [safe(row.GUN), safe(row.PROGRAM || 'GENEL'), safe(row.SINIF || row.GRUP), safe(row.SAAT_KODU), safe(row.OGRETMEN_ID)].join('__');
+      };
+      const idxMap = new Map(next.map((row, idx)=> [primaryKey(row), idx]));
+      normalizeCollection(kind, incomingRows).forEach(row => {
+        const key = primaryKey(row);
+        if(key && idxMap.has(key)) next[idxMap.get(key)] = { ...next[idxMap.get(key)], ...row };
+        else next.push(row);
+      });
+      return normalizeCollection(kind, next);
+    }
+    async function ensureXlsxReady(){
+      if(window.XLSX) return window.XLSX;
+      await new Promise((resolve, reject)=>{
+        const s = document.createElement('script');
+        s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      return window.XLSX;
+    }
+    async function exportDatasetToExcel(kind, rows, fileName=''){
+      const XLSX = await ensureXlsxReady();
+      const safeRows = normalizeCollection(kind, rows).map(stripHelperFields);
+      const ws = XLSX.utils.json_to_sheet(safeRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, datasetTitle(kind).slice(0, 31) || 'Veriler');
+      XLSX.writeFile(wb, fileName || `${datasetTitle(kind).toLocaleLowerCase('tr')}.xlsx`);
+    }
+    async function importDatasetFromExcel(kind, file){
+      const XLSX = await ensureXlsxReady();
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { defval:'', raw:false });
+      const merged = mergeRowsByPrimary(kind, adminDataModalState.rows || [], json);
+      adminDataModalState.rows = merged;
+      renderAdminDataModal();
+      showToast(`${json.length} satır içe aktarıldı.`, 'ok');
+    }
+    async function syncCollectionToFirebase(kind, rows){
+      const path = `${MASTER_DATA_ROOT}/${kind}`;
+      const normalized = normalizeCollection(kind, rows);
+      const snap = await get(ref(db, path));
+      const current = snap.exists() ? (snap.val() || {}) : {};
+      const existingKeys = new Set(Object.keys(current || {}));
+      const patch = {};
+      normalized.forEach((row)=>{
+        const key = safe(row.__rowId) || makeRowId(kind.slice(0, -1) || 'row');
+        row.__rowId = key;
+        patch[key] = stripHelperFields(row);
+        existingKeys.delete(key);
+      });
+      existingKeys.forEach(key => { patch[key] = null; });
+      if(Object.keys(patch).length){
+        await update(ref(db, path), patch);
+      }
+      return normalized;
+    }
+    async function syncAllMasterDataToFirebase(){
+      await syncCollectionToFirebase('teachers', teachers);
+      await syncCollectionToFirebase('students', students);
+      await syncCollectionToFirebase('slots', slots);
+      await syncCollectionToFirebase('schedule', schedule);
+    }
+    async function refreshRuntimeViewsAfterMasterDataChange(){
+      if(!session) return;
+      if(session.role === 'ogretmen' && !UI.teacherView.classList.contains('hidden')){
+        showTeacherToday();
+        if(typeof refreshTeacherDailyKpis === 'function') refreshTeacherDailyKpis();
+      }else if(session.role === 'veli' && !UI.parentView.classList.contains('hidden')){
+        await showParentView();
+      }else if(session.role === 'admin' && !UI.adminView.classList.contains('hidden')){
+        showAdminView();
+      }
+    }
+    function openAdminDataModal(mode, payload={}){
+      adminDataModalState = { mode, kind:'', rows:[], search:'', compact:!!payload.compact, ...payload };
+      UI.adminDataModal?.classList.remove('hidden');
+      UI.adminDataModal?.setAttribute('aria-hidden', 'false');
+      UI.adminDataModalDialog?.classList.toggle('is-compact', !!adminDataModalState.compact);
+      renderAdminDataModal();
+    }
+    function closeAdminDataModal(){
+      UI.adminDataModal?.classList.add('hidden');
+      UI.adminDataModal?.setAttribute('aria-hidden', 'true');
+      adminDataModalState = { mode:'', kind:'', rows:[], search:'', compact:false };
+    }
+    function datasetSearchMatch(row, q){
+      if(!q) return true;
+      const hay = Object.values(stripHelperFields(row)).join(' ').toLocaleLowerCase('tr');
+      return hay.includes(q.toLocaleLowerCase('tr'));
+    }
+    function renderModalShell(title, subtitle, badge, compact=false){
+      if(UI.adminDataModalTitle) UI.adminDataModalTitle.textContent = title;
+      if(UI.adminDataModalSubtitle) UI.adminDataModalSubtitle.textContent = subtitle;
+      if(UI.adminDataModalBadge) UI.adminDataModalBadge.textContent = badge;
+      UI.adminDataModalDialog?.classList.toggle('is-compact', compact);
+    }
+    function renderAdminDataModal(){
+      if(!UI.adminDataModalBody) return;
+      if(adminDataModalState.mode === 'source') return renderDataSourceModal();
+      if(adminDataModalState.mode === 'assignments') return renderAssignmentPlannerModal();
+      if(adminDataModalState.mode === 'dataset') return renderDatasetModal();
+      renderModalShell('Veri Yönetimi', 'Hazır', currentSourceLabel(), true);
+      UI.adminDataModalToolbar.innerHTML = '';
+      UI.adminDataModalBody.innerHTML = '<div class="data-empty">İçerik bulunamadı.</div>';
+      UI.adminDataModalFooter.innerHTML = '<div></div><button class="btn ghost tool-btn" type="button" id="admModalCloseAction">Kapat</button>';
+      document.getElementById('admModalCloseAction')?.addEventListener('click', closeAdminDataModal);
+    }
+    function renderDataSourceModal(){
+      renderModalShell('Veri Kaynağı ve Senkron', 'Uygulamanın ana veri kaynağını seçin ve tüm yönetim verisini Firebase havuzuna aktarın.', `Aktif: ${currentSourceLabel()}`, true);
+      UI.adminDataModalToolbar.innerHTML = '';
+      const teachersCount = teachers.length;
+      const studentsCount = students.length;
+      const slotsCount = slots.length;
+      const scheduleCount = schedule.length;
+      UI.adminDataModalBody.innerHTML = `
+        <div class="data-source-grid">
+          <div class="data-source-card ${masterDataSource === 'sheets' ? 'is-active' : ''}">
+            <h4>📄 E-Tablolar</h4>
+            <p>Öğretmen, öğrenci, ders saatleri ve planlar Google e-tablolar üzerinden okunur.</p>
+            <div class="row" style="margin-top:12px;">
+              <button class="btn tool-btn" type="button" id="useSheetsSource">E-Tabloları Kullan</button>
+            </div>
+          </div>
+          <div class="data-source-card ${masterDataSource === 'firebase' ? 'is-active' : ''}">
+            <h4>🔥 Firebase</h4>
+            <p>Admin modallarında düzenlenen kayıtlar Firebase ana veri deposundan okunur ve senkronize edilir.</p>
+            <div class="row" style="margin-top:12px;">
+              <button class="btn tool-btn" type="button" id="useFirebaseSource">Firebase Kullan</button>
+            </div>
+          </div>
+        </div>
+        <div class="data-panel">
+          <h4>Hazır Veri Özeti</h4>
+          <div class="data-summary-strip" style="margin-top:10px;">
+            <span class="data-summary-chip">Öğretmen: ${teachersCount}</span>
+            <span class="data-summary-chip">Öğrenci: ${studentsCount}</span>
+            <span class="data-summary-chip">Saat: ${slotsCount}</span>
+            <span class="data-summary-chip">Plan: ${scheduleCount}</span>
+          </div>
+        </div>
+      `;
+      UI.adminDataModalFooter.innerHTML = `
+        <div class="data-toolbar-section">
+          <button class="btn tool-btn" type="button" id="syncAllFirebaseBtn">Tüm Sistemi Firebase'e Ekle</button>
+        </div>
+        <div class="data-toolbar-section">
+          <button class="btn ghost tool-btn" type="button" id="admModalCloseAction">Kapat</button>
+        </div>
+      `;
+      document.getElementById('admModalCloseAction')?.addEventListener('click', closeAdminDataModal);
+      document.getElementById('useSheetsSource')?.addEventListener('click', async ()=>{
+        setMasterDataSource('sheets');
+        await loadMasterData();
+        await refreshRuntimeViewsAfterMasterDataChange();
+        renderDataSourceModal();
+        showToast('Veri kaynağı e-tablolar olarak ayarlandı.', 'ok');
+      });
+      document.getElementById('useFirebaseSource')?.addEventListener('click', async ()=>{
+        setMasterDataSource('firebase');
+        await loadMasterData();
+        await refreshRuntimeViewsAfterMasterDataChange();
+        renderDataSourceModal();
+        showToast('Veri kaynağı Firebase olarak ayarlandı.', 'ok');
+      });
+      document.getElementById('syncAllFirebaseBtn')?.addEventListener('click', async ()=>{
+        try{
+          await syncAllMasterDataToFirebase();
+          showToast('Tüm ana veriler Firebase havuzuna yazıldı.', 'ok');
+        }catch(err){
+          console.error(err);
+          Swal.fire("Hata","Veriler Firebase'e aktarılamadı.","error");
+        }
+      });
+    }
+    function renderDatasetField(kind, col, row, idx){
+      const value = safe(row[col.key]);
+      const cls = `${col.type.startsWith('select') ? 'data-grid-select' : 'data-grid-input'}${col.slim ? ' slim' : ''}`;
+      if(col.type === 'select-day'){
+        return `<select class="${cls}" data-field="${col.key}" data-index="${idx}">${turkishDays.map(day => `<option value="${day}" ${value===day?'selected':''}>${day}</option>`).join('')}</select>`;
+      }
+      if(col.type === 'select-program'){
+        return `<select class="${cls}" data-field="${col.key}" data-index="${idx}">${getProgramOptions().map(p => `<option value="${p}" ${safe(value||'GENEL')===p?'selected':''}>${labelProgram(p)}</option>`).join('')}</select>`;
+      }
+      if(col.type === 'select-teacher'){
+        return `<select class="${cls}" data-field="${col.key}" data-index="${idx}"><option value="">Öğretmen seçin</option>${getTeacherOptions().map(t => `<option value="${t.id}" ${value===t.id?'selected':''}>${esc(t.label)}</option>`).join('')}</select>`;
+      }
+      if(col.type === 'select-slot'){
+        const prog = safe(row.PROGRAM) || 'GENEL';
+        return `<select class="${cls}" data-field="${col.key}" data-index="${idx}"><option value="">Saat seçin</option>${getSlotOptions(prog).map(s => `<option value="${s.value}" ${value===s.value?'selected':''}>${esc(s.label)}</option>`).join('')}</select>`;
+      }
+      const inputType = col.type === 'time' ? 'time' : 'text';
+      return `<input class="${cls}" type="${inputType}" value="${esc(value)}" data-field="${col.key}" data-index="${idx}" ${col.required ? 'required' : ''}>`;
+    }
+    function renderDatasetModal(){
+      const kind = adminDataModalState.kind;
+      const title = datasetTitle(kind);
+      renderModalShell(`${title} Yönetimi`, `${currentSourceLabel()} kaynağı ile çalışan büyük veri modalı. Satırlar doğrudan düzenlenebilir.`, `${title} • ${currentSourceLabel()}`);
+      const rows = normalizeCollection(kind, adminDataModalState.rows || []);
+      adminDataModalState.rows = rows;
+      const q = safe(adminDataModalState.search || '');
+      const filtered = rows.map((row, idx)=> ({ row, idx })).filter(item => datasetSearchMatch(item.row, q));
+      UI.adminDataModalToolbar.innerHTML = `
+        <div class="data-toolbar-section">
+          <input id="admDatasetSearch" class="input data-search" type="search" placeholder="Kayıt ara..." value="${esc(q)}">
+          <button class="btn tool-btn" type="button" id="admDatasetAddRow">Satır Ekle</button>
+          <button class="btn ghost tool-btn" type="button" id="admDatasetImportBtn">Excel Yükle</button>
+          <input id="admDatasetFileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden">
+        </div>
+        <div class="data-toolbar-spacer"></div>
+        <div class="data-summary-strip">
+          <span class="data-summary-chip">Toplam: ${rows.length}</span>
+          <span class="data-summary-chip">Görünen: ${filtered.length}</span>
+          <span class="data-summary-chip">Kaynak: ${currentSourceLabel()}</span>
+        </div>
+      `;
+      const columns = datasetColumns(kind);
+      const header = columns.map(col => `<th>${col.label}</th>`).join('');
+      const body = filtered.length ? filtered.map(({row, idx})=> {
+        const teacherLabel = kind === 'schedule' ? safe((teacherById(row.OGRETMEN_ID) || {}).name) : '';
+        const slotLabel = kind === 'schedule' ? safe((getSlotByCode(row.SAAT_KODU, row.PROGRAM) || {}).BASLANGIC) : '';
+        return `<tr>
+          ${columns.map(col => `<td>${renderDatasetField(kind, col, row, idx)}</td>`).join('')}
+          <td style="min-width:170px;">
+            <div class="data-grid-actions">
+              ${kind === 'schedule' ? `<span class="pill" title="Öğretmen / Saat">${esc(teacherLabel || slotLabel || 'Detay')}</span>` : ''}
+              <button class="btn ghost small" type="button" data-delete-row="${idx}">Sil</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="${columns.length + 1}"><div class="data-empty">Aramaya uygun kayıt bulunamadı.</div></td></tr>`;
+      UI.adminDataModalBody.innerHTML = `
+        <div class="data-grid-wrap">
+          <table class="data-grid-table">
+            <thead><tr>${header}<th>İşlem</th></tr></thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+      `;
+      UI.adminDataModalFooter.innerHTML = `
+        <div class="data-toolbar-section">
+          <button class="btn tool-btn" type="button" id="admDatasetSaveBtn">Yerelde Uygula</button>
+          <button class="btn tool-btn" type="button" id="admDatasetFirebaseBtn">Firebase'e Ekle</button>
+          <button class="btn ghost tool-btn" type="button" id="admDatasetExportBtn">Excel'e Aktar</button>
+        </div>
+        <div class="data-toolbar-section">
+          <button class="btn ghost tool-btn" type="button" id="admModalCloseAction">Kapat</button>
+        </div>
+      `;
+      document.getElementById('admModalCloseAction')?.addEventListener('click', closeAdminDataModal);
+      document.getElementById('admDatasetSearch')?.addEventListener('input', (e)=>{
+        adminDataModalState.search = e.target.value || '';
+        renderDatasetModal();
+      });
+      document.getElementById('admDatasetAddRow')?.addEventListener('click', ()=>{
+        adminDataModalState.rows = [...adminDataModalState.rows, blankRowForDataset(kind)];
+        renderDatasetModal();
+      });
+      document.getElementById('admDatasetImportBtn')?.addEventListener('click', ()=> document.getElementById('admDatasetFileInput')?.click());
+      document.getElementById('admDatasetFileInput')?.addEventListener('change', async (e)=>{
+        const file = e.target.files?.[0];
+        if(!file) return;
+        try{ await importDatasetFromExcel(kind, file); }catch(err){ console.error(err); Swal.fire('Hata','Excel dosyası okunamadı.','error'); }
+        e.target.value = '';
+      });
+      document.querySelectorAll('[data-delete-row]').forEach(btn => btn.addEventListener('click', ()=>{
+        const idx = Number(btn.getAttribute('data-delete-row'));
+        adminDataModalState.rows.splice(idx, 1);
+        renderDatasetModal();
+      }));
+      document.querySelectorAll('[data-field]').forEach(el => {
+        const handler = ()=>{
+          const idx = Number(el.getAttribute('data-index'));
+          const field = el.getAttribute('data-field');
+          const nextRows = adminDataModalState.rows.slice();
+          const row = { ...(nextRows[idx] || {}) };
+          row[field] = el.value;
+          if(kind === 'students' && field === 'VeliTel') row.VELITEL = el.value;
+          nextRows[idx] = normalizeRow(kind, row, idx);
+          adminDataModalState.rows = nextRows;
+          if(kind === 'schedule' && (field === 'PROGRAM' || field === 'OGRETMEN_ID' || field === 'SAAT_KODU')){
+            renderDatasetModal();
+          }
+        };
+        el.addEventListener('input', handler);
+        el.addEventListener('change', handler);
+      });
+      document.getElementById('admDatasetExportBtn')?.addEventListener('click', async ()=>{
+        try{ await exportDatasetToExcel(kind, adminDataModalState.rows, `${title}.xlsx`); }catch(err){ console.error(err); Swal.fire('Hata','Excel dosyası oluşturulamadı.','error'); }
+      });
+      document.getElementById('admDatasetSaveBtn')?.addEventListener('click', async ()=>{
+        try{
+          const normalized = normalizeCollection(kind, adminDataModalState.rows);
+          setDatasetRows(kind, normalized);
+          if(masterDataSource === 'firebase') await syncCollectionToFirebase(kind, normalized);
+          await refreshRuntimeViewsAfterMasterDataChange();
+          showToast(`${title} verileri uygulandı.`, 'ok');
+          closeAdminDataModal();
+        }catch(err){ console.error(err); Swal.fire('Hata','Veriler uygulanamadı.','error'); }
+      });
+      document.getElementById('admDatasetFirebaseBtn')?.addEventListener('click', async ()=>{
+        try{
+          const normalized = normalizeCollection(kind, adminDataModalState.rows);
+          await syncCollectionToFirebase(kind, normalized);
+          setDatasetRows(kind, normalized);
+          showToast(`${title} Firebase'e yazıldı.`, 'ok');
+        }catch(err){ console.error(err); Swal.fire('Hata','Firebase senkronu başarısız oldu.','error'); }
+      });
+    }
+    function getScheduleRowById(rows, id){
+      return (rows || []).find(r => safe(r.__rowId) === safe(id)) || null;
+    }
+    function renderAssignmentPlannerModal(){
+      const st = assignmentPlannerState;
+      if(!st.rows.length) st.rows = deepClone(schedule);
+      if(!st.teacherId) st.teacherId = safe(session?.ogretmenId) || safe((teachers[0] || {}).ID);
+      if(!st.day) st.day = todayNameTR();
+      if(!st.program) st.program = getProgramOptions()[0] || 'GENEL';
+      if(!st.subject){
+        const tInfo = teacherById(st.teacherId);
+        st.subject = safe(tInfo?.branch) || '';
+      }
+      renderModalShell('Öğretmen Ders Atama Planlayıcısı', 'Öğretmenin dolu ve boş derslerini görün, boş saatlere sınıf / grup ve ders ataması yapın.', `${currentSourceLabel()} • Planlayıcı`);
+      const teacherOptions = getTeacherOptions();
+      const slotOptions = getSlotOptions(st.program);
+      const teacherRows = normalizeCollection('schedule', st.rows).filter(r => safe(r.OGRETMEN_ID) === safe(st.teacherId) && safe(r.GUN) === safe(st.day) && safe(r.PROGRAM || 'GENEL') === safe(st.program || 'GENEL'));
+      const slotStateRows = slotOptions.map(slot => {
+        const row = teacherRows.find(r => safe(r.SAAT_KODU) === safe(slot.value));
+        return { slot, row };
+      });
+      const busyCount = slotStateRows.filter(x => x.row).length;
+      const emptyCount = slotStateRows.length - busyCount;
+      const conflict = getPlannerConflictState();
+      UI.adminDataModalToolbar.innerHTML = `
+        <div class="data-toolbar-section">
+          <select id="plannerTeacherId" class="input data-grid-select">${teacherOptions.map(t => `<option value="${t.id}" ${safe(st.teacherId)===t.id?'selected':''}>${esc(t.label)}</option>`).join('')}</select>
+          <select id="plannerDay" class="input data-grid-select">${turkishDays.map(day => `<option value="${day}" ${safe(st.day)===day?'selected':''}>${day}</option>`).join('')}</select>
+          <select id="plannerProgram" class="input data-grid-select">${getProgramOptions().map(p => `<option value="${p}" ${safe(st.program)===p?'selected':''}>${labelProgram(p)}</option>`).join('')}</select>
+        </div>
+        <div class="data-toolbar-spacer"></div>
+        <div class="data-summary-strip">
+          <span class="data-summary-chip">Toplam Saat: ${slotStateRows.length}</span>
+          <span class="data-summary-chip">Dolu: ${busyCount}</span>
+          <span class="data-summary-chip">Boş: ${emptyCount}</span>
+        </div>
+      `;
+      UI.adminDataModalBody.innerHTML = `
+        <div class="planner-grid">
+          <div class="data-panel planner-stack">
+            <h4>Öğretmenin Günlük Saat Matrisi</h4>
+            <div class="data-grid-wrap">
+              <table class="planner-slot-table">
+                <thead>
+                  <tr><th>Saat</th><th>Durum</th><th>Sınıf / Grup</th><th>Ders</th><th>İşlem</th></tr>
+                </thead>
+                <tbody>
+                  ${slotStateRows.map(item => {
+                    const row = item.row;
+                    const selected = row && safe(st.selectedRowId) === safe(row.__rowId);
+                    return `<tr class="${selected ? 'is-selected' : ''}">
+                      <td>${esc(item.slot.label)}</td>
+                      <td>${row ? '<span class="chip ok">DOLU</span>' : '<span class="chip due">BOŞ</span>'}</td>
+                      <td>${esc((row?.SINIF || row?.GRUP || '—'))}</td>
+                      <td>${esc(row?.DERS || '—')}</td>
+                      <td>
+                        <button class="btn ghost small" type="button" data-planner-pick-slot="${esc(item.slot.value)}" data-planner-row="${esc(row?.__rowId || '')}">${row ? 'Düzenle' : 'Ata'}</button>
+                      </td>
+                    </tr>`;
+                  }).join('') || `<tr><td colspan="5"><div class="data-empty">Seçili program için saat tanımı bulunamadı.</div></td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="planner-stack">
+            <div class="data-panel">
+              <h4>Atama Formu</h4>
+              <div class="planner-form-grid" style="margin-top:12px;">
+                <label class="field"><span class="muted">Saat</span><select id="plannerSlotCode" class="input data-grid-select">${slotOptions.map(s => `<option value="${s.value}" ${safe(st.slotCode)===safe(s.value)?'selected':''}>${esc(s.label)}</option>`).join('')}</select></label>
+                <label class="field"><span class="muted">Sınıf</span><select id="plannerClassName" class="input data-grid-select"><option value="">Sınıf seçin</option>${getClassOptions().map(c => `<option value="${c}" ${safe(st.className)===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
+                <label class="field"><span class="muted">Grup</span><input id="plannerGroupName" class="input" type="text" value="${esc(st.groupName || '')}" placeholder="Opsiyonel grup adı"></label>
+                <label class="field"><span class="muted">Ders</span><input id="plannerSubject" class="input" type="text" value="${esc(st.subject || '')}" placeholder="Ders adı"></label>
+                <label class="field full"><span class="muted">Öğretmen boşluk notu</span><div class="data-summary-strip"><span class="data-summary-chip">Boş Saatler: ${slotStateRows.filter(x => !x.row).map(x => esc(safe(x.slot.value))).join(', ') || 'Yok'}</span></div></label>
+              </div>
+              <div class="row" style="margin-top:12px; gap:8px;">
+                <button class="btn tool-btn" type="button" id="plannerAddBtn">Atama Ekle</button>
+                <button class="btn tool-btn" type="button" id="plannerUpdateBtn">Seçiliyi Güncelle</button>
+                <button class="btn ghost tool-btn" type="button" id="plannerClearBtn">Formu Temizle</button>
+                <button class="btn danger tool-btn" type="button" id="plannerDeleteBtn">Seçiliyi Sil</button>
+              </div>
+            </div>
+            <div class="conflict-box ${conflict.ok ? 'ok' : ''}">
+              ${conflict.message}
+            </div>
+          </div>
+        </div>
+      `;
+      UI.adminDataModalFooter.innerHTML = `
+        <div class="data-toolbar-section">
+          <button class="btn tool-btn" type="button" id="plannerApplyBtn">Planı Uygula</button>
+          <button class="btn tool-btn" type="button" id="plannerFirebaseBtn">Firebase'e Ekle</button>
+          <button class="btn ghost tool-btn" type="button" id="plannerExportBtn">Excel'e Aktar</button>
+        </div>
+        <div class="data-toolbar-section">
+          <button class="btn ghost tool-btn" type="button" id="admModalCloseAction">Kapat</button>
+        </div>
+      `;
+      document.getElementById('admModalCloseAction')?.addEventListener('click', closeAdminDataModal);
+      document.getElementById('plannerTeacherId')?.addEventListener('change', (e)=>{ assignmentPlannerState.teacherId = e.target.value; assignmentPlannerState.selectedRowId=''; assignmentPlannerState.subject = safe((teacherById(e.target.value) || {}).branch) || ''; renderAssignmentPlannerModal(); });
+      document.getElementById('plannerDay')?.addEventListener('change', (e)=>{ assignmentPlannerState.day = e.target.value; assignmentPlannerState.selectedRowId=''; renderAssignmentPlannerModal(); });
+      document.getElementById('plannerProgram')?.addEventListener('change', (e)=>{ assignmentPlannerState.program = e.target.value; assignmentPlannerState.slotCode=''; assignmentPlannerState.selectedRowId=''; renderAssignmentPlannerModal(); });
+      document.getElementById('plannerSlotCode')?.addEventListener('change', (e)=>{ assignmentPlannerState.slotCode = e.target.value; renderAssignmentPlannerModal(); });
+      document.getElementById('plannerClassName')?.addEventListener('change', (e)=>{ assignmentPlannerState.className = e.target.value; renderAssignmentPlannerModal(); });
+      document.getElementById('plannerGroupName')?.addEventListener('input', (e)=>{ assignmentPlannerState.groupName = e.target.value; });
+      document.getElementById('plannerSubject')?.addEventListener('input', (e)=>{ assignmentPlannerState.subject = e.target.value; });
+      document.querySelectorAll('[data-planner-pick-slot]').forEach(btn => btn.addEventListener('click', ()=>{
+        const slotCode = btn.getAttribute('data-planner-pick-slot') || '';
+        const rowId = btn.getAttribute('data-planner-row') || '';
+        assignmentPlannerState.slotCode = slotCode;
+        assignmentPlannerState.selectedRowId = rowId;
+        const row = getScheduleRowById(assignmentPlannerState.rows, rowId);
+        if(row){
+          assignmentPlannerState.className = safe(row.SINIF);
+          assignmentPlannerState.groupName = safe(row.GRUP);
+          assignmentPlannerState.subject = safe(row.DERS);
+        }else{
+          assignmentPlannerState.className = '';
+          assignmentPlannerState.groupName = '';
+          assignmentPlannerState.subject = safe((teacherById(assignmentPlannerState.teacherId) || {}).branch) || '';
+        }
+        renderAssignmentPlannerModal();
+      }));
+      document.getElementById('plannerClearBtn')?.addEventListener('click', ()=>{
+        assignmentPlannerState.selectedRowId='';
+        assignmentPlannerState.slotCode='';
+        assignmentPlannerState.className='';
+        assignmentPlannerState.groupName='';
+        assignmentPlannerState.subject=safe((teacherById(assignmentPlannerState.teacherId) || {}).branch) || '';
+        renderAssignmentPlannerModal();
+      });
+      document.getElementById('plannerAddBtn')?.addEventListener('click', ()=> upsertPlannerRow(false));
+      document.getElementById('plannerUpdateBtn')?.addEventListener('click', ()=> upsertPlannerRow(true));
+      document.getElementById('plannerDeleteBtn')?.addEventListener('click', ()=> deletePlannerRow());
+      document.getElementById('plannerApplyBtn')?.addEventListener('click', async ()=>{
+        try{
+          schedule = normalizeCollection('schedule', assignmentPlannerState.rows);
+          await refreshRuntimeViewsAfterMasterDataChange();
+          showToast('Ders planı güncellendi.', 'ok');
+          closeAdminDataModal();
+        }catch(err){ console.error(err); Swal.fire('Hata','Ders planı uygulanamadı.','error'); }
+      });
+      document.getElementById('plannerFirebaseBtn')?.addEventListener('click', async ()=>{
+        try{
+          schedule = normalizeCollection('schedule', assignmentPlannerState.rows);
+          await syncCollectionToFirebase('schedule', schedule);
+          showToast("Ders planı Firebase'e yazıldı.", "ok");
+        }catch(err){ console.error(err); Swal.fire('Hata','Firebase plan senkronu başarısız oldu.','error'); }
+      });
+      document.getElementById('plannerExportBtn')?.addEventListener('click', async ()=>{
+        try{ await exportDatasetToExcel('schedule', assignmentPlannerState.rows, 'Ders-Planlari.xlsx'); }catch(err){ console.error(err); Swal.fire('Hata','Excel dışa aktarımı başarısız oldu.','error'); }
+      });
+    }
+    function getPlannerConflictState(){
+      const st = assignmentPlannerState;
+      if(!st.slotCode){
+        return { ok:false, message:'<b>Not:</b> Atama yapmadan önce bir ders saati seçin.' };
+      }
+      const teacherConflict = (st.rows || []).find(r => safe(r.__rowId) !== safe(st.selectedRowId) && safe(r.OGRETMEN_ID) === safe(st.teacherId) && safe(r.GUN) === safe(st.day) && safe(r.PROGRAM || 'GENEL') === safe(st.program || 'GENEL') && safe(r.SAAT_KODU) === safe(st.slotCode));
+      const classConflict = st.className ? (st.rows || []).find(r => safe(r.__rowId) !== safe(st.selectedRowId) && safe(r.SINIF) === safe(st.className) && safe(r.GUN) === safe(st.day) && safe(r.PROGRAM || 'GENEL') === safe(st.program || 'GENEL') && safe(r.SAAT_KODU) === safe(st.slotCode)) : null;
+      if(teacherConflict){
+        return { ok:false, message:`<b>Çakışma:</b> Öğretmen bu saatte zaten <b>${esc(teacherConflict.SINIF || teacherConflict.GRUP || 'başka bir kayıt')}</b> için atanmış.` };
+      }
+      if(classConflict){
+        return { ok:false, message:`<b>Çakışma:</b> ${esc(classConflict.SINIF)} sınıfı bu saatte zaten <b>${esc(classConflict.DERS || 'başka bir ders')}</b> dersi için planlanmış.` };
+      }
+      return { ok:true, message:'<b>Hazır:</b> Seçili öğretmenin boşluğu ve sınıf saati uygunsa bu atama güvenle kaydedilebilir.' };
+    }
+    function upsertPlannerRow(isUpdate){
+      const st = assignmentPlannerState;
+      if(!st.teacherId || !st.day || !st.program || !st.slotCode || !st.subject || !(st.className || st.groupName)){
+        Swal.fire('Uyarı','Öğretmen, gün, program, saat ve ders bilgilerini doldurun. Sınıf veya grup alanlarından en az biri dolu olmalı.','warning');
+        return;
+      }
+      const conflict = getPlannerConflictState();
+      if(!conflict.ok){
+        Swal.fire('Çakışma', conflict.message.replace(/<[^>]+>/g,''), 'warning');
+        return;
+      }
+      const row = normalizeRow('schedule', {
+        __rowId: isUpdate && st.selectedRowId ? st.selectedRowId : makeRowId('plan'),
+        GUN: st.day,
+        PROGRAM: st.program,
+        SINIF: st.className,
+        GRUP: st.groupName,
+        SAAT_KODU: st.slotCode,
+        DERS: st.subject,
+        OGRETMEN_ID: st.teacherId
+      });
+      const rows = normalizeCollection('schedule', st.rows || []);
+      const idx = rows.findIndex(r => safe(r.__rowId) === safe(row.__rowId));
+      if(idx >= 0) rows[idx] = row;
+      else rows.push(row);
+      assignmentPlannerState.rows = rows;
+      assignmentPlannerState.selectedRowId = row.__rowId;
+      showToast(isUpdate ? 'Atama güncellendi.' : 'Yeni atama eklendi.', 'ok');
+      renderAssignmentPlannerModal();
+    }
+    function deletePlannerRow(){
+      const rowId = safe(assignmentPlannerState.selectedRowId);
+      if(!rowId){
+        Swal.fire('Uyarı','Silmek için önce tabloda bir atama seçin.','warning');
+        return;
+      }
+      assignmentPlannerState.rows = normalizeCollection('schedule', assignmentPlannerState.rows || []).filter(r => safe(r.__rowId) !== rowId);
+      assignmentPlannerState.selectedRowId = '';
+      assignmentPlannerState.className = '';
+      assignmentPlannerState.groupName = '';
+      assignmentPlannerState.subject = safe((teacherById(assignmentPlannerState.teacherId) || {}).branch) || '';
+      showToast('Seçili atama silindi.', 'warn');
+      renderAssignmentPlannerModal();
+    }
+    function openDatasetManager(kind){
+      openAdminDataModal('dataset', { kind, rows: deepClone(getDatasetRows(kind)), search:'' });
+    }
+    function openAssignmentPlanner(){
+      assignmentPlannerState = {
+        rows: deepClone(schedule),
+        teacherId: safe(session?.ogretmenId) || safe((teachers[0] || {}).ID),
+        day: todayNameTR(),
+        program: getProgramOptions()[0] || 'GENEL',
+        slotCode: '',
+        className: '',
+        groupName: '',
+        subject: safe((teacherById(safe(session?.ogretmenId) || safe((teachers[0] || {}).ID)) || {}).branch) || '',
+        selectedRowId: ''
+      };
+      openAdminDataModal('assignments', { compact:false });
+    }
+
 // ===== Toast helper (Kaydedildi ✓) =====
 function ensureToastHost(){
   let host = document.getElementById('toastHost');
@@ -3149,7 +4186,7 @@ function refreshVisibleView(){
       
       // Yoklama aktif/pasif durumunu dinle (Admin -> Firebase)
       initAttendanceConfigListener();
-await loadSheets(); buildSlotOrder();
+await loadMasterData();
 
       const cached = localStorage.getItem('session');
       if(cached){ session = JSON.parse(cached); enterApp(); scheduleRestoreScroll(); }
@@ -3330,6 +4367,19 @@ try{
         else syncTeacherHwTabButtons();
       });
 
+      UI.admDataSourceBtn?.addEventListener('click', ()=> openAdminDataModal('source', { compact:true }));
+      UI.admTeachersBtn?.addEventListener('click', ()=> openDatasetManager('teachers'));
+      UI.admStudentsBtn?.addEventListener('click', ()=> openDatasetManager('students'));
+      UI.admSlotsBtn?.addEventListener('click', ()=> openDatasetManager('slots'));
+      UI.admScheduleBtn?.addEventListener('click', ()=> openDatasetManager('schedule'));
+      UI.admAssignmentsBtn?.addEventListener('click', openAssignmentPlanner);
+      UI.adminDataModalCloseBtn?.addEventListener('click', closeAdminDataModal);
+      UI.adminDataModal?.addEventListener('click', (e)=>{
+        if(e.target?.matches('[data-close-admin-modal="1"]')) closeAdminDataModal();
+      });
+      window.addEventListener('keydown', (e)=>{
+        if(e.key === 'Escape' && UI.adminDataModal && !UI.adminDataModal.classList.contains('hidden')) closeAdminDataModal();
+      });
       UI.admHomeworksBtn?.addEventListener('click', openAdminHomeworks);
       UI.admQuizzesBtn?.addEventListener('click', openAdminQuizzes);
       UI.parentHwPrintBtn?.addEventListener('click', printParentHomeworks);
@@ -3500,13 +4550,39 @@ try{
         }
       }
     }
+    function getSlotByCode(code, program=''){
+      const key = safe(code);
+      if(!key) return null;
+      const prog = safe(program) || 'GENEL';
+      const exact = slots.find(s => safe(s.SAAT_KODU || s.KOD || s.ID) === key && safe(s.PROGRAM || 'GENEL') === prog);
+      return exact || slots.find(s => safe(s.SAAT_KODU || s.KOD || s.ID) === key) || null;
+    }
+    function slotOrderGet(code, program=''){
+      const key = safe(code);
+      const prog = safe(program) || 'GENEL';
+      const byProg = slotOrderMapByProgram.get(prog);
+      if(byProg && byProg.has(key)) return byProg.get(key);
+      return slotOrderMap.get(key) || null;
+    }
     function buildSlotOrder(){
-      const tmp = slots.map(s=>{
-        const bas = (s.BASLANGIC||'23:59').toString();
-        const kod = safe(s.SAAT_KODU||s.KOD||s.ID);
-        return {kod, bas};
-      }).sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
-      tmp.forEach((x,i)=> slotOrderMap.set(x.kod, i+1));
+      slotOrderMapByProgram = new Map();
+      const groups = new Map();
+      (slots || []).forEach(s => {
+        const prog = safe(s.PROGRAM) || 'GENEL';
+        const kod = safe(s.SAAT_KODU || s.KOD || s.ID);
+        const bas = safe(s.BASLANGIC || '23:59');
+        if(!kod) return;
+        if(!groups.has(prog)) groups.set(prog, []);
+        groups.get(prog).push({ kod, bas });
+      });
+      groups.forEach((arr, prog) => {
+        arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+        const map = new Map();
+        arr.forEach((item, idx)=> map.set(item.kod, idx + 1));
+        slotOrderMapByProgram.set(prog, map);
+      });
+      const first = Array.from(slotOrderMapByProgram.values())[0] || new Map();
+      slotOrderMap = new Map(first);
     }
 
     async function validateLogin(){
@@ -8863,66 +9939,25 @@ function printParentQuizzes(){
     // Boot
     window.addEventListener('DOMContentLoaded', init);
   </script>
-    <footer class="site-footer">
+
+  <style>
+    .site-footer{
+      margin-top: 32px;
+      padding: 14px 18px;
+      text-align: center;
+      font-size: 0.95rem;
+      color: var(--muted);
+      background: var(--bg);
+      border-top: var(--stroke);
+      box-shadow: none;
+    }
+    .site-footer strong{ color: var(--brand-2); }
+  </style>
+
+  <footer class="site-footer">
     <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong></p>
   </footer>
- <style>
-.site-footer{
-  margin-top: 32px;
-  padding: 14px 18px;
-  text-align: center;
-  font-size: 0.95rem;
-  color: var(--muted);
-  background: var(--bg);
-  border-top: var(--stroke);
-  box-shadow: none;
-}
-.site-footer strong{
-  color: var(--brand-2);
-}
 
- 
-<script>
-function getSlotByCode(code, program){
-  const key = String(code||'').trim(); if(!key) return null;
-  const p = safe(program);
-  if(p){
-    const hit = slots.find(r =>
-      String(r.SAAT_KODU??r.KOD??r.ID).trim()===key && safe(r.PROGRAM)===p
-    );
-    if(hit) return hit;
-  }
-  return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim()===key) || null;
-}
-function slotOrderGet(code, program){
-  const key = String(code||'').trim();
-  const p = safe(program) || 'GENEL';
-  const m = slotOrderMapByProgram.get(p);
-  if(m && m.has(key)) return m.get(key);
-  return slotOrderMap.get(key) || null; // fallback (eski tek program)
-}
-function buildSlotOrder(){
-  slotOrderMapByProgram = new Map();
-  const groups = new Map(); // program -> [{kod, bas}]
-  for(const s of slots){
-    const prog = safe(s.PROGRAM) || 'GENEL';
-    const kod  = safe(s.SAAT_KODU||s.KOD||s.ID);
-    const bas  = (s.BASLANGIC||'23:59').toString();
-    if(!kod) continue;
-    if(!groups.has(prog)) groups.set(prog, []);
-    groups.get(prog).push({kod, bas});
-  }
-  groups.forEach((arr, prog) => {
-    arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
-    const m = new Map();
-    arr.forEach((x,i)=> m.set(x.kod, i+1));
-    slotOrderMapByProgram.set(prog, m);
-  });
-  // legacy haritayı ilk programla doldur (bazı admin görünümleri kullanıyor)
-  const first = Array.from(slotOrderMapByProgram.values())[0] || new Map();
-  slotOrderMap = new Map(first);
-}
-</script>
   <!-- PWA Service Worker -->
   <script>
     (function () {
