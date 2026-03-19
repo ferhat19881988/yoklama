@@ -19,7 +19,6 @@
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/timezone.js" defer></script>
   <!-- Load Turkish locale for Day.js so month names appear in Turkish -->
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/tr.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
 
   <style>
     :root{
@@ -2040,19 +2039,6 @@ div.admin-filters .button-row {
               <button class="btn tool-btn" id="admPrint" type="button">Yazdır</button>
             </div>
           </div>
-
-          <div class="action-group" role="group" aria-label="Ana Veriler">
-            <div class="group-title">Ana Veriler</div>
-            <div class="group-buttons">
-              <button class="btn tool-btn ghost" id="admSourceSheets" type="button" title="Ana veriyi e-tablolardan kullan">E-Tablo</button>
-              <button class="btn tool-btn ghost" id="admSourceFirebase" type="button" title="Ana veriyi Firebase'ten kullan">Firebase</button>
-              <button class="btn tool-btn" id="admTeachersMasterBtn" type="button" title="Öğretmen kayıtlarını yönet">Öğretmenler</button>
-              <button class="btn tool-btn" id="admStudentsMasterBtn" type="button" title="Öğrenci kayıtlarını yönet">Öğrenciler</button>
-              <button class="btn tool-btn" id="admSlotsMasterBtn" type="button" title="Ders saatlerini yönet">Ders Saatleri</button>
-              <button class="btn tool-btn" id="admScheduleMasterBtn" type="button" title="Ders planlarını yönet">Ders Planları</button>
-              <button class="btn tool-btn" id="admTeacherAssignBtn" type="button" title="Öğretmene ders atama planlayıcısı">Ders Atama</button>
-            </div>
-          </div>
         </div>
       </div>
 <!-- PRINT: Özet sayfa (sadece yazdırda görünür) -->
@@ -2171,7 +2157,7 @@ div.admin-filters .button-row {
     dayjs.locale('tr');
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, get, update, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
 
 // =========================
@@ -2506,13 +2492,6 @@ function openWhatsAppComposer(opts){
       admListBody: document.getElementById('admListBody'),
       admEmpty: document.getElementById('admEmpty'),
       admWhatsApp: document.getElementById('admWhatsApp'),
-      admSourceSheets: document.getElementById('admSourceSheets'),
-      admSourceFirebase: document.getElementById('admSourceFirebase'),
-      admTeachersMasterBtn: document.getElementById('admTeachersMasterBtn'),
-      admStudentsMasterBtn: document.getElementById('admStudentsMasterBtn'),
-      admSlotsMasterBtn: document.getElementById('admSlotsMasterBtn'),
-      admScheduleMasterBtn: document.getElementById('admScheduleMasterBtn'),
-      admTeacherAssignBtn: document.getElementById('admTeacherAssignBtn'),
       admTeacherReport: document.getElementById('admTeacherReport'),
       admStudentStats: document.getElementById('admStudentStats'),
       admWeeklyAbsence: document.getElementById('admWeeklyAbsence'),
@@ -2639,11 +2618,6 @@ function openWhatsAppComposer(opts){
     // State
     let appFB, db;
 let teachers=[], students=[], schedule=[], slots=[];
-let masterDataSourceMode = localStorage.getItem('masterDataSourceMode') || 'sheets';
-const MASTER_DATA_ROOT = 'masterData';
-const MASTER_CONFIG_ROOT = 'systemConfig';
-const MASTER_SHEET_TABS = { teachers:'Ogretmenler', students:'Ogrenciler', schedule:'DersProgrami', slots:'DersSaatleri' };
-
 let slotOrderMap = new Map();                 // legacy (tek program)
 let slotOrderMapByProgram = new Map();        // NEW: program -> Map(kod -> no)
 let session=null;
@@ -3250,25 +3224,6 @@ await loadSheets(); buildSlotOrder();
 
       // Admin controls
       UI.admRefresh?.addEventListener('click', refreshAdmin);
-      UI.admSourceSheets?.addEventListener('click', async ()=>{
-        await saveMasterDataSourceMode('sheets', true);
-        await loadSheets();
-        buildSlotOrder();
-        if(session?.role === 'admin') showAdminView();
-        else if(session?.role === 'ogretmen') showTeacherToday();
-      });
-      UI.admSourceFirebase?.addEventListener('click', async ()=>{
-        await saveMasterDataSourceMode('firebase', true);
-        await loadSheets();
-        buildSlotOrder();
-        if(session?.role === 'admin') showAdminView();
-        else if(session?.role === 'ogretmen') showTeacherToday();
-      });
-      UI.admTeachersMasterBtn?.addEventListener('click', ()=> openMasterDataModal('teachers'));
-      UI.admStudentsMasterBtn?.addEventListener('click', ()=> openMasterDataModal('students'));
-      UI.admSlotsMasterBtn?.addEventListener('click', ()=> openMasterDataModal('slots'));
-      UI.admScheduleMasterBtn?.addEventListener('click', ()=> openMasterDataModal('schedule'));
-      UI.admTeacherAssignBtn?.addEventListener('click', ()=> openTeacherAssignmentModal());
       UI.admWhatsApp?.addEventListener('click', sendWhatsAppReport);
       // Filtreler değiştiğinde sayfa numaralarını sıfırla ve listeyi tazele
       UI.admClass?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
@@ -3485,198 +3440,19 @@ try{
       if(navigator.onLine) await flushQueue(false);
     }
 
-    function normalizeText(v){ return String(v ?? '').trim(); }
-    function slugifyKey(v){
-      return normalizeText(v).toLowerCase().replace(/[^a-z0-9ğüşöçıİĞÜŞÖÇ]+/gi,'-').replace(/^-+|-+$/g,'');
-    }
-    function toArrayFromFirebase(node){
-      if(!node) return [];
-      if(Array.isArray(node)) return node.filter(Boolean);
-      return Object.values(node).filter(Boolean);
-    }
-    function makeTeacherKey(row){
-      return slugifyKey(row.ID || row.id || row.OGRETMEN_ID || row.adsoyad || row.ADSOYAD || row.AD_SOYAD || row.ad || row.name || `teacher-${Date.now()}`);
-    }
-    function makeStudentKey(row){
-      return slugifyKey(row.NO || row.no || row.ogrenciNo || row.OGRENCI_NO || row.id || row.ADSOYAD || row.adsoyad || `student-${Date.now()}`);
-    }
-    function makeSlotKey(row){
-      return slugifyKey([row.SAAT_KODU || row.KOD || row.ID || row.saatKodu, row.PROGRAM || row.program || 'GENEL'].filter(Boolean).join('-'));
-    }
-    function makeScheduleKey(row){
-      return slugifyKey([row.ID || row.id, row.GUN || row.gun, row.SAAT_KODU || row.saatKodu, row.OGRETMEN_ID || row.ogretmenId, row.SINIF || row.sinif, row.PROGRAM || row.program || 'GENEL', row.DERS || row.ders || row.DERS_ADI || row.dersAdi].filter(Boolean).join('-'));
-    }
-    function getMasterEntityMeta(entity){
-      const META = {
-        teachers: {
-          title:'Öğretmenler', keyField:'_rowKey', makeKey:makeTeacherKey,
-          columns:[
-            {key:'ID', label:'ID', required:true},
-            {key:'ADSOYAD', label:'Ad Soyad', required:true},
-            {key:'BRANS', label:'Branş'},
-            {key:'TELEFON', label:'Telefon'},
-            {key:'EMAIL', label:'E-Posta'},
-            {key:'AKTIF', label:'Aktif'}
-          ]
-        },
-        students: {
-          title:'Öğrenciler', keyField:'_rowKey', makeKey:makeStudentKey,
-          columns:[
-            {key:'NO', label:'No', required:true},
-            {key:'ADSOYAD', label:'Ad Soyad', required:true},
-            {key:'SINIF', label:'Sınıf', required:true},
-            {key:'VeliTel', label:'Veli Telefon', required:true},
-            {key:'OGR_TEL', label:'Öğrenci Telefon'},
-            {key:'AKTIF', label:'Aktif'}
-          ]
-        },
-        slots: {
-          title:'Ders Saatleri', keyField:'_rowKey', makeKey:makeSlotKey,
-          columns:[
-            {key:'SAAT_KODU', label:'Saat Kodu', required:true},
-            {key:'BASLANGIC', label:'Başlangıç', required:true},
-            {key:'BITIS', label:'Bitiş', required:true},
-            {key:'PROGRAM', label:'Program'},
-            {key:'ACIKLAMA', label:'Açıklama'}
-          ]
-        },
-        schedule: {
-          title:'Ders Planları', keyField:'_rowKey', makeKey:makeScheduleKey,
-          columns:[
-            {key:'ID', label:'Plan ID'},
-            {key:'GUN', label:'Gün', required:true},
-            {key:'SAAT_KODU', label:'Saat Kodu', required:true},
-            {key:'OGRETMEN_ID', label:'Öğretmen ID', required:true},
-            {key:'SINIF', label:'Sınıf/Grup', required:true},
-            {key:'PROGRAM', label:'Program'},
-            {key:'DERS', label:'Ders'},
-            {key:'AKTIF', label:'Aktif'}
-          ]
-        }
-      };
-      return META[entity];
-    }
-    function normalizeMasterRow(entity, row){
-      const src = row && typeof row === 'object' ? row : {};
-      if(entity === 'teachers'){
-        return {
-          ID: normalizeText(src.ID || src.id || src.OGRETMEN_ID),
-          ADSOYAD: normalizeText(src.ADSOYAD || src.adsoyad || src.AD_SOYAD || src.name),
-          BRANS: normalizeText(src.BRANS || src.branch || src.BRANŞ),
-          TELEFON: normalizeText(src.TELEFON || src.telefon || src.TEL || src.phone),
-          EMAIL: normalizeText(src.EMAIL || src.email || src.EPOSTA),
-          AKTIF: normalizeText(src.AKTIF || src.aktif || '1') || '1'
-        };
-      }
-      if(entity === 'students'){
-        return {
-          NO: normalizeText(src.NO || src.no || src.OGRENCI_NO || src.ogrenciNo),
-          ADSOYAD: normalizeText(src.ADSOYAD || src.adsoyad || src.AD_SOYAD || src.name),
-          SINIF: normalizeText(src.SINIF || src.sinif || src.SUBE || src.class),
-          VeliTel: normalizeText(src.VeliTel || src.VELITEL || src.veliTel || src.veliTel || src.VELI_TEL),
-          OGR_TEL: normalizeText(src.OGR_TEL || src.ogrTel || src.OGRENCI_TEL),
-          AKTIF: normalizeText(src.AKTIF || src.aktif || '1') || '1'
-        };
-      }
-      if(entity === 'slots'){
-        return {
-          SAAT_KODU: normalizeText(src.SAAT_KODU || src.KOD || src.ID || src.saatKodu),
-          BASLANGIC: normalizeText(src.BASLANGIC || src.baslangic || src.BAS || src.start),
-          BITIS: normalizeText(src.BITIS || src.bitis || src.BIT || src.end),
-          PROGRAM: normalizeText(src.PROGRAM || src.program),
-          ACIKLAMA: normalizeText(src.ACIKLAMA || src.aciklama || src.AD)
-        };
-      }
-      return {
-        ID: normalizeText(src.ID || src.id),
-        GUN: normalizeText(src.GUN || src.gun),
-        SAAT_KODU: normalizeText(src.SAAT_KODU || src.saatKodu || src.KOD),
-        OGRETMEN_ID: normalizeText(src.OGRETMEN_ID || src.ogretmenId || src.teacherId),
-        SINIF: normalizeText(src.SINIF || src.sinif || src.GRUP || src.group),
-        PROGRAM: normalizeText(src.PROGRAM || src.program),
-        DERS: normalizeText(src.DERS || src.ders || src.DERS_ADI || src.dersAdi),
-        AKTIF: normalizeText(src.AKTIF || src.aktif || '1') || '1'
-      };
-    }
-    function withMasterKeys(entity, rows){
-      const meta = getMasterEntityMeta(entity);
-      return (rows || []).map(r => {
-        const item = normalizeMasterRow(entity, r);
-        const rowKey = normalizeText(r?._rowKey || r?.rowKey || meta.makeKey(item));
-        return { ...item, _rowKey: rowKey, rowKey };
-      }).filter(Boolean);
-    }
-    function sanitizeForFirebase(entity, row){
-      const meta = getMasterEntityMeta(entity);
-      const cleaned = {};
-      meta.columns.forEach(col => { cleaned[col.key] = normalizeText(row[col.key]); });
-      if(entity === 'schedule' && !cleaned.ID){ cleaned.ID = row._rowKey || meta.makeKey(row); }
-      return cleaned;
-    }
-    async function saveMasterDataSourceMode(mode, persistRemote = true){
-      masterDataSourceMode = mode === 'firebase' ? 'firebase' : 'sheets';
-      localStorage.setItem('masterDataSourceMode', masterDataSourceMode);
-      if(persistRemote){
-        try{ await update(ref(db, `${MASTER_CONFIG_ROOT}`), { masterDataSourceMode }); }catch(e){ console.error('saveMasterDataSourceMode', e); }
-      }
-      syncMasterSourceButtons();
-    }
-    function syncMasterSourceButtons(){
-      if(!UI) return;
-      UI.admSourceSheets?.classList.toggle('ghost', masterDataSourceMode !== 'sheets');
-      UI.admSourceFirebase?.classList.toggle('ghost', masterDataSourceMode !== 'firebase');
-      UI.admSourceSheets?.classList.toggle('btn', true);
-      UI.admSourceFirebase?.classList.toggle('btn', true);
-      if(UI.admSourceSheets) UI.admSourceSheets.textContent = masterDataSourceMode === 'sheets' ? 'E-Tablo ✓' : 'E-Tablo';
-      if(UI.admSourceFirebase) UI.admSourceFirebase.textContent = masterDataSourceMode === 'firebase' ? 'Firebase ✓' : 'Firebase';
-    }
-    async function readMasterDataSourceModeRemote(){
-      try{
-        const snap = await get(ref(db, `${MASTER_CONFIG_ROOT}/masterDataSourceMode`));
-        if(snap.exists()){
-          const remoteMode = normalizeText(snap.val());
-          if(remoteMode === 'firebase' || remoteMode === 'sheets'){
-            masterDataSourceMode = remoteMode;
-            localStorage.setItem('masterDataSourceMode', masterDataSourceMode);
-          }
-        }
-      }catch(e){
-        console.error('readMasterDataSourceModeRemote', e);
-      }
-      syncMasterSourceButtons();
-    }
-    async function fetchMasterDataFromSheets(){
-      const [tRes,sRes,pRes,slRes] = await Promise.all([
-        fetch(sheetUrl(MASTER_SHEET_TABS.teachers)),
-        fetch(sheetUrl(MASTER_SHEET_TABS.students)),
-        fetch(sheetUrl(MASTER_SHEET_TABS.schedule)),
-        fetch(sheetUrl(MASTER_SHEET_TABS.slots)),
-      ]);
-      teachers = withMasterKeys('teachers', await tRes.json());
-      students = withMasterKeys('students', await sRes.json());
-      schedule = withMasterKeys('schedule', await pRes.json());
-      slots    = withMasterKeys('slots', await slRes.json());
-    }
-    async function fetchMasterDataFromFirebase(){
-      const snap = await get(ref(db, MASTER_DATA_ROOT));
-      const data = snap.exists() ? (snap.val() || {}) : {};
-      teachers = withMasterKeys('teachers', toArrayFromFirebase(data.teachers));
-      students = withMasterKeys('students', toArrayFromFirebase(data.students));
-      schedule = withMasterKeys('schedule', toArrayFromFirebase(data.schedule));
-      slots    = withMasterKeys('slots', toArrayFromFirebase(data.slots));
-    }
     async function loadSheets(){
-      const CACHE_KEY = 'fenomenSheetsCache_v2';
+      const CACHE_KEY = 'fenomenSheetsCache_v1';
+
       const useCache = () => {
         try{
           const raw = localStorage.getItem(CACHE_KEY);
           if(!raw) return false;
           const data = JSON.parse(raw);
           if(!data || !data.teachers || !data.students || !data.schedule || !data.slots) return false;
-          teachers = withMasterKeys('teachers', data.teachers);
-          students = withMasterKeys('students', data.students);
-          schedule = withMasterKeys('schedule', data.schedule);
-          slots    = withMasterKeys('slots', data.slots);
+          teachers = data.teachers;
+          students = data.students;
+          schedule = data.schedule;
+          slots    = data.slots;
           return true;
         }catch(e){
           console.error('Cache parse error', e);
@@ -3684,36 +3460,41 @@ try{
         }
       };
 
-      await readMasterDataSourceModeRemote();
-
+      // Offline ise önce cache dene
       if(!navigator.onLine){
         if(useCache()){
-          setStatus(`Offline mod: ${masterDataSourceMode === 'firebase' ? 'Firebase' : 'E-Tablo'} önbelleği kullanılıyor.`, 'bad');
+          setStatus('Offline mod: Son kaydedilen ders programı kullanılıyor.', 'bad');
+          return;
+        }else{
+          setStatus('Offline: Ders listeleri için önce internetle en az bir kez açmalısınız.', 'bad');
           return;
         }
-        setStatus('Offline: Ana veriler için önce internetle en az bir kez açmalısınız.', 'bad');
-        return;
       }
 
       try{
-        if(masterDataSourceMode === 'firebase'){
-          await fetchMasterDataFromFirebase();
-          if(!teachers.length && !students.length && !schedule.length && !slots.length){
-            await fetchMasterDataFromSheets();
-            setStatus('Firebase ana verisi boş olduğu için e-tablo verileri kullanıldı.', 'bad');
-          }
-        }else{
-          await fetchMasterDataFromSheets();
-        }
-        syncMasterGlobals();
+        const [tRes,sRes,pRes,slRes] = await Promise.all([
+          fetch(sheetUrl('Ogretmenler')),
+          fetch(sheetUrl('Ogrenciler')),
+          fetch(sheetUrl('DersProgrami')),
+          fetch(sheetUrl('DersSaatleri')),
+        ]);
+        teachers = await tRes.json();
+        students = await sRes.json();
+        schedule = await pRes.json();
+        slots    = await slRes.json();
+
+        // Başarılı yüklemeden sonra offline kullanım için önbelleğe kaydet
         try{
-          const payload = JSON.stringify({teachers, students, schedule, slots, ts: Date.now(), mode: masterDataSourceMode});
+          const payload = JSON.stringify({teachers, students, schedule, slots, ts: Date.now()});
           localStorage.setItem(CACHE_KEY, payload);
-        }catch(e){ console.error('Cache save error', e); }
+        }catch(e){
+          console.error('Cache save error', e);
+        }
       }catch(err){
         console.error('loadSheets error', err);
+        // Online görünüyor ama sunucuya ulaşılamıyorsa son cache i dene
         if(useCache()){
-          setStatus('Kaynak yüklenemedi, son önbellek kullanılıyor.', 'bad');
+          setStatus('Sunucuya ulaşılamıyor, önbellekteki son ders programı kullanılıyor.', 'bad');
         }else{
           throw err;
         }
@@ -4819,7 +4600,6 @@ async function loadParentRange(kind){
         UI.admProgram.value = 'hepsi';
       }
       UI.admHour && (UI.admHour.value = 'hepsi'); // ilk açılış: Hepsi
-      syncMasterSourceButtons();
       // Özet/Detay görünümü uygula
       setAdminViewMode(adminViewMode);
       refreshAdmin();
@@ -9080,488 +8860,13 @@ function printParentQuizzes(){
   }
 }
 
-    function syncMasterGlobals(){
-      try{
-        window.slots = slots;
-        window.slotOrderMap = slotOrderMap;
-        window.slotOrderMapByProgram = slotOrderMapByProgram;
-        if(typeof safe === 'function') window.safe = safe;
-      }catch(_){}
-    }
-
-    function getEntityDataset(entity){
-      if(entity === 'teachers') return teachers;
-      if(entity === 'students') return students;
-      if(entity === 'slots') return slots;
-      return schedule;
-    }
-    function setEntityDataset(entity, rows){
-      const next = withMasterKeys(entity, rows);
-      if(entity === 'teachers') teachers = next;
-      else if(entity === 'students') students = next;
-      else if(entity === 'slots') slots = next;
-      else schedule = next;
-      if(entity === 'slots') buildSlotOrder();
-      syncMasterGlobals();
-    }
-    function renderMasterTableRows(entity, rows){
-      const meta = getMasterEntityMeta(entity);
-      return rows.map((row, idx) => `
-        <tr data-rowkey="${row._rowKey}">
-          <td>${idx+1}</td>
-          ${meta.columns.map(col => `<td title="${String(row[col.key] || '').replace(/"/g,'&quot;')}">${row[col.key] || ''}</td>`).join('')}
-          <td style="white-space:nowrap;">
-            <button class="btn ghost small" data-action="edit" data-rowkey="${row._rowKey}" type="button">Düzenle</button>
-            <button class="btn ghost small danger" data-action="delete" data-rowkey="${row._rowKey}" type="button">Sil</button>
-          </td>
-        </tr>`).join('');
-    }
-    function exportRowsToExcel(entity, rows){
-      if(!window.XLSX){ Swal.fire('Hata','Excel kütüphanesi yüklenemedi.','error'); return; }
-      const meta = getMasterEntityMeta(entity);
-      const plain = rows.map(r => Object.fromEntries(meta.columns.map(col => [col.label, r[col.key] || ''])));
-      const ws = XLSX.utils.json_to_sheet(plain);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, meta.title);
-      XLSX.writeFile(wb, `${meta.title.replace(/\s+/g,'_')}.xlsx`);
-    }
-    async function readExcelRowsFromFile(file){
-      return new Promise((resolve, reject) => {
-        try{
-          const reader = new FileReader();
-          reader.onload = evt => {
-            try{
-              const data = new Uint8Array(evt.target.result);
-              const wb = XLSX.read(data, { type:'array' });
-              const ws = wb.Sheets[wb.SheetNames[0]];
-              const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
-              resolve(rows || []);
-            }catch(err){ reject(err); }
-          };
-          reader.onerror = reject;
-          reader.readAsArrayBuffer(file);
-        }catch(err){ reject(err); }
-      });
-    }
-    async function persistEntityRowsToFirebase(entity, rows, mode='merge'){
-      const meta = getMasterEntityMeta(entity);
-      const payload = {};
-      (rows || []).forEach(row => {
-        const rowKey = normalizeText(row._rowKey || meta.makeKey(row));
-        if(!rowKey) return;
-        payload[rowKey] = sanitizeForFirebase(entity, { ...row, _rowKey: rowKey });
-      });
-      if(mode === 'replace') await set(ref(db, `${MASTER_DATA_ROOT}/${entity}`), payload);
-      else await update(ref(db, `${MASTER_DATA_ROOT}/${entity}`), payload);
-      return payload;
-    }
-    async function deleteEntityRowFromFirebase(entity, rowKey){
-      if(!rowKey) return;
-      const updates = {};
-      updates[`${MASTER_DATA_ROOT}/${entity}/${rowKey}`] = null;
-      await update(ref(db), updates);
-    }
-    function buildEntityEmptyRow(entity){
-      const meta = getMasterEntityMeta(entity);
-      const base = {};
-      meta.columns.forEach(col => base[col.key] = '');
-      if(entity === 'schedule') base.AKTIF = '1';
-      if(entity === 'students') base.AKTIF = '1';
-      if(entity === 'teachers') base.AKTIF = '1';
-      return base;
-    }
-    async function openMasterDataModal(entity){
-      const meta = getMasterEntityMeta(entity);
-      let rows = [...getEntityDataset(entity)].map(r => ({ ...r }));
-      let filteredRows = [...rows];
-      let selectedKey = filteredRows[0]?._rowKey || '';
-      const formState = buildEntityEmptyRow(entity);
-      const formId = `mdForm_${entity}`;
-      const tableId = `mdTable_${entity}`;
-      const searchId = `mdSearch_${entity}`;
-      const fileId = `mdFile_${entity}`;
-      const countId = `mdCount_${entity}`;
-      const sourceBadge = masterDataSourceMode === 'firebase' ? 'Firebase' : 'E-Tablo';
-
-      const html = `
-        <div class="stack" style="text-align:left;gap:12px;">
-          <div class="row" style="justify-content:space-between;align-items:center;gap:10px;">
-            <div class="pill">Kaynak: <b>${sourceBadge}</b></div>
-            <div class="muted" id="${countId}">${rows.length} kayıt</div>
-          </div>
-          <div class="row" style="gap:8px;flex-wrap:wrap;">
-            <input id="${searchId}" class="input" placeholder="Ara..." style="flex:1 1 260px;min-width:240px;">
-            <button class="btn ghost small" id="mdNew_${entity}" type="button">Yeni</button>
-            <button class="btn ghost small" id="mdExport_${entity}" type="button">Excel'e Aktar</button>
-            <button class="btn ghost small" id="mdImport_${entity}" type="button">Excel Yükle</button>
-            <button class="btn small" id="mdPush_${entity}" type="button">Firebase'e Ekle</button>
-            <button class="btn small" id="mdReplace_${entity}" type="button">Firebase'e Yaz</button>
-            <button class="btn ghost small" id="mdReload_${entity}" type="button">Yeniden Yükle</button>
-            <input id="${fileId}" type="file" accept=".xlsx,.xls,.csv" hidden>
-          </div>
-          <div style="display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.95fr);gap:12px;align-items:start;">
-            <div class="table-wrap" style="max-height:62vh;overflow:auto;border:var(--stroke);border-radius:14px;">
-              <table class="table" id="${tableId}" style="min-width:${entity === 'schedule' ? '1120px' : '860px'};">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    ${meta.columns.map(col => `<th>${col.label}</th>`).join('')}
-                    <th>İşlem</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-            <div class="card" style="border-radius:16px;overflow:hidden;">
-              <h3 style="margin:0;">${meta.title} Formu</h3>
-              <div class="body">
-                <div id="${formId}" class="stack"></div>
-                <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap;">
-                  <button class="btn small" id="mdSave_${entity}" type="button">Kaydı Uygula</button>
-                  <button class="btn ghost small danger" id="mdDelete_${entity}" type="button">Sil</button>
-                  <button class="btn ghost small" id="mdClear_${entity}" type="button">Temizle</button>
-                </div>
-                <div class="muted" style="margin-top:10px;font-size:.85rem;">Not: Öğrenci formundaki <b>Veli Telefon</b> alanı SMS sistemiyle senkron çalışır. Firebase kaynağı seçildiğinde SMS bu alandan beslenir.</div>
-              </div>
-            </div>
-          </div>
-        </div>`;
-
-      const result = await Swal.fire({
-        title: `${meta.title} Yönetimi`,
-        html,
-        width: '96vw',
-        customClass: { popup:'wa-popup' },
-        showConfirmButton:false,
-        showCloseButton:true,
-        didOpen: () => {
-          const popup = Swal.getPopup();
-          if(popup){ popup.style.maxWidth = '1480px'; popup.style.width = '96vw'; }
-          const tbody = document.querySelector(`#${tableId} tbody`);
-          const formWrap = document.getElementById(formId);
-          const countEl = document.getElementById(countId);
-          const searchEl = document.getElementById(searchId);
-          const fileEl = document.getElementById(fileId);
-
-          function setForm(row){
-            const src = row ? { ...row } : buildEntityEmptyRow(entity);
-            meta.columns.forEach(col => { formState[col.key] = src[col.key] || ''; });
-            selectedKey = row?._rowKey || '';
-            renderForm();
-            highlightSelected();
-          }
-          function readForm(){
-            const next = {};
-            meta.columns.forEach(col => {
-              const el = document.getElementById(`md_field_${entity}_${col.key}`);
-              next[col.key] = normalizeText(el?.value || '');
-            });
-            return next;
-          }
-          function validateRow(next){
-            const missing = meta.columns.filter(col => col.required && !normalizeText(next[col.key])).map(col => col.label);
-            if(missing.length){
-              Swal.fire('Eksik Alan', `Lütfen şu alanları doldurun: ${missing.join(', ')}`, 'warning');
-              return false;
-            }
-            if(entity === 'students' && next.VeliTel && !normalizeTRGsm(next.VeliTel)){
-              Swal.fire('Telefon Hatası','Veli telefon alanı geçerli bir GSM formatında olmalı.','warning');
-              return false;
-            }
-            return true;
-          }
-          function renderForm(){
-            formWrap.innerHTML = meta.columns.map(col => `
-              <label class="field">
-                <span>${col.label}${col.required ? ' *' : ''}</span>
-                <input id="md_field_${entity}_${col.key}" class="input" value="${String(formState[col.key] || '').replace(/"/g,'&quot;')}" />
-              </label>`).join('');
-          }
-          function renderTable(){
-            const q = normalizeText(searchEl.value).toLowerCase();
-            filteredRows = rows.filter(row => !q || meta.columns.some(col => normalizeText(row[col.key]).toLowerCase().includes(q)));
-            if(countEl) countEl.textContent = `${filteredRows.length} kayıt`;
-            tbody.innerHTML = filteredRows.length ? renderMasterTableRows(entity, filteredRows) : `<tr><td colspan="${meta.columns.length + 2}" class="muted">Kayıt bulunamadı.</td></tr>`;
-            highlightSelected();
-          }
-          function highlightSelected(){
-            tbody.querySelectorAll('tr[data-rowkey]').forEach(tr => {
-              tr.style.outline = tr.dataset.rowkey === selectedKey ? '2px solid rgba(249,115,22,.55)' : 'none';
-            });
-          }
-          function syncBackToGlobal(){
-            setEntityDataset(entity, rows);
-            if(session?.role === 'admin') showAdminView();
-          }
-
-          renderForm();
-          renderTable();
-          if(rows[0]) setForm(rows[0]);
-
-          searchEl.addEventListener('input', renderTable);
-          tbody.addEventListener('click', async (ev) => {
-            const btn = ev.target.closest('[data-action]');
-            const tr = ev.target.closest('tr[data-rowkey]');
-            const rowKey = btn?.dataset.rowkey || tr?.dataset.rowkey;
-            if(!rowKey) return;
-            const row = rows.find(r => r._rowKey === rowKey);
-            if(!row) return;
-            if(!btn || btn.dataset.action === 'edit'){
-              setForm(row);
-              return;
-            }
-            if(btn.dataset.action === 'delete'){
-              const conf = await Swal.fire({ title:'Kaydı sil', text:'Bu satır silinsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Sil', cancelButtonText:'İptal' });
-              if(!conf.isConfirmed) return;
-              rows = rows.filter(r => r._rowKey !== rowKey);
-              if(masterDataSourceMode === 'firebase'){
-                try{ await deleteEntityRowFromFirebase(entity, rowKey); }catch(e){ console.error(e); }
-              }
-              selectedKey = '';
-              syncBackToGlobal();
-              setForm(null);
-              renderTable();
-            }
-          });
-
-          document.getElementById(`mdNew_${entity}`)?.addEventListener('click', ()=> setForm(null));
-          document.getElementById(`mdClear_${entity}`)?.addEventListener('click', ()=> setForm(null));
-          document.getElementById(`mdSave_${entity}`)?.addEventListener('click', ()=> {
-            const next = readForm();
-            if(!validateRow(next)) return;
-            const rowKey = selectedKey || getMasterEntityMeta(entity).makeKey(next);
-            const prepared = { ...next, _rowKey: rowKey, rowKey };
-            const idx = rows.findIndex(r => r._rowKey === rowKey);
-            if(idx >= 0) rows[idx] = prepared;
-            else rows.unshift(prepared);
-            selectedKey = rowKey;
-            syncBackToGlobal();
-            renderTable();
-            Swal.fire({ toast:true, position:'top-end', timer:1400, showConfirmButton:false, icon:'success', title:'Kayıt güncellendi' });
-          });
-          document.getElementById(`mdDelete_${entity}`)?.addEventListener('click', async ()=> {
-            if(!selectedKey){ Swal.fire('Uyarı','Silmek için bir kayıt seçin.','warning'); return; }
-            const conf = await Swal.fire({ title:'Kaydı sil', text:'Seçili kayıt silinsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Sil', cancelButtonText:'İptal' });
-            if(!conf.isConfirmed) return;
-            rows = rows.filter(r => r._rowKey !== selectedKey);
-            if(masterDataSourceMode === 'firebase'){
-              try{ await deleteEntityRowFromFirebase(entity, selectedKey); }catch(e){ console.error(e); }
-            }
-            selectedKey = '';
-            syncBackToGlobal();
-            setForm(null);
-            renderTable();
-          });
-          document.getElementById(`mdExport_${entity}`)?.addEventListener('click', ()=> exportRowsToExcel(entity, filteredRows.length ? filteredRows : rows));
-          document.getElementById(`mdImport_${entity}`)?.addEventListener('click', ()=> fileEl.click());
-          fileEl.addEventListener('change', async ()=> {
-            const file = fileEl.files?.[0];
-            if(!file) return;
-            try{
-              const imported = await readExcelRowsFromFile(file);
-              const mapped = imported.map(r => {
-                const translated = {};
-                meta.columns.forEach(col => {
-                  translated[col.key] = r[col.key] ?? r[col.label] ?? r[col.label.toUpperCase()] ?? '';
-                });
-                return translated;
-              }).map(r => ({ ...normalizeMasterRow(entity, r) }));
-              const merged = new Map(rows.map(r => [r._rowKey, r]));
-              mapped.forEach(item => {
-                const rowKey = getMasterEntityMeta(entity).makeKey(item);
-                merged.set(rowKey, { ...item, _rowKey: rowKey, rowKey });
-              });
-              rows = Array.from(merged.values());
-              syncBackToGlobal();
-              renderTable();
-              Swal.fire('Yüklendi', `${mapped.length} kayıt içe aktarıldı.`, 'success');
-            }catch(err){
-              console.error(err);
-              Swal.fire('Hata','Excel dosyası okunamadı. Başlık satırlarını kontrol edin.','error');
-            }finally{ fileEl.value = ''; }
-          });
-          document.getElementById(`mdPush_${entity}`)?.addEventListener('click', async ()=> {
-            try{
-              await persistEntityRowsToFirebase(entity, rows, 'merge');
-              await saveMasterDataSourceMode('firebase', false);
-              Swal.fire('Kaydedildi', `${meta.title} Firebase'e eklendi/güncellendi.`, 'success');
-            }catch(err){ console.error(err); Swal.fire('Hata','Firebase kaydı başarısız oldu.','error'); }
-          });
-          document.getElementById(`mdReplace_${entity}`)?.addEventListener('click', async ()=> {
-            const conf = await Swal.fire({ title:'Firebase üzerine yaz', text:'Seçili tüm tablo Firebase koleksiyonu olarak yeniden yazılsın mı?', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'İptal' });
-            if(!conf.isConfirmed) return;
-            try{
-              await persistEntityRowsToFirebase(entity, rows, 'replace');
-              await saveMasterDataSourceMode('firebase', false);
-              Swal.fire('Tamamlandı', `${meta.title} Firebase üzerinde yenilendi.`, 'success');
-            }catch(err){ console.error(err); Swal.fire('Hata','Firebase üzerine yazma işlemi başarısız.','error'); }
-          });
-          document.getElementById(`mdReload_${entity}`)?.addEventListener('click', async ()=> {
-            try{
-              await loadSheets();
-              rows = [...getEntityDataset(entity)].map(r => ({ ...r }));
-              selectedKey = rows[0]?._rowKey || '';
-              setForm(rows[0] || null);
-              renderTable();
-            }catch(err){ console.error(err); Swal.fire('Hata','Veri yeniden yüklenemedi.','error'); }
-          });
-        }
-      });
-      return result;
-    }
-    function listTeacherAssignments(teacherId){
-      return (schedule || []).filter(r => normalizeText(r.OGRETMEN_ID) === normalizeText(teacherId));
-    }
-    function teacherBusyKey(row){
-      return `${normalizeText(row.GUN)}__${normalizeText(row.SAAT_KODU)}__${normalizeText(row.PROGRAM || 'GENEL')}`;
-    }
-    async function openTeacherAssignmentModal(){
-      const teacherOptions = [...teachers].sort((a,b) => normalizeText(a.ADSOYAD).localeCompare(normalizeText(b.ADSOYAD),'tr'));
-      if(!teacherOptions.length){ Swal.fire('Uyarı','Önce öğretmen verisi yüklenmeli.','warning'); return; }
-      const classOptions = Array.from(new Set(students.map(s => normalizeText(s.SINIF)).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'tr',{numeric:true}));
-      const dayOptions = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
-      let selectedTeacherId = normalizeText(teacherOptions[0].ID);
-      const html = `
-        <div class="stack" style="text-align:left;gap:12px;">
-          <div class="row" style="gap:10px;flex-wrap:wrap;">
-            <label class="field" style="flex:1 1 280px;">
-              <span>Öğretmen</span>
-              <select id="taTeacher" class="input">
-                ${teacherOptions.map(t => `<option value="${t.ID}">${t.ADSOYAD || t.ID}${t.BRANS ? ` • ${t.BRANS}` : ''}</option>`).join('')}
-              </select>
-            </label>
-            <div class="kpi" style="min-width:240px;">
-              <div class="muted">Kaynak</div>
-              <div><b>${masterDataSourceMode === 'firebase' ? 'Firebase' : 'E-Tablo'}</b></div>
-            </div>
-          </div>
-          <div id="taSummary" class="stack"></div>
-          <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(360px,.9fr);gap:12px;align-items:start;">
-            <div class="table-wrap" style="max-height:62vh;overflow:auto;border:var(--stroke);border-radius:14px;">
-              <table class="table" id="taGrid" style="min-width:980px;">
-                <thead><tr><th>Gün</th><th>Saat Kodu</th><th>Saat</th><th>Program</th><th>Durum</th><th>Sınıf</th><th>Ders</th></tr></thead>
-                <tbody></tbody>
-              </table>
-            </div>
-            <div class="card" style="border-radius:16px;overflow:hidden;">
-              <h3 style="margin:0;">Hızlı Ders Atama</h3>
-              <div class="body stack">
-                <label class="field"><span>Gün</span><select id="taDay" class="input">${dayOptions.map(d=>`<option value="${d}">${d}</option>`).join('')}</select></label>
-                <label class="field"><span>Saat Kodu</span><select id="taSlot" class="input"></select></label>
-                <label class="field"><span>Program</span><select id="taProgram" class="input"></select></label>
-                <label class="field"><span>Sınıf/Grup</span><input id="taClass" class="input" list="taClassList" placeholder="Örn: 8A"></label>
-                <datalist id="taClassList">${classOptions.map(c=>`<option value="${c}"></option>`).join('')}</datalist>
-                <label class="field"><span>Ders</span><input id="taLesson" class="input" placeholder="Örn: Fen Bilimleri"></label>
-                <div class="row" style="gap:8px;flex-wrap:wrap;">
-                  <button class="btn small" id="taAdd" type="button">Atamayı Ekle</button>
-                  <button class="btn ghost small" id="taSaveFirebase" type="button">Firebase'e Yaz</button>
-                </div>
-                <div class="muted" style="font-size:.85rem;">Sistem seçili öğretmenin dolu saatlerini kırmızı, boş saatlerini yeşil gösterir. Boş slotlar ders planına doğrudan eklenebilir.</div>
-              </div>
-            </div>
-          </div>
-        </div>`;
-      await Swal.fire({
-        title:'Öğretmen Ders Atama Planlayıcısı',
-        html,
-        width:'97vw',
-        customClass:{ popup:'wa-popup' },
-        showConfirmButton:false,
-        showCloseButton:true,
-        didOpen:()=>{
-          const popup = Swal.getPopup();
-          if(popup){ popup.style.maxWidth = '1520px'; popup.style.width = '97vw'; }
-          const teacherEl = document.getElementById('taTeacher');
-          const dayEl = document.getElementById('taDay');
-          const slotEl = document.getElementById('taSlot');
-          const programEl = document.getElementById('taProgram');
-          const classEl = document.getElementById('taClass');
-          const lessonEl = document.getElementById('taLesson');
-          const gridBody = document.querySelector('#taGrid tbody');
-          const summary = document.getElementById('taSummary');
-          const programs = Array.from(new Set((slots || []).map(s => normalizeText(s.PROGRAM) || 'GENEL'))).filter(Boolean);
-          programEl.innerHTML = programs.map(p=>`<option value="${p}">${labelProgram(p)}</option>`).join('');
-
-          function fillSlots(){
-            const selectedProgram = normalizeText(programEl.value) || 'GENEL';
-            const filtered = [...slots].filter(s => (normalizeText(s.PROGRAM) || 'GENEL') === selectedProgram).sort((a,b)=> normalizeText(a.BASLANGIC).localeCompare(normalizeText(b.BASLANGIC)));
-            slotEl.innerHTML = filtered.map(s=>`<option value="${s.SAAT_KODU}">${s.SAAT_KODU} • ${s.BASLANGIC || '--'}-${s.BITIS || '--'}</option>`).join('');
-          }
-          function render(){
-            selectedTeacherId = normalizeText(teacherEl.value);
-            const teacher = teachers.find(t => normalizeText(t.ID) === selectedTeacherId) || {};
-            const assignments = listTeacherAssignments(selectedTeacherId);
-            const busyMap = new Map(assignments.map(r => [teacherBusyKey(r), r]));
-            const rows = [];
-            dayOptions.forEach(day => {
-              [...slots].sort((a,b)=> normalizeText(a.BASLANGIC).localeCompare(normalizeText(b.BASLANGIC))).forEach(slot => {
-                const program = normalizeText(slot.PROGRAM) || 'GENEL';
-                const key = `${day}__${normalizeText(slot.SAAT_KODU)}__${program}`;
-                const hit = busyMap.get(key);
-                rows.push({
-                  day, slotCode: normalizeText(slot.SAAT_KODU), slotText: `${slot.BASLANGIC || '--'}-${slot.BITIS || '--'}`, program,
-                  status: hit ? 'Dolu' : 'Boş', className: hit?.SINIF || '', lesson: hit?.DERS || ''
-                });
-              });
-            });
-            summary.innerHTML = `
-              <div class="teacher-kpis" style="margin:0;">
-                <div class="kpi-card"><span class="kpi-label">Öğretmen</span><span class="kpi-value" style="font-size:1rem;">${teacher.ADSOYAD || teacher.ID || '-'}</span></div>
-                <div class="kpi-card"><span class="kpi-label">Branş</span><span class="kpi-value" style="font-size:1rem;">${teacher.BRANS || '-'}</span></div>
-                <div class="kpi-card kpi-green"><span class="kpi-label">Boş Slot</span><span class="kpi-value">${rows.filter(r=>r.status==='Boş').length}</span></div>
-                <div class="kpi-card kpi-red"><span class="kpi-label">Atanmış Ders</span><span class="kpi-value">${assignments.length}</span></div>
-              </div>`;
-            gridBody.innerHTML = rows.map(r => `
-              <tr style="background:${r.status==='Boş' ? 'rgba(34,197,94,.08)' : 'rgba(239,68,68,.08)'};">
-                <td>${r.day}</td><td>${r.slotCode}</td><td>${r.slotText}</td><td>${labelProgram(r.program)}</td><td><span class="chip ${r.status==='Boş' ? 'ok' : 'bad'}">${r.status}</span></td><td>${r.className || '-'}</td><td>${r.lesson || '-'}</td>
-              </tr>`).join('');
-          }
-          teacherEl.addEventListener('change', render);
-          programEl.addEventListener('change', fillSlots);
-          fillSlots();
-          render();
-          document.getElementById('taAdd')?.addEventListener('click', ()=> {
-            const next = {
-              ID:'',
-              GUN: normalizeText(dayEl.value),
-              SAAT_KODU: normalizeText(slotEl.value),
-              OGRETMEN_ID: selectedTeacherId,
-              SINIF: normalizeText(classEl.value),
-              PROGRAM: normalizeText(programEl.value),
-              DERS: normalizeText(lessonEl.value),
-              AKTIF:'1'
-            };
-            if(!next.GUN || !next.SAAT_KODU || !next.OGRETMEN_ID || !next.SINIF || !next.DERS){
-              Swal.fire('Eksik Alan','Gün, saat, sınıf ve ders bilgilerini tamamlayın.','warning');
-              return;
-            }
-            const dup = schedule.find(r => normalizeText(r.GUN)===next.GUN && normalizeText(r.SAAT_KODU)===next.SAAT_KODU && normalizeText(r.PROGRAM||'GENEL')===normalizeText(next.PROGRAM||'GENEL') && normalizeText(r.OGRETMEN_ID)===next.OGRETMEN_ID);
-            if(dup){ Swal.fire('Çakışma','Bu öğretmenin seçilen slotta zaten dersi var.','warning'); return; }
-            const rowKey = makeScheduleKey(next);
-            schedule.unshift({ ...next, ID: rowKey, _rowKey: rowKey, rowKey });
-            buildSlotOrder();
-            render();
-            if(session?.role === 'admin') showAdminView();
-            Swal.fire({ toast:true, position:'top-end', timer:1500, showConfirmButton:false, icon:'success', title:'Atama eklendi' });
-          });
-          document.getElementById('taSaveFirebase')?.addEventListener('click', async ()=> {
-            try{
-              await persistEntityRowsToFirebase('schedule', schedule, 'replace');
-              await saveMasterDataSourceMode('firebase', false);
-              Swal.fire('Kaydedildi','Ders planları Firebase'e yazıldı.', 'success');
-            }catch(err){ console.error(err); Swal.fire('Hata','Ders planları Firebase'e yazılamadı.','error'); }
-          });
-        }
-      });
-    }
-
     // Boot
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
     <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong></p>
   </footer>
-  <style>
+ <style>
 .site-footer{
   margin-top: 32px;
   padding: 14px 18px;
@@ -9575,32 +8880,33 @@ function printParentQuizzes(){
 .site-footer strong{
   color: var(--brand-2);
 }
-  </style>
-  <script>
+
+ 
+<script>
 function getSlotByCode(code, program){
   const key = String(code||'').trim(); if(!key) return null;
-  const p = typeof safe === 'function' ? safe(program) : String(program||'').trim();
-  if(p && Array.isArray(Array.isArray(window.slots) ? window.slots : [])){
-    const hit = (Array.isArray(window.slots) ? window.slots : []).find(r =>
-      String(r.SAAT_KODU??r.KOD??r.ID).trim()===key && (typeof safe === 'function' ? safe(r.PROGRAM) : String(r.PROGRAM||'').trim())===p
+  const p = safe(program);
+  if(p){
+    const hit = slots.find(r =>
+      String(r.SAAT_KODU??r.KOD??r.ID).trim()===key && safe(r.PROGRAM)===p
     );
     if(hit) return hit;
   }
-  return (Array.isArray(window.slots) ? window.slots : []).find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim()===key) || null;
+  return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim()===key) || null;
 }
 function slotOrderGet(code, program){
   const key = String(code||'').trim();
-  const p = (typeof safe === 'function' ? safe(program) : String(program||'').trim()) || 'GENEL';
-  const m = (window.slotOrderMapByProgram || new Map()).get(p);
+  const p = safe(program) || 'GENEL';
+  const m = slotOrderMapByProgram.get(p);
   if(m && m.has(key)) return m.get(key);
-  return (window.slotOrderMap || new Map()).get(key) || null;
+  return slotOrderMap.get(key) || null; // fallback (eski tek program)
 }
 function buildSlotOrder(){
   slotOrderMapByProgram = new Map();
-  const groups = new Map();
-  for(const s of (window.slots || slots || [])){
-    const prog = (typeof safe === 'function' ? safe(s.PROGRAM) : String(s.PROGRAM||'').trim()) || 'GENEL';
-    const kod  = typeof safe === 'function' ? safe(s.SAAT_KODU||s.KOD||s.ID) : String(s.SAAT_KODU||s.KOD||s.ID||'').trim();
+  const groups = new Map(); // program -> [{kod, bas}]
+  for(const s of slots){
+    const prog = safe(s.PROGRAM) || 'GENEL';
+    const kod  = safe(s.SAAT_KODU||s.KOD||s.ID);
     const bas  = (s.BASLANGIC||'23:59').toString();
     if(!kod) continue;
     if(!groups.has(prog)) groups.set(prog, []);
@@ -9612,10 +8918,11 @@ function buildSlotOrder(){
     arr.forEach((x,i)=> m.set(x.kod, i+1));
     slotOrderMapByProgram.set(prog, m);
   });
+  // legacy haritayı ilk programla doldur (bazı admin görünümleri kullanıyor)
   const first = Array.from(slotOrderMapByProgram.values())[0] || new Map();
   slotOrderMap = new Map(first);
 }
-  </script>
+</script>
   <!-- PWA Service Worker -->
   <script>
     (function () {
