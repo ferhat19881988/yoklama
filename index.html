@@ -2677,6 +2677,18 @@ function openWhatsAppComposer(opts){
 
     // State
     let appFB, db;
+
+const ATT_CFG_PATH = 'config/attendanceEnabled';
+const CORE_DATA_ROOT = 'coreData';
+const CORE_DATA_SOURCE_CFG_PATH = 'config/coreDataSources';
+const DEFAULT_CORE_SOURCE_CFG = Object.freeze({ teachers:'sheets', students:'sheets', schedule:'sheets', slots:'sheets' });
+const CORE_DATA_META = {
+  teachers: { label:'Öğretmenler', sheetTab:'Ogretmenler', firebasePath:`${CORE_DATA_ROOT}/teachers`, keyField:'ID', columns:['ID','OGRETMEN_ADI','BRANS','TELEFON','AKTIF'], exportName:'ogretmenler' },
+  students: { label:'Öğrenciler', sheetTab:'Ogrenciler', firebasePath:`${CORE_DATA_ROOT}/students`, keyField:'NO', columns:['NO','ADSOYAD','SINIF','VELI_TELEFON','AKTIF'], exportName:'ogrenciler' },
+  slots: { label:'Ders Saatleri', sheetTab:'DersSaatleri', firebasePath:`${CORE_DATA_ROOT}/slots`, keyField:'SAAT_KODU', columns:['SAAT_KODU','BASLANGIC','BITIS','PROGRAM'], exportName:'ders_saatleri' },
+  schedule: { label:'Ders Planları', sheetTab:'DersProgrami', firebasePath:`${CORE_DATA_ROOT}/schedule`, keyField:'__rowKey', columns:['GUN','SAAT_KODU','SINIF','OGRETMEN_ID','DERS','PROGRAM','GRUP'], exportName:'ders_planlari' }
+};
+
 let teachers=[], students=[], schedule=[], slots=[];
 let coreDataSourceConfig = {...DEFAULT_CORE_SOURCE_CFG};
 let coreDataLoadedFrom = {...DEFAULT_CORE_SOURCE_CFG};
@@ -2693,19 +2705,6 @@ let teacherLessonsToday=[];
 let attendanceEnabled = true;               // varsayılan: aktif
 let attendanceConfigReady = false;          // config okundu mu?
 let attendancePanelMode = 'normal';         // 'normal' | 'holiday'
-
-// Config path in RTDB
-const ATT_CFG_PATH = 'config/attendanceEnabled';
-
-const CORE_DATA_ROOT = 'coreData';
-const CORE_DATA_SOURCE_CFG_PATH = 'config/coreDataSources';
-const DEFAULT_CORE_SOURCE_CFG = Object.freeze({ teachers:'sheets', students:'sheets', schedule:'sheets', slots:'sheets' });
-const CORE_DATA_META = {
-  teachers: { label:'Öğretmenler', sheetTab:'Ogretmenler', firebasePath:`${CORE_DATA_ROOT}/teachers`, keyField:'ID', columns:['ID','OGRETMEN_ADI','BRANS','TELEFON','AKTIF'], exportName:'ogretmenler' },
-  students: { label:'Öğrenciler', sheetTab:'Ogrenciler', firebasePath:`${CORE_DATA_ROOT}/students`, keyField:'NO', columns:['NO','ADSOYAD','SINIF','VELI_TELEFON','AKTIF'], exportName:'ogrenciler' },
-  slots: { label:'Ders Saatleri', sheetTab:'DersSaatleri', firebasePath:`${CORE_DATA_ROOT}/slots`, keyField:'SAAT_KODU', columns:['SAAT_KODU','BASLANGIC','BITIS','PROGRAM'], exportName:'ders_saatleri' },
-  schedule: { label:'Ders Planları', sheetTab:'DersProgrami', firebasePath:`${CORE_DATA_ROOT}/schedule`, keyField:'__rowKey', columns:['GUN','SAAT_KODU','SINIF','OGRETMEN_ID','DERS','PROGRAM','GRUP'], exportName:'ders_planlari' }
-};
 
 function setAttendancePanelControlsVisible(visible){
   const show = !!visible;
