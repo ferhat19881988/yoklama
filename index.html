@@ -1345,16 +1345,30 @@ div.admin-filters .button-row {
   flex-wrap:wrap;
   justify-content:flex-end;
 }
-.hw-actions .btn.hw-control-btn{ flex:1 1 180px; }
-.hw-actions .btn.hw-mini{ flex:0 0 auto; }
-.hw-actions .btn.hw-bulk-msg-btn{
-  flex:1 1 100%;
+.hw-actions-sub{
+  width:100%;
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+}
+.hw-actions-sub .btn.hw-mini{ flex:0 0 auto; }
+.btn.hw-bulk-msg-btn{
+  width:100%;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap:8px;
-  min-height:42px;
+  padding:10px 14px;
+  border-radius:14px;
+  font-weight:900;
 }
+.btn.hw-bulk-msg-btn img{
+  width:18px;
+  height:18px;
+  display:block;
+}
+.hw-actions .btn.hw-control-btn{ flex:1 1 180px; }
+.hw-actions .btn.hw-mini{ flex:0 0 auto; }
 
 @media (max-width: 520px){
   .hw-list-grid{ padding: 10px 0; }
@@ -1362,6 +1376,8 @@ div.admin-filters .button-row {
   .hw-group{ border-radius: 16px; }
   .hw-actions{ width:100%; }
   .hw-actions .btn.hw-control-btn{ width:100%; flex: 1 1 100%; }
+  .hw-actions-sub{ width:100%; justify-content:flex-end; }
+  .btn.hw-bulk-msg-btn{ width:100%; }
 }
 
 
@@ -1797,7 +1813,9 @@ div.admin-filters .button-row {
         <h3 id="hwControlTitle">📘 Ödev Kontrol</h3>
         <div class="body stack">
           <div class="row" style="gap:10px;">
+            <!-- Kaydet düğmesi: ödev durumlarını kaydeder -->
             <button class="btn" id="hwSaveBtn" type="button">Kaydet</button>
+<!-- İptal düğmesi: paneli kapatır -->
             <button class="btn danger" id="hwCancelBtn" type="button">İptal</button>
           </div>
           <div class="hw-status-filter" aria-label="Ödev durum filtresi">
@@ -6913,11 +6931,14 @@ function renderTeacherHomeworks(items, gidMap, opts={}){
             <span class="hw-progress" aria-hidden="true"></span>
           </button>
 
-          <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
-          <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
+          <div class="hw-actions-sub">
+            <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
+            <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
+          </div>
+
           <button class="btn hw-bulk-msg-btn" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Toplu mesaj at">
             <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style="width:18px;height:18px;">
-            <span>Toplu mesaj at</span>
+            <span>Toplu Mesaj At</span>
           </button>
         </div>
       </article>`;
@@ -6968,13 +6989,7 @@ function renderTeacherHomeworks(items, gidMap, opts={}){
       e.stopPropagation();
       const id  = btn.getAttribute('data-hw-id');
       const cls = btn.getAttribute('data-hw-class');
-      if(!(id && cls)) return;
-      try{
-        await openHomeworkBulkWhatsApp(cls, id);
-      }catch(err){
-        console.error(err);
-        Swal.fire('Hata','Toplu mesaj hazırlanamadı.','error');
-      }
+      if(id && cls){ await sendHomeworkBulkMessage(cls,id); }
     });
   });
 
@@ -7195,94 +7210,6 @@ async function loadTeacherHomeworks(){
 }
 // Öğretmen: ödev kontrol panelini aç
 // /index.html — openHomeworkControl(cls,id) EMOJİLİ MESAJLA GÜNCELLENMİŞ
-async function openHomeworkBulkWhatsApp(cls,id){
-  if(!cls || !id) return;
-
-  const hw = (teacherHwAll || []).find(x => safe(x?.class)===safe(cls) && String(x?.id)===String(id));
-  let hwData = hw || null;
-  if(!hwData){
-    const snap = await get(ref(db, `homeworks/${cls}/${id}`));
-    if(!snap.exists()){
-      Swal.fire('Hata','Ödev bulunamadı.','error');
-      return;
-    }
-    hwData = snap.val() || {};
-  }
-
-  const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
-  const groupId = hwData.groupId ?? legacyGid ?? null;
-
-  let statuses = {};
-  if(groupId && teacherHwGidMap instanceof Map && teacherHwGidMap.has(groupId)){
-    statuses = teacherHwGidMap.get(groupId) || {};
-  }else if(groupId){
-    try{
-      const sSnap = await get(ref(db, `hwStatus/${groupId}`));
-      statuses = sSnap.exists() ? (sSnap.val() || {}) : {};
-    }catch(_){
-      statuses = {};
-    }
-  }else{
-    statuses = hwData.statuses || {};
-  }
-
-  const done = students
-    .filter(s => safe(s.SINIF) === safe(cls))
-    .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '' }))
-    .filter(s => (statuses?.[s.id]?.status) === 'yapti' && (s.ad || '').trim())
-    .sort((a,b)=> (a.ad || '').localeCompare(b.ad || '', 'tr', { sensitivity:'base' }));
-
-  if(!done.length){
-    Swal.fire('Bilgi','Bu ödev için "Yaptı" durumunda öğrenci bulunmuyor.','info');
-    return;
-  }
-
-  const formatDateTR = (dateInput) => {
-    try{
-      const d = new Date(dateInput);
-      if(Number.isNaN(d.getTime())) return '—';
-      return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
-    }catch(_){ return '—'; }
-  };
-
-  const teacherName = session?.teacherName || '';
-  const title       = hwData?.title || 'Ödev';
-  const dueStr      = hwData?.dueDate ? formatDateTR(hwData.dueDate) : '—';
-  const lessonName  = hwData?.subject || session?.teacherBranch || 'Ders';
-  const listLines   = done.map((n,i) => `${i+1}. ${n.ad}`).join('
-');
-
-  const msg =
-`*Fenomen Eğitim Kurumları Bilgi Sistemi* 🏫
-
-` +
-`Merhaba Sayın Velilerim, ☀️
-
-` +
-`*Ödev:* ${title} 📝
-` +
-`*Teslim Tarihi:* ${dueStr} ⏳
-
-` +
-`Ödev teslimini başarıyla tamamlayan öğrencilerimiz: 👇
-
-` +
-`${listLines}
-
-` +
-`Öğrencilerimize gayretleri için teşekkür ederim. 🌟
-` +
-`Bilgilerinize sunarım, iyi günler dilerim.
-
-` +
-`*${teacherName}*
-` +
-`_${lessonName}_ Öğretmeni
-`;
-
-  openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
-}
-
 async function openHomeworkControl(cls,id){
   if(!cls || !id) return;
   openHwCtx = { cls, id };
@@ -7511,6 +7438,84 @@ if(UI.hwSaveBtn){
       await loadTeacherHomeworks();
     }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
   };
+}
+
+async function sendHomeworkBulkMessage(cls, id){
+  if(!cls || !id) return;
+  try{
+    const snap = await get(ref(db, `homeworks/${cls}/${id}`));
+    if(!snap.exists()){
+      Swal.fire('Hata','Ödev bulunamadı.','error');
+      return;
+    }
+    const hw = snap.val() || {};
+    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
+    const groupId = hw.groupId ?? legacyGid ?? null;
+
+    let statuses = {};
+    if(groupId){
+      try{
+        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
+        statuses = sSnap.exists() ? (sSnap.val() || {}) : {};
+      }catch{ statuses = {}; }
+    }else{
+      statuses = hw.statuses || {};
+    }
+
+    const done = students
+      .filter(s => safe(s.SINIF) === safe(cls))
+      .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '' }))
+      .filter(s => (statuses?.[s.id]?.status || '') === 'yapti' && (s.ad || '').trim())
+      .sort((a,b)=> (a.ad || '').localeCompare((b.ad || ''), 'tr', { sensitivity:'base' }));
+
+    if(!done.length){
+      Swal.fire('Bilgi','Henüz "Yaptı" durumunda öğrenci yok.','info');
+      return;
+    }
+
+    const teacherName = session?.teacherName || '';
+    const title = hw?.title || 'Ödev';
+    const dueStr = hw?.dueDate ? (()=>{
+      try{
+        const d = new Date(hw.dueDate);
+        return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
+      }catch{ return '—'; }
+    })() : '—';
+    const lessonName = hw?.subject || session?.teacherBranch || 'Ders';
+    const listLines = done.map((s,i) => `${i+1}. ${s.ad}`).join('\n');
+
+    const msg = `*Fenomen Eğitim Kurumları Bilgi Sistemi* 🏫
+
+` +
+      `Merhaba Sayın Velilerim, ☀️
+
+` +
+      `*Ödev:* ${title} 📝
+` +
+      `*Teslim Tarihi:* ${dueStr} ⏳
+
+` +
+      `Ödev teslimini başarıyla tamamlayan öğrencilerimiz: 👇
+
+` +
+      `${listLines}
+
+` +
+      `Öğrencilerimize gayretleri için teşekkür ederim. 🌟
+` +
+      `Bilgilerinize sunarım, iyi günler dilerim.
+
+` +
+      `*${teacherName}*
+` +
+      `_${lessonName}_ Öğretmeni
+`;
+
+    openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
+  }catch(err){
+    console.error(err);
+    Swal.fire('Hata','Mesaj oluşturulamadı.','error');
+  }
 }
 
     if(UI.hwCancelBtn){
