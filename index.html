@@ -632,7 +632,20 @@
     button, .switch, .late { touch-action: manipulation; -webkit-tap-highlight-color: transparent }
     /* Typography scale for tiny screens */
     body{ font-size:clamp(14px, 2.8vw, 16px) }
-    .tr-scroll{
+    .teacher-report-container {
+  overflow-x: auto;
+}
+.teacher-report-table {
+  border-collapse: collapse;
+  min-width: 100%;
+  table-layout: auto;
+}
+.teacher-report-table th,
+.teacher-report-table td {
+  padding: 8px;
+  white-space: nowrap;
+}
+.tr-scroll{
   max-height:60vh; 
   overflow:auto;
   padding-bottom:6px;
@@ -647,6 +660,32 @@
   background: var(--panel);
   border-top: var(--stroke);
   z-index: 1;
+}
+/* Admin filtre yerleşimi — mevcut stilleri zorla ez */
+div.admin-filters {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+div.admin-filters .filter-row {
+  display: flex !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+}
+
+div.admin-filters .button-row {
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+}
+
+/* Küçük ekranlar için minik rötuş */
+@media (max-width: 720px){
+  div.admin-filters .button-row { gap: 6px !important; }
+  div.admin-filters .filter-row label { min-width: 220px; }
 }
 
 /* ===== Admin: Özet Dashboard ===== */
@@ -738,6 +777,32 @@
 }
 .adm-sum-label.ok{ color: rgba(34,197,94,.95); }
 
+\1 color:var(--muted); }
+.adm-sum-kpi{
+  font-size:1.8rem;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+.adm-sum-sub{ color:var(--muted); font-weight:700; margin-top:6px; }
+.donut-wrap{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.donut{
+  --p:0;
+  width:130px; height:130px;
+  border-radius:999px;
+  background: conic-gradient(var(--brand) calc(var(--p) * 1%), rgba(148,163,184,.22) 0);
+  display:grid; place-items:center;
+  border:1px solid rgba(255,255,255,.08);
+}
+.donut .inner{
+  width:92px; height:92px;
+  border-radius:999px;
+  background:var(--panel);
+  border:var(--stroke);
+  display:grid; place-items:center;
+  text-align:center;
+}
+.donut .pct{ font-weight:900; font-size:1.25rem; }
+.donut .lbl{ font-size:.8rem; color:var(--muted); font-weight:700; }
 
 /* ---------- Print Summary ---------- */
 .print-sheet { display:none; }
@@ -1410,6 +1475,25 @@
   #adminView .admin-filters #admAttendanceState,
   #adminView .admin-filters #admViewState{ display:none; } /* yer kazandır */
 
+  /* Butonlar: 3 sütun grid, küçük tipografi */
+  #adminView .admin-filters .button-row{
+    display:grid !important;
+    grid-template-columns:repeat(3, minmax(0,1fr)) !important;
+    gap:8px !important;
+    align-items:stretch !important;
+  }
+  #adminView .admin-filters .button-row > span{ display:none !important; } /* flex:1 spacer */
+
+  #adminView .admin-filters .button-row .btn{
+    width:100%;
+    padding:10px 10px;
+    border-radius:14px;
+    font-size:.82rem;
+    line-height:1.1;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
   #adminView .btn.whatsBtn{
     width:100% !important;
     height:40px !important;
@@ -1493,6 +1577,7 @@
 /* Daha dar ekran: filtreler tek sütun (çok küçük cihazlarda okunabilirlik) */
 @media (max-width: 420px){
   #adminView .admin-filters .filter-row{ grid-template-columns:1fr !important; }
+  #adminView .admin-filters .button-row{ grid-template-columns:repeat(2, minmax(0,1fr)) !important; }
   #adminView #admDetailArea{ max-height: 42dvh; }
 }
 
@@ -3452,6 +3537,14 @@ try{
           throw err;
         }
       }
+    }
+    function buildSlotOrder(){
+      const tmp = slots.map(s=>{
+        const bas = (s.BASLANGIC||'23:59').toString();
+        const kod = safe(s.SAAT_KODU||s.KOD||s.ID);
+        return {kod, bas};
+      }).sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+      tmp.forEach((x,i)=> slotOrderMap.set(x.kod, i+1));
     }
 
     async function validateLogin(){
@@ -7315,7 +7408,7 @@ if(filterEl){
         sel.addEventListener('change', applyHwFilterToDom);
 
         // WhatsApp yönlendirme (neden: hızlı veli bilgilendirme)
-        function formatHomeworkDateTR(dateInput) {
+        function formatDateTR(dateInput) {
           try {
             const d = new Date(dateInput);
             if (Number.isNaN(d.getTime())) return '—';
@@ -7331,13 +7424,13 @@ if(filterEl){
           const statusIcon  = STATUS_EMOJI?.[stKey] || 'ℹ️';
           const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
           const title       = hw?.title || 'Ödev';
-          const dueStr      = hw?.dueDate ? formatHomeworkDateTR(hw.dueDate) : '—';
+          const dueStr      = hw?.dueDate ? formatDateTR(hw.dueDate) : '—';
           const lessonName  = hw?.subject || session?.teacherBranch || 'Ders';
           const DEADLINE_DAYS = 3; // isterseniz 2 yapabilirsiniz
           const deadlineStr = (() => {
             const d = new Date();
             d.setDate(d.getDate() + DEADLINE_DAYS);
-            return formatHomeworkDateTR(d);
+            return formatDateTR(d);
           })();
 
           const msg =
