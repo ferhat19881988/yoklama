@@ -1206,13 +1206,13 @@ div.admin-filters .button-row {
 @media (max-width: 520px){
   .hw-actions{
     width:100%;
-    justify-content:flex-end;
-    flex-wrap:wrap;
-    row-gap:8px;
+    justify-content:space-between;
+    flex-wrap:nowrap;
+    row-gap:0;
   }
   .btn.hw-control-btn{
     order: 1;
-    width:100%;
+    width:auto;
     justify-content:center;
   }
   .hw-actions .chip{ order: 0; }
@@ -1341,12 +1341,19 @@ div.admin-filters .button-row {
 
 .hw-actions{
   display:flex;
+  align-items:center;
   gap:8px;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
   justify-content:flex-end;
+  width:100%;
 }
-.hw-actions .btn.hw-control-btn{ flex:1 1 180px; }
-.hw-actions .btn.hw-mini{ flex:0 0 auto; }
+.hw-actions .btn.hw-control-btn{
+  flex:1 1 auto;
+  min-width:0;
+}
+.hw-actions .btn.hw-mini{
+  flex:0 0 40px;
+}
 .hw-secondary-actions{
   display:flex;
   justify-content:flex-end;
@@ -1371,8 +1378,33 @@ div.admin-filters .button-row {
   .hw-list-grid{ padding: 10px 0; }
   .hw-card{ border-radius: 16px; }
   .hw-group{ border-radius: 16px; }
-  .hw-actions{ width:100%; }
-  .hw-actions .btn.hw-control-btn{ width:100%; flex: 1 1 100%; }
+  .hw-actions{
+    width:100%;
+    flex-wrap:nowrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
+  }
+  .hw-actions .btn.hw-control-btn{
+    width:auto;
+    flex:1 1 auto;
+    min-width:0;
+    padding:10px 12px;
+  }
+  .hw-actions .btn.hw-control-btn .lbl{
+    font-size:.95rem;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .hw-actions .btn.hw-mini{
+    width:38px;
+    height:38px;
+    flex:0 0 38px;
+  }
+  .hw-secondary-actions .btn.hw-bulk-msg-btn{
+    min-height:40px;
+  }
 }
 
 
