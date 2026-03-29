@@ -1345,20 +1345,19 @@ div.admin-filters .button-row {
   flex-wrap:wrap;
   justify-content:flex-end;
 }
-.hw-actions-sub{
-  width:100%;
+.hw-actions .btn.hw-control-btn{ flex:1 1 180px; }
+.hw-actions .btn.hw-mini{ flex:0 0 auto; }
+.hw-secondary-actions{
   display:flex;
-  gap:8px;
   justify-content:flex-end;
 }
-.hw-actions-sub .btn.hw-mini{ flex:0 0 auto; }
 .btn.hw-bulk-msg-btn{
   width:100%;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap:8px;
-  padding:10px 14px;
+  min-height:42px;
   border-radius:14px;
   font-weight:900;
 }
@@ -1367,8 +1366,6 @@ div.admin-filters .button-row {
   height:18px;
   display:block;
 }
-.hw-actions .btn.hw-control-btn{ flex:1 1 180px; }
-.hw-actions .btn.hw-mini{ flex:0 0 auto; }
 
 @media (max-width: 520px){
   .hw-list-grid{ padding: 10px 0; }
@@ -1376,8 +1373,6 @@ div.admin-filters .button-row {
   .hw-group{ border-radius: 16px; }
   .hw-actions{ width:100%; }
   .hw-actions .btn.hw-control-btn{ width:100%; flex: 1 1 100%; }
-  .hw-actions-sub{ width:100%; justify-content:flex-end; }
-  .btn.hw-bulk-msg-btn{ width:100%; }
 }
 
 
@@ -1815,7 +1810,7 @@ div.admin-filters .button-row {
           <div class="row" style="gap:10px;">
             <!-- Kaydet düğmesi: ödev durumlarını kaydeder -->
             <button class="btn" id="hwSaveBtn" type="button">Kaydet</button>
-<!-- İptal düğmesi: paneli kapatır -->
+            <!-- İptal düğmesi: paneli kapatır -->
             <button class="btn danger" id="hwCancelBtn" type="button">İptal</button>
           </div>
           <div class="hw-status-filter" aria-label="Ödev durum filtresi">
@@ -6931,13 +6926,13 @@ function renderTeacherHomeworks(items, gidMap, opts={}){
             <span class="hw-progress" aria-hidden="true"></span>
           </button>
 
-          <div class="hw-actions-sub">
-            <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
-            <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
-          </div>
+          <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
+          <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
+        </div>
 
-          <button class="btn hw-bulk-msg-btn" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Toplu mesaj at">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" style="width:18px;height:18px;">
+        <div class="hw-secondary-actions">
+          <button class="btn hw-bulk-msg-btn bulk-hw-msg" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Toplu mesaj at">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
             <span>Toplu Mesaj At</span>
           </button>
         </div>
@@ -6984,7 +6979,7 @@ function renderTeacherHomeworks(items, gidMap, opts={}){
       if(id && cls){ deleteHomework(cls,id); }
     });
   });
-  Array.from(UI.hwList.querySelectorAll('button.hw-bulk-msg-btn')).forEach(btn=>{
+  Array.from(UI.hwList.querySelectorAll('button.bulk-hw-msg')).forEach(btn=>{
     btn.addEventListener('click', async (e)=>{
       e.stopPropagation();
       const id  = btn.getAttribute('data-hw-id');
@@ -7208,6 +7203,72 @@ async function loadTeacherHomeworks(){
 
   applyTeacherHwFiltersAndRender();
 }
+async function sendHomeworkBulkMessage(cls,id){
+  if(!cls || !id) return;
+  try{
+    const snap = await get(ref(db, `homeworks/${cls}/${id}`));
+    if(!snap.exists()){
+      Swal.fire('Hata','Ödev bulunamadı.','error');
+      return;
+    }
+    const hw = snap.val() || {};
+    const list = students
+      .filter(s => safe(s.SINIF) === safe(cls))
+      .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '' }));
+
+    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
+    const groupId = hw.groupId ?? legacyGid ?? null;
+
+    let statuses = {};
+    if(groupId){
+      try{
+        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
+        statuses = sSnap.exists() ? (sSnap.val() || {}) : {};
+      }catch{ statuses = {}; }
+    }else{
+      statuses = hw.statuses || {};
+    }
+
+    const done = list
+      .filter(s => (statuses?.[s.id]?.status || '') === 'yapti')
+      .map(s => s.ad)
+      .filter(Boolean);
+
+    if(!done.length){
+      Swal.fire('Bilgi','Bu ödev için kayıtlı "Yaptı" durumunda öğrenci yok.','info');
+      return;
+    }
+
+    const teacherName = session?.teacherName || hw?.teacherName || '';
+    const title = hw?.title || 'Ödev';
+    const dueStr = hw?.dueDate ? (()=>{
+      try{
+        const d = new Date(hw.dueDate);
+        return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
+      }catch{ return '—'; }
+    })() : '—';
+    const lessonName = hw?.subject || session?.teacherBranch || 'Ders';
+    const listLines = done.map((n,i) => `${i+1}. ${n}`).join('\n');
+
+    const msg =
+`*Fenomen Eğitim Kurumları Bilgi Sistemi* 🏫\n\n` +
+`Merhaba Sayın Velilerim, ☀️\n\n` +
+`*Ödev:* ${title} 📝\n` +
+`*Teslim Tarihi:* ${dueStr} ⏳\n\n` +
+`Ödev teslimini başarıyla tamamlayan öğrencilerimiz: 👇\n\n` +
+`${listLines}\n\n` +
+`Öğrencilerimize gayretleri için teşekkür ederim. 🌟\n` +
+`Bilgilerinize sunarım, iyi günler dilerim.\n\n` +
+`*${teacherName}*\n` +
+`_${lessonName}_ Öğretmeni\n`;
+
+    openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
+  }catch(err){
+    console.error(err);
+    Swal.fire('Hata','Toplu mesaj oluşturulamadı.','error');
+  }
+}
+
 // Öğretmen: ödev kontrol panelini aç
 // /index.html — openHomeworkControl(cls,id) EMOJİLİ MESAJLA GÜNCELLENMİŞ
 async function openHomeworkControl(cls,id){
@@ -7440,84 +7501,51 @@ if(UI.hwSaveBtn){
   };
 }
 
-async function sendHomeworkBulkMessage(cls, id){
-  if(!cls || !id) return;
-  try{
-    const snap = await get(ref(db, `homeworks/${cls}/${id}`));
-    if(!snap.exists()){
-      Swal.fire('Hata','Ödev bulunamadı.','error');
-      return;
+// Toplu WhatsApp butonu: "yaptı" olan öğrencileri listele ve teşekkür mesajı gönder
+    if(UI.hwBulkWhatsBtn){
+      UI.hwBulkWhatsBtn.onclick = () => {
+        try{
+          // Öğrencilerden "yapti" statüsünde olanları topla
+          const done = [];
+          Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li => {
+            const name = li.getAttribute('data-name') || '';
+            const st  = li.querySelector('select.statusSelect').value;
+            if(st === 'yapti') done.push(name);
+          });
+          // Mesaj oluştur; liste boşsa uyarı ver
+          const teacherName = session?.teacherName || '';
+          const title       = hw?.title || 'Ödev';
+          const dueStr      = hw?.dueDate ? (()=>{
+            try{
+              const d = new Date(hw.dueDate);
+              return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
+            }catch{ return '—'; }
+          })() : '—';
+          const lessonName  = hw?.subject || session?.teacherBranch || 'Ders';
+          let listLines = done.map((n,i) => `${i+1}. ${n}`).join('\n');
+          if(!listLines){
+            Swal.fire('Bilgi','Henüz "Yaptı" durumunda öğrenci yok.','info');
+            return;
+          }
+          // Mesaj şablonu: Profesyonel ve bilgilendirici bir teşekkür mesajı.
+          // Başlık ve açıklamalar güncellendi. Önceki sürüm "Ödev Teşekkür Mesajı" başlığını ve
+          // kutlama emojisini kullanıyordu. Bu artık işletmenin adı ve daha ciddi bir kitap
+          // emojisi ile değiştirildi. Sonunda "Bilginize" ifadesi eklendi.
+          const msg =
+`*Fenomen Eğitim Kurumları Bilgi Sistemi* 🏫\n\n` +
+`Merhaba Sayın Velilerim, ☀️\n\n` +
+`*Ödev:* ${title} 📝\n` +
+`*Teslim Tarihi:* ${dueStr} ⏳\n\n` +
+`Ödev teslimini başarıyla tamamlayan öğrencilerimiz: 👇\n\n` +
+`${listLines}\n\n` +
+`Öğrencilerimize gayretleri için teşekkür ederim. 🌟\n` +
+`Bilgilerinize sunarım, iyi günler dilerim.\n\n` +
+`*${teacherName}*\n` +
+`_${lessonName}_ Öğretmeni\n`;
+          openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
+        }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
+      };
     }
-    const hw = snap.val() || {};
-    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
-    const groupId = hw.groupId ?? legacyGid ?? null;
-
-    let statuses = {};
-    if(groupId){
-      try{
-        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
-        statuses = sSnap.exists() ? (sSnap.val() || {}) : {};
-      }catch{ statuses = {}; }
-    }else{
-      statuses = hw.statuses || {};
-    }
-
-    const done = students
-      .filter(s => safe(s.SINIF) === safe(cls))
-      .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '' }))
-      .filter(s => (statuses?.[s.id]?.status || '') === 'yapti' && (s.ad || '').trim())
-      .sort((a,b)=> (a.ad || '').localeCompare((b.ad || ''), 'tr', { sensitivity:'base' }));
-
-    if(!done.length){
-      Swal.fire('Bilgi','Henüz "Yaptı" durumunda öğrenci yok.','info');
-      return;
-    }
-
-    const teacherName = session?.teacherName || '';
-    const title = hw?.title || 'Ödev';
-    const dueStr = hw?.dueDate ? (()=>{
-      try{
-        const d = new Date(hw.dueDate);
-        return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
-      }catch{ return '—'; }
-    })() : '—';
-    const lessonName = hw?.subject || session?.teacherBranch || 'Ders';
-    const listLines = done.map((s,i) => `${i+1}. ${s.ad}`).join('\n');
-
-    const msg = `*Fenomen Eğitim Kurumları Bilgi Sistemi* 🏫
-
-` +
-      `Merhaba Sayın Velilerim, ☀️
-
-` +
-      `*Ödev:* ${title} 📝
-` +
-      `*Teslim Tarihi:* ${dueStr} ⏳
-
-` +
-      `Ödev teslimini başarıyla tamamlayan öğrencilerimiz: 👇
-
-` +
-      `${listLines}
-
-` +
-      `Öğrencilerimize gayretleri için teşekkür ederim. 🌟
-` +
-      `Bilgilerinize sunarım, iyi günler dilerim.
-
-` +
-      `*${teacherName}*
-` +
-      `_${lessonName}_ Öğretmeni
-`;
-
-    openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
-  }catch(err){
-    console.error(err);
-    Swal.fire('Hata','Mesaj oluşturulamadı.','error');
-  }
-}
-
     if(UI.hwCancelBtn){
       UI.hwCancelBtn.onclick = () => {
         // 1) paneli kapat
