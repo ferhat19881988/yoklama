@@ -1702,6 +1702,77 @@ div.admin-filters .button-row {
 .toast.warn .t-ico{ background: rgba(245,158,11,.18); border: 1px solid rgba(245,158,11,.35); }
 .toast .t-msg{ font-weight: 800; letter-spacing: .1px; }
 
+
+/* ===== Öğretmen hızlı araç paneli ===== */
+.teacher-quick-panel{
+  border-top:1px solid rgba(255,255,255,.14);
+  background:linear-gradient(90deg, rgba(124,45,18,.34), rgba(67,56,202,.16));
+  backdrop-filter:saturate(145%) blur(8px);
+  color:#fff;
+}
+.teacher-quick-inner{
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:8px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.teacher-quick-title{
+  font-size:.78rem;
+  font-weight:900;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+  opacity:.9;
+  white-space:nowrap;
+}
+.teacher-quick-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:nowrap;
+}
+.teacher-quick-actions .btn{
+  width:150px;
+  height:34px;
+  padding:0 10px;
+  border-radius:11px;
+  font-size:.84rem;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+  box-shadow:none;
+}
+.teacher-quick-actions .btn.ghost{
+  color:#fff;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.22);
+}
+.teacher-quick-actions .btn.ghost:hover{
+  background:rgba(255,255,255,.20);
+  box-shadow:0 10px 24px rgba(0,0,0,.18);
+}
+@media (max-width:520px){
+  .teacher-quick-inner{
+    padding:8px 14px;
+    align-items:stretch;
+    flex-direction:column;
+    gap:6px;
+  }
+  .teacher-quick-title{ font-size:.72rem; }
+  .teacher-quick-actions{ justify-content:space-between; gap:8px; }
+  .teacher-quick-actions .btn{
+    width:calc(50% - 4px);
+    min-width:0;
+    height:34px;
+    font-size:.78rem;
+  }
+}
+
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -1721,8 +1792,6 @@ div.admin-filters .button-row {
         <img src="https://i.ibb.co/cS9PSRpq/Logo-Fenomen.jpg" alt="Fenomen Yoklama Logo" class="logo-img">
         <span class="logo-text">Yoklama</span>
       </div>
-      <button class="btn ghost hidden" id="btnRefresh" type="button" title="Verileri yenile">🔄 Yenile</button>
-      <button class="btn ghost hidden" id="btnGoBirebir" type="button" title="Birebir analiz sistemine geç">👥 Birebir Analiz</button>
       <button class="btn ghost hidden" id="btnLogout" type="button">Çıkış</button>
     </div>
     <div class="head-session" role="group" aria-label="Oturum ve durum">
@@ -1731,6 +1800,15 @@ div.admin-filters .button-row {
         <div id="netText" class="mono">Bağlantı kontrol ediliyor…</div>
       </div>
       <div id="userChip" class="muted" aria-live="polite">Giriş yapılmadı</div>
+    </div>
+    <div id="teacherQuickPanel" class="teacher-quick-panel hidden no-print" aria-label="Öğretmen hızlı araçları">
+      <div class="teacher-quick-inner">
+        <span class="teacher-quick-title">Hızlı Araçlar</span>
+        <div class="teacher-quick-actions">
+          <button class="btn ghost hidden" id="btnRefresh" type="button" title="Verileri yenile">🔄 Yenile</button>
+          <button class="btn ghost hidden" id="btnGoBirebir" type="button" title="Birebir analiz sistemine geç">👥 Birebir Analiz</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -2492,6 +2570,7 @@ function openWhatsAppComposer(opts){
       loginCode: document.getElementById('loginCode'),
       btnLogin: document.getElementById('btnLogin'),
       btnLogout: document.getElementById('btnLogout'),
+      teacherQuickPanel: document.getElementById('teacherQuickPanel'),
       btnRefresh: document.getElementById('btnRefresh'),
       btnGoBirebir: document.getElementById('btnGoBirebir'),
       userChip: document.getElementById('userChip'),
@@ -3685,8 +3764,10 @@ try{
     UI.app.classList.remove('hidden');
     UI.btnLogout.classList.remove('hidden');
     // Öğretmen için: güçlü yenileme ve hızlı geçiş butonları
-    try{ UI.btnRefresh && UI.btnRefresh.classList.toggle('hidden', session.role !== 'ogretmen'); }catch{}
-    try{ UI.btnGoBirebir && UI.btnGoBirebir.classList.toggle('hidden', session.role !== 'ogretmen'); }catch{}
+    const isTeacherSession = session.role === 'ogretmen';
+    try{ UI.teacherQuickPanel && UI.teacherQuickPanel.classList.toggle('hidden', !isTeacherSession); }catch{}
+    try{ UI.btnRefresh && UI.btnRefresh.classList.toggle('hidden', !isTeacherSession); }catch{}
+    try{ UI.btnGoBirebir && UI.btnGoBirebir.classList.toggle('hidden', !isTeacherSession); }catch{}
 
     // Fix: Admin yoklama anahtarı bazen ilk açılışta "donuk" kalabiliyordu.
     // Neden: initAttendanceConfigListener(), session restore/login'den önce çalışıp
