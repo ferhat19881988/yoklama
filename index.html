@@ -1722,6 +1722,7 @@ div.admin-filters .button-row {
         <span class="logo-text">Yoklama</span>
       </div>
       <button class="btn ghost hidden" id="btnRefresh" type="button" title="Verileri yenile">🔄 Yenile</button>
+      <button class="btn ghost hidden" id="btnGoBirebir" type="button" title="Birebir analiz sistemine geç">👥 Birebir Analiz</button>
       <button class="btn ghost hidden" id="btnLogout" type="button">Çıkış</button>
     </div>
     <div class="head-session" role="group" aria-label="Oturum ve durum">
@@ -2476,6 +2477,10 @@ function openWhatsAppComposer(opts){
     const getSheetId = () => atob(SHEET_TOKEN).split('').reverse().join('');
     const sheetUrl   = (tab) => `https://opensheet.elk.sh/${getSheetId()}/${tab}`;
     const ATT_ROOT = 'yoklama_v2';
+    const TEACHER_BRIDGE_KEY = 'fenomen_teacher_bridge_v1';
+    const TEACHER_BRIDGE_MAX_AGE_MS = 10 * 60 * 1000;
+    const YOKLAMA_SYSTEM_URL = 'https://ferhat19881988.github.io/yoklama/';
+    const BIREBIR_SYSTEM_URL = 'https://ferhat19881988.github.io/birebiranaliz/';
     const attPath = (tarih, sinif, saatKodu, ogretmenId) =>
     `${ATT_ROOT}/${tarih}/${sinif}/${saatKodu}/${ogretmenId}`;
     const attDayRoot = (tarih, sinif) =>
@@ -2488,6 +2493,7 @@ function openWhatsAppComposer(opts){
       btnLogin: document.getElementById('btnLogin'),
       btnLogout: document.getElementById('btnLogout'),
       btnRefresh: document.getElementById('btnRefresh'),
+      btnGoBirebir: document.getElementById('btnGoBirebir'),
       userChip: document.getElementById('userChip'),
 
       teacherView: document.getElementById('teacherView'),
@@ -2867,6 +2873,85 @@ const dayNameTRForDateStr = (dateStr) => turkishDays[dayjs.tz(dateStr).day()];
 const safe = (v)=> (v??'').toString().trim();
 const ordinal = (n)=> `${n}. Saat`;
 
+function normalizeBridgeTeacherId(value=''){
+  return safe(value);
+}
+
+function buildTeacherBridgeUrl(baseUrl, teacherId, target){
+  const url = new URL(baseUrl, window.location.href);
+  url.searchParams.set('bridge', 'teacher');
+  url.searchParams.set('teacherId', normalizeBridgeTeacherId(teacherId));
+  url.searchParams.set('target', target || '');
+  url.searchParams.set('t', String(Date.now()));
+  return url.toString();
+}
+
+function writeTeacherBridge(teacherId, target, source){
+  const cleanId = normalizeBridgeTeacherId(teacherId);
+  if(!cleanId) return false;
+  try{
+    localStorage.setItem(TEACHER_BRIDGE_KEY, JSON.stringify({
+      teacherId: cleanId,
+      target: target || '',
+      source: source || '',
+      ts: Date.now()
+    }));
+    return true;
+  }catch(err){
+    console.warn('Öğretmen geçiş anahtarı yazılamadı:', err);
+    return false;
+  }
+}
+
+function readTeacherBridge(target){
+  try{
+    const url = new URL(window.location.href);
+    const bridgeRequested = url.searchParams.get('bridge') === 'teacher' || url.searchParams.get('bridge') === '1';
+    const idFromUrl = normalizeBridgeTeacherId(
+      url.searchParams.get('teacherId') || url.searchParams.get('ogretmenId') || url.searchParams.get('kod') || ''
+    );
+    const targetFromUrl = url.searchParams.get('target') || '';
+    if(bridgeRequested && idFromUrl && (!targetFromUrl || targetFromUrl === target)) return idFromUrl;
+  }catch(_){}
+
+  try{
+    const raw = localStorage.getItem(TEACHER_BRIDGE_KEY);
+    if(!raw) return '';
+    const payload = JSON.parse(raw);
+    const teacherId = normalizeBridgeTeacherId(payload?.teacherId);
+    const age = Date.now() - Number(payload?.ts || 0);
+    const targetOk = !payload?.target || payload.target === target;
+    if(teacherId && targetOk && age >= 0 && age <= TEACHER_BRIDGE_MAX_AGE_MS) return teacherId;
+  }catch(err){
+    console.warn('Öğretmen geçiş anahtarı okunamadı:', err);
+  }
+  return '';
+}
+
+function clearTeacherBridge(){
+  try{ localStorage.removeItem(TEACHER_BRIDGE_KEY); }catch(_){}
+}
+
+function cleanTeacherBridgeUrl(){
+  try{
+    const url = new URL(window.location.href);
+    if(!url.searchParams.has('bridge')) return;
+    ['bridge','teacherId','ogretmenId','kod','target','source','t'].forEach(key => url.searchParams.delete(key));
+    const cleaned = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState({}, document.title, cleaned);
+  }catch(_){}
+}
+
+function goToBirebirSystem(){
+  const teacherId = normalizeBridgeTeacherId(session?.ogretmenId);
+  if(!teacherId){
+    Swal.fire('Uyarı','Öğretmen oturumu bulunamadı.','warning');
+    return;
+  }
+  writeTeacherBridge(teacherId, 'birebir', 'yoklama');
+  window.location.assign(buildTeacherBridgeUrl(BIREBIR_SYSTEM_URL, teacherId, 'birebir'));
+}
+
 
 // --- Skeleton helpers (yükleme/hesaplama sırasında) ---
 function adminTableSkeletonRows(rowCount=8){
@@ -2951,6 +3036,22 @@ function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0)
       const branch = t.BRANS || t.BRANŞ || t.BRANS_ADI || t.BRANSI || t.BRANCH || '';
       const name   = t.OGRETMEN_ADI || t.AD || t.ADSOYAD || '';
       return { id: safe(id), name: safe(name) || `Öğretmen #${id}`, branch: safe(branch) || 'Ders' };
+    }
+
+    function startTeacherSessionByCode(code, options={}){
+      const { silent = false, clearBridge = false } = options || {};
+      const teacherCode = normalizeBridgeTeacherId(code);
+      const t = teachers.find(t=> safe(t.ID)===teacherCode);
+      if(!t){
+        if(!silent) Swal.fire('Hatalı','Kod bulunamadı.','error');
+        return false;
+      }
+      const info = teacherById(t.ID);
+      session = {role:'ogretmen', ogretmenId:info.id, teacherName:info.name, teacherBranch:info.branch};
+      localStorage.setItem('session', JSON.stringify(session));
+      if(clearBridge) clearTeacherBridge();
+      enterApp();
+      return true;
     }
     function lessonNameFromRow(r, tInfo){
       const ders = r.DERS || r.DERS_ADI || r.DERSI || '';
@@ -3189,8 +3290,17 @@ function refreshVisibleView(){
       initAttendanceConfigListener();
 await loadSheets(); buildSlotOrder();
 
+      let bridgeHandled = false;
+      const bridgedTeacherId = readTeacherBridge('yoklama');
+      if(bridgedTeacherId){
+        bridgeHandled = startTeacherSessionByCode(bridgedTeacherId, { silent:true, clearBridge:true });
+        cleanTeacherBridgeUrl();
+        if(bridgeHandled) showToast('Yoklama sistemine otomatik giriş yapıldı ✓','ok');
+        else Swal.fire('Hatalı','Aktarılan öğretmen kodu bulunamadı.','error');
+      }
+
       const cached = localStorage.getItem('session');
-      if(cached){ session = JSON.parse(cached); enterApp(); scheduleRestoreScroll(); }
+      if(!bridgeHandled && cached){ session = JSON.parse(cached); enterApp(); scheduleRestoreScroll(); }
 
       UI.btnLogin.onclick = validateLogin;
       UI.btnLogout.onclick = ()=>{
@@ -3199,6 +3309,7 @@ await loadSheets(); buildSlotOrder();
         try{ localStorage.removeItem(SCROLL_STATE_KEY); }catch{}
         location.reload();
       };
+      if(UI.btnGoBirebir) UI.btnGoBirebir.onclick = goToBirebirSystem;
 
 
       // Öğretmen: Güçlü Yenileme (cache temizle + cache-busting reload)
@@ -3564,10 +3675,7 @@ try{
       }
       const t = teachers.find(t=> safe(t.ID)===code);
       if(t){
-        const info = teacherById(t.ID);
-        session = {role:'ogretmen', ogretmenId:info.id, teacherName:info.name, teacherBranch:info.branch};
-        localStorage.setItem('session', JSON.stringify(session));
-        return enterApp();
+        return startTeacherSessionByCode(code);
       }
       Swal.fire('Hatalı','Kod bulunamadı.','error');
     }
@@ -3576,8 +3684,9 @@ try{
     UI.loginCard.classList.add('hidden');
     UI.app.classList.remove('hidden');
     UI.btnLogout.classList.remove('hidden');
-    // Öğretmen için: güçlü yenileme butonu
+    // Öğretmen için: güçlü yenileme ve hızlı geçiş butonları
     try{ UI.btnRefresh && UI.btnRefresh.classList.toggle('hidden', session.role !== 'ogretmen'); }catch{}
+    try{ UI.btnGoBirebir && UI.btnGoBirebir.classList.toggle('hidden', session.role !== 'ogretmen'); }catch{}
 
     // Fix: Admin yoklama anahtarı bazen ilk açılışta "donuk" kalabiliyordu.
     // Neden: initAttendanceConfigListener(), session restore/login'den önce çalışıp
