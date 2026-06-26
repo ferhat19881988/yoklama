@@ -4143,7 +4143,7 @@ async function openLesson(lesson){
     .map(s=>({id:safe(s.NO), ad:s.ADSOYAD||'', no:safe(s.NO), veliTel: safe(s.VeliTel ?? s.VELITEL ?? s.velitel ?? '') }))
     .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
 
-  // SMS: veli telefonları listede görünmez; sadece 1. saat bildirimleri için tutulur
+  // SMS: veli telefonları listede görünmez; sadece 1. ve 2. saat bildirimleri için tutulur
   currentRoster = list;
 
   const tarih = toDateStr(nowTR());
@@ -4295,7 +4295,7 @@ async function openLesson(lesson){
     }
 
 
-/* ---------- 1. Saat: Veli SMS Bildirimleri ---------- */
+/* ---------- 1. ve 2. Saat: Veli SMS Bildirimleri ---------- */
 /*
   NOT (CORS önlemi):
   1sms API dokümanında smspost/v1 (POST, XML) ve smsget/v1 (GET) uçları bulunuyor.
@@ -4408,8 +4408,20 @@ async function sendSmsOnce({gsm, message}){
   }
 }
 
-// Kayıt onayı sonrası 1. saat için SMS batch gönderimi
-async function sendFirstHourSmsBatch(batch){
+// Kayıt onayı sonrası 1. ve 2. saat için SMS batch gönderimi
+function getSmsLessonHourNo(lesson){
+  const direct = Number(lesson?.saatNo);
+  if(Number.isFinite(direct) && direct > 0) return direct;
+  const fromCode = Number(String(lesson?.saatKodu || '').match(/\d+/)?.[0] || '');
+  return Number.isFinite(fromCode) && fromCode > 0 ? fromCode : null;
+}
+
+function isParentSmsLesson(lesson){
+  const hourNo = getSmsLessonHourNo(lesson);
+  return hourNo === 1 || hourNo === 2;
+}
+
+async function sendParentAttendanceSmsBatch(batch){
   if(!batch || !batch.total) return;
 
   if(!navigator.onLine){
@@ -4444,8 +4456,8 @@ async function sendFirstHourSmsBatch(batch){
   setStatus(final, failCount ? 'bad' : 'ok');
 }
 
-function collectFirstHourSmsBatch(){
-  const hourNo = currentLesson?.saatNo || 1;
+function collectParentAttendanceSmsBatch(){
+  const hourNo = getSmsLessonHourNo(currentLesson) || 1;
   const bas = currentLesson?.bas || '';
   const bit = currentLesson?.bit || '';
 
@@ -4476,23 +4488,24 @@ function collectFirstHourSmsBatch(){
   return { total: cleaned.length, items: cleaned, skipped };
 }
 
-// Kaydet butonu için yeni akış (1. saat = SMS + uyarı)
+// Kaydet butonu için yeni akış (1. ve 2. saat = SMS + uyarı)
 async function handleAttendanceSaveClick(){
   if(!currentLesson) return;
 
-  const isFirstHour = String(currentLesson.saatNo || '') === '1';
+  const smsHourNo = getSmsLessonHourNo(currentLesson);
+  const shouldSendParentSms = isParentSmsLesson(currentLesson);
 
-  const title = isFirstHour ? '1. Saat Yoklaması' : 'Yoklama Onayı';
-  const text  = isFirstHour
-    ? 'Sayın öğretmenimiz, 1. saat yoklamalarında dikkatli yoklama almanızı rica ederiz. Çünkü 1. saat yoklamaları velilere SMS olarak gönderilmektedir.\n\nYoklama kaydedilsin mi?'
+  const title = shouldSendParentSms ? `${smsHourNo}. Saat Yoklaması` : 'Yoklama Onayı';
+  const text  = shouldSendParentSms
+    ? `Sayın öğretmenimiz, ${smsHourNo}. saat yoklamasında dikkatli yoklama almanızı rica ederiz. Çünkü 1. ve 2. saat yoklamalarında gelmeyen ve geç gelen öğrencilerin velilerine SMS gönderilmektedir.\n\nYoklama kaydedilsin mi?`
     : 'Sayın öğretmenimiz, yoklamayı doğru aldınız mı?\n\nYoklama kaydedilsin mi?';
 
-  const confirmButtonText = isFirstHour ? 'Evet, Kaydet ve SMS Gönder' : 'Evet, Kaydet';
+  const confirmButtonText = shouldSendParentSms ? 'Evet, Kaydet ve SMS Gönder' : 'Evet, Kaydet';
 
   const res = await Swal.fire({
     title,
     text,
-    icon: isFirstHour ? 'warning' : 'question',
+    icon: shouldSendParentSms ? 'warning' : 'question',
     showCancelButton: true,
     confirmButtonText,
     cancelButtonText: 'Hayır, Geri Dön',
@@ -4502,21 +4515,21 @@ async function handleAttendanceSaveClick(){
   if(!res.isConfirmed) return;
 
   // SMS batch'i kayıttan ÖNCE topla (saveAttendance sonunda currentLesson/tempAtt sıfırlanıyor)
-  const batch = isFirstHour ? collectFirstHourSmsBatch() : null;
+  const batch = shouldSendParentSms ? collectParentAttendanceSmsBatch() : null;
 
   const savedOk = await saveAttendance();
   if(!savedOk) return;
 
-  if(isFirstHour){
+  if(shouldSendParentSms){
     if(batch && batch.total){
-      await sendFirstHourSmsBatch(batch);
+      await sendParentAttendanceSmsBatch(batch);
     }else{
-      setStatus('1. saat yoklaması kaydedildi. SMS gönderilecek öğrenci yok.', 'ok');
+      setStatus(`${smsHourNo || ''}. saat yoklaması kaydedildi. SMS gönderilecek öğrenci yok.`, 'ok');
     }
   }
 }
 
-/* ---------- /1. Saat: Veli SMS Bildirimleri ---------- */
+/* ---------- /1. ve 2. Saat: Veli SMS Bildirimleri ---------- */
 
 async function saveAttendance(){
   if(!currentLesson) return false;
@@ -9190,7 +9203,7 @@ function printParentQuizzes(){
   color: var(--brand-2);
 }
 
- 
+</style>
 <script>
 function getSlotByCode(code, program){
   const key = String(code||'').trim(); if(!key) return null;
