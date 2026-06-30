@@ -3988,6 +3988,34 @@ async function showTeacherToday(){
     const activate = async ()=>{
       const idx = +el.dataset.idx;
       const m = mine[idx];
+
+      // Tatil Modu kontrolü, zaman penceresi kontrolünden ÖNCE yapılmalı.
+      // Neden: Yoklama pasifken öğretmene "Yoklama Alınamaz" saat uyarısı değil,
+      // doğrudan "Tatil Modu — Yoklama Kapalı" ekranı gösterilmeli.
+      if(!attendanceConfigReady){
+        try{
+          const snapCfg = await get(ref(db, ATT_CFG_PATH));
+          const vCfg = snapCfg.val();
+          attendanceEnabled = (vCfg === null || vCfg === undefined) ? true : !!vCfg;
+          attendanceConfigReady = true;
+          applyAttendanceConfigToUI();
+        }catch(e){
+          console.error(e);
+          await Swal.fire({
+            icon:'error',
+            title:'Ayar Okunamadı',
+            text:'Yoklama durumu kontrol edilemedi. Lütfen bağlantıyı kontrol edip tekrar deneyiniz.',
+            confirmButtonText:'Tamam'
+          });
+          return;
+        }
+      }
+
+      if(!attendanceEnabled){
+        await openLesson(m); // openLesson Tatil Modu ekranını açar; yoklama listesi/kayıt açılmaz.
+        return;
+      }
+
       const now = nowTR();
       const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(10,'minute')) ||
                         now.isAfter(parseOnDate(toDateStr(now), m.bit).add(5,'hour')));
@@ -3995,7 +4023,7 @@ async function showTeacherToday(){
         await Swal.fire({icon:'error',title:'Yoklama Alınamaz',text:'Yoklama ders başlamadan 10 dakika önce veya ders bitiminden 5 saat sonra alınamaz.',confirmButtonText:'Tamam'});
         return;
       }
-      openLesson(m);
+      await openLesson(m);
     };
     el.addEventListener('click', activate);
     el.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); activate(); } });
