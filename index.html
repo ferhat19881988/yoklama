@@ -777,7 +777,6 @@ div.admin-filters .button-row {
 }
 .adm-sum-label.ok{ color: rgba(34,197,94,.95); }
 
-\1 color:var(--muted); }
 .adm-sum-kpi{
   font-size:1.8rem;
   font-weight:900;
@@ -1773,6 +1772,48 @@ div.admin-filters .button-row {
   }
 }
 
+/* ===== v1.2 — Öğretmen veri senkronizasyon göstergesi ===== */
+.teacher-sync-box{
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:5px 9px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:10px;
+  background:rgba(15,23,42,.18);
+  font-size:.68rem;
+  line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.teacher-sync-box .sync-item{
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.teacher-sync-state{
+  flex:0 0 auto;
+  padding:3px 7px;
+  border-radius:999px;
+  font-weight:900;
+  border:1px solid rgba(255,255,255,.18);
+}
+.teacher-sync-state.ok{ background:rgba(34,197,94,.18); color:#dcfce7; }
+.teacher-sync-state.syncing{ background:rgba(245,158,11,.20); color:#fef3c7; }
+.teacher-sync-state.warn{ background:rgba(239,68,68,.18); color:#fee2e2; }
+@media (max-width:760px){
+  .teacher-sync-box{
+    width:100%;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    white-space:normal;
+    font-size:.66rem;
+  }
+  .teacher-sync-box .sync-item{ flex:1 1 145px; }
+}
+
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -1804,6 +1845,11 @@ div.admin-filters .button-row {
     <div id="teacherQuickPanel" class="teacher-quick-panel hidden no-print" aria-label="Öğretmen hızlı araçları">
       <div class="teacher-quick-inner">
         <span class="teacher-quick-title">Hızlı Araçlar</span>
+        <div id="teacherSyncBox" class="teacher-sync-box" aria-live="polite" aria-label="Öğretmen veri senkronizasyon durumu">
+          <span class="sync-item">Giriş: <strong id="teacherLoginTime">—</strong></span>
+          <span class="sync-item">Veri: <strong id="teacherDataReadTime">—</strong></span>
+          <span id="teacherSyncState" class="teacher-sync-state syncing">Kontrol</span>
+        </div>
         <div class="teacher-quick-actions">
           <button class="btn ghost hidden" id="btnRefresh" type="button" title="Verileri yenile">🔄 Yenile</button>
           <button class="btn ghost hidden" id="btnGoBirebir" type="button" title="Birebir analiz sistemine geç">👥 Birebir Analiz</button>
@@ -2276,6 +2322,11 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
+    const APP_VERSION = '1.2';
+    const SHEETS_CACHE_KEY = 'fenomenSheetsCache_v2';
+    const LEGACY_SHEETS_CACHE_KEY = 'fenomenSheetsCache_v1';
+    const TEACHER_SYNC_STATE_KEY = 'fenomen_teacher_sync_v1';
+    const TEACHER_SOURCE_SYNC_MIN_MS = 65 * 1000;
 
 // =========================
 // WhatsApp Mesaj Modalı (Önizleme / Düzenleme / Kopyalama / Gönderme)
@@ -2571,6 +2622,10 @@ function openWhatsAppComposer(opts){
       btnLogin: document.getElementById('btnLogin'),
       btnLogout: document.getElementById('btnLogout'),
       teacherQuickPanel: document.getElementById('teacherQuickPanel'),
+      teacherSyncBox: document.getElementById('teacherSyncBox'),
+      teacherLoginTime: document.getElementById('teacherLoginTime'),
+      teacherDataReadTime: document.getElementById('teacherDataReadTime'),
+      teacherSyncState: document.getElementById('teacherSyncState'),
       btnRefresh: document.getElementById('btnRefresh'),
       btnGoBirebir: document.getElementById('btnGoBirebir'),
       userChip: document.getElementById('userChip'),
@@ -2748,8 +2803,161 @@ let currentLesson=null;
 let tempAtt={};
 let currentRoster=[]; // yoklama panelindeki mevcut sınıf/grup listesi (SMS için)
 
-let teacherRefreshTimer=null;
+let teacherUiRefreshTimer=null;        // 3 sn: ders/yoklama durum çipleri
+let teacherSourceSyncTimer=null;       // ~65 sn: ana veri kaynağı kontrolü
+let teacherPostLoginVerifyTimer=null;  // giriş sonrası OpenSheet cache süresi dolunca ikinci doğrulama
 let teacherLessonsToday=[];
+let lastSheetsNetworkReadAt = 0;
+let lastSheetsLoadedAt = 0;
+let lastSheetServerMaxAgeMs = 60 * 1000;
+let teacherSyncInFlight = null;
+let teacherLastHiddenAt = 0;
+let teacherLastResumeCheckAt = 0;
+
+function formatSyncDateTime(ms){
+  const n = Number(ms || 0);
+  if(!n) return '—';
+  try{ return dayjs(n).tz('Europe/Istanbul').format('DD.MM.YYYY HH:mm:ss'); }
+  catch(_){ return new Date(n).toLocaleString('tr-TR'); }
+}
+
+function readTeacherSyncState(){
+  try{ return JSON.parse(localStorage.getItem(TEACHER_SYNC_STATE_KEY) || '{}') || {}; }
+  catch(_){ return {}; }
+}
+
+function writeTeacherSyncState(extra={}){
+  try{
+    const prev = readTeacherSyncState();
+    localStorage.setItem(TEACHER_SYNC_STATE_KEY, JSON.stringify({ ...prev, ...extra, version: APP_VERSION }));
+  }catch(_){ }
+}
+
+function renderTeacherSyncUI(state='ok', label='Güncel'){
+  if(!session || session.role !== 'ogretmen') return;
+  const loginAt = Number(session.loginAt || 0);
+  if(UI.teacherLoginTime) UI.teacherLoginTime.textContent = formatSyncDateTime(loginAt);
+  if(UI.teacherDataReadTime) UI.teacherDataReadTime.textContent = formatSyncDateTime(lastSheetsNetworkReadAt || lastSheetsLoadedAt);
+  if(UI.teacherSyncState){
+    UI.teacherSyncState.className = `teacher-sync-state ${state}`;
+    UI.teacherSyncState.textContent = label;
+  }
+}
+
+function parseResponseMaxAgeMs(resp){
+  try{
+    const cc = resp?.headers?.get?.('cache-control') || '';
+    const m = cc.match(/(?:^|,|\s)max-age=(\d+)/i);
+    return m ? Math.max(0, Number(m[1]) * 1000) : 0;
+  }catch(_){ return 0; }
+}
+
+function clearTeacherSyncTimers(){
+  if(teacherUiRefreshTimer) clearInterval(teacherUiRefreshTimer);
+  if(teacherSourceSyncTimer) clearInterval(teacherSourceSyncTimer);
+  if(teacherPostLoginVerifyTimer) clearTimeout(teacherPostLoginVerifyTimer);
+  teacherUiRefreshTimer = null;
+  teacherSourceSyncTimer = null;
+  teacherPostLoginVerifyTimer = null;
+}
+
+function scheduleTeacherPostLoginVerification(){
+  if(!session || session.role !== 'ogretmen') return;
+  if(teacherPostLoginVerifyTimer) clearTimeout(teacherPostLoginVerifyTimer);
+  const waitMs = Math.max(TEACHER_SOURCE_SYNC_MIN_MS, Number(lastSheetServerMaxAgeMs || 0) + 5000);
+  teacherPostLoginVerifyTimer = setTimeout(async ()=>{
+    if(!session || session.role !== 'ogretmen' || document.visibilityState !== 'visible') return;
+    await syncTeacherSourceData({
+      requiredAt: Date.now(),
+      reason: 'post-login-verify',
+      render: true,
+      silent: true
+    });
+  }, waitMs);
+}
+
+function startTeacherSourceSyncTimer(){
+  if(teacherSourceSyncTimer) clearInterval(teacherSourceSyncTimer);
+  teacherSourceSyncTimer = setInterval(async ()=>{
+    if(!session || session.role !== 'ogretmen') return;
+    if(document.visibilityState !== 'visible') return;
+    if(!UI.attCard.classList.contains('hidden')) return;
+    await syncTeacherSourceData({ requiredAt: Date.now(), reason:'auto', render:true, silent:true });
+  }, TEACHER_SOURCE_SYNC_MIN_MS);
+}
+
+async function syncTeacherSourceData({requiredAt=0, reason='manual', render=true, silent=false}={}){
+  if(!session || session.role !== 'ogretmen') return { ok:false, skipped:true };
+  const needAt = Number(requiredAt || 0);
+
+  if(!navigator.onLine){
+    renderTeacherSyncUI('warn', 'Offline');
+    return { ok:false, offline:true };
+  }
+
+  // Aynı anda birden fazla focus/visibility/manual çağrısı gelirse tek ağ isteği kullan.
+  if(teacherSyncInFlight) return teacherSyncInFlight;
+
+  renderTeacherSyncUI('syncing', 'Eşitleniyor');
+
+  teacherSyncInFlight = (async ()=>{
+    try{
+      const result = await loadSheets({
+        forceNetwork: true,
+        allowCacheFallback: false,
+        freshVariant: true
+      });
+      buildSlotOrder();
+
+      const info = teacherById(session.ogretmenId);
+      if(info){
+        session.teacherName = info.name;
+        session.teacherBranch = info.branch;
+        localStorage.setItem('session', JSON.stringify(session));
+      }
+
+      const readAt = Number(result?.readAt || lastSheetsNetworkReadAt || 0);
+      const matchesEntry = !needAt || readAt >= needAt;
+      writeTeacherSyncState({
+        loginAt: Number(session.loginAt || 0),
+        dataReadAt: readAt,
+        lastReason: reason,
+        checkedAt: Date.now(),
+        matched: matchesEntry
+      });
+
+      if(!matchesEntry){
+        // Giriş/geri-dönüş anından eski veri yakalandıysa tek sefer daha zorla çek.
+        const retry = await loadSheets({
+          forceNetwork: true,
+          allowCacheFallback: false,
+          freshVariant: true
+        });
+        buildSlotOrder();
+        const retryAt = Number(retry?.readAt || lastSheetsNetworkReadAt || 0);
+        if(retryAt < needAt) throw new Error('Veri okuma zamanı giriş anından eski kaldı.');
+      }
+
+      renderTeacherSyncUI('ok', 'Güncel');
+      if(render && !UI.teacherView.classList.contains('hidden')){
+        await showTeacherToday();
+      }
+      return { ok:true, readAt:lastSheetsNetworkReadAt, reason };
+    }catch(err){
+      console.error('syncTeacherSourceData error', err);
+      renderTeacherSyncUI('warn', 'Kontrol et');
+      if(!silent){
+        try{ Swal.fire('Veri Güncellenemedi','Yeni veriler alınamadı. Mevcut ekrandaki veriler korunuyor; bağlantı düzelince tekrar deneyin.','warning'); }catch(_){ }
+      }
+      return { ok:false, error:err };
+    }finally{
+      teacherSyncInFlight = null;
+    }
+  })();
+
+  return teacherSyncInFlight;
+}
+
 // Attendance (Yoklama) enable/disable (Admin -> Firebase config)
 let attendanceEnabled = true;               // varsayılan: aktif
 let attendanceConfigReady = false;          // config okundu mu?
@@ -3117,19 +3325,73 @@ function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0)
       return { id: safe(id), name: safe(name) || `Öğretmen #${id}`, branch: safe(branch) || 'Ders' };
     }
 
-    function startTeacherSessionByCode(code, options={}){
-      const { silent = false, clearBridge = false } = options || {};
+    async function startTeacherSessionByCode(code, options={}){
+      const { silent = false, clearBridge = false, loginAt = Date.now() } = options || {};
       const teacherCode = normalizeBridgeTeacherId(code);
-      const t = teachers.find(t=> safe(t.ID)===teacherCode);
+      let t = teachers.find(t=> safe(t.ID)===teacherCode);
+
+      // Giriş anından sonra en az bir başarılı ağ okuması yoksa önce veri kaynağını doğrula.
+      if(navigator.onLine && lastSheetsNetworkReadAt < Number(loginAt || 0)){
+        try{
+          await loadSheets({ forceNetwork:true, allowCacheFallback:false, freshVariant:true });
+          buildSlotOrder();
+          t = teachers.find(t=> safe(t.ID)===teacherCode);
+        }catch(err){
+          console.error('teacher login pre-sync error', err);
+          // Ağ hatasında mevcut bellekteki öğretmen kaydıyla devam edilebilir; durum paneli uyarı verecek.
+        }
+      }
+
       if(!t){
         if(!silent) Swal.fire('Hatalı','Kod bulunamadı.','error');
         return false;
       }
+
       const info = teacherById(t.ID);
-      session = {role:'ogretmen', ogretmenId:info.id, teacherName:info.name, teacherBranch:info.branch};
+      session = {
+        role:'ogretmen',
+        ogretmenId:info.id,
+        teacherName:info.name,
+        teacherBranch:info.branch,
+        loginAt: Number(loginAt || Date.now())
+      };
       localStorage.setItem('session', JSON.stringify(session));
       if(clearBridge) clearTeacherBridge();
+
+      let synced;
+      if(lastSheetsNetworkReadAt >= session.loginAt){
+        // Giriş anından sonra yapılan ön okuma zaten güncelse aynı veriyi ikinci kez isteme.
+        synced = { ok:true, readAt:lastSheetsNetworkReadAt, reason:'login-precheck' };
+        writeTeacherSyncState({
+          loginAt: session.loginAt,
+          dataReadAt: lastSheetsNetworkReadAt,
+          lastReason: 'login-precheck',
+          checkedAt: Date.now(),
+          matched: true
+        });
+        renderTeacherSyncUI('ok','Güncel');
+      }else{
+        synced = await syncTeacherSourceData({
+          requiredAt: session.loginAt,
+          reason: 'login',
+          render: false,
+          silent: true
+        });
+      }
+
+      // Ağ doğrulaması başarılıysa öğretmenin hâlâ listede olduğundan emin ol.
+      if(synced?.ok){
+        const refreshedTeacher = teachers.find(x=> safe(x.ID)===teacherCode);
+        if(!refreshedTeacher){
+          localStorage.removeItem('session');
+          session = null;
+          if(!silent) Swal.fire('Hatalı','Öğretmen kaydı güncel veri kaynağında bulunamadı.','error');
+          return false;
+        }
+      }
+
       enterApp();
+      scheduleTeacherPostLoginVerification();
       return true;
     }
     function lessonNameFromRow(r, tInfo){
@@ -3200,36 +3462,46 @@ function queueOfflineWrite(path, payload){
         if(showToast) Swal.fire('Senkron', `${q.length} işlem veritabanına aktarıldı.`, 'success');
       }catch(e){ console.error(e); setStatus('Senkron sırasında hata.', 'bad'); }
     }
-function refreshVisibleView(){
-    // neden: ekran geri gelince zaman tabanlı chip
+async function refreshVisibleView(reason='resume'){
+    // Ekran geri geldiğinde yalnızca görünür durumda çalış.
     if(!session) return;
     if(document.visibilityState !== 'visible') return;
 
     if(session.role === 'ogretmen'){
-      showTeacherToday();           // ders kartlarını ve "Zamanı Geldi" benzeri chip'leri güncelle
-      if(typeof refreshTeacherDailyKpis === 'function'){
-        refreshTeacherDailyKpis();  // varsa KPI'ları da tazele
+      const now = Date.now();
+      const requiredAt = Math.max(Number(session.loginAt || 0), Number(teacherLastHiddenAt || 0));
+      const dataAge = now - Number(lastSheetsNetworkReadAt || 0);
+      const mustSync = (requiredAt > Number(lastSheetsNetworkReadAt || 0)) || dataAge >= TEACHER_SOURCE_SYNC_MIN_MS;
+
+      // focus + visibilitychange + pageshow aynı anda gelebilir; kısa süre içinde tek kontrol yeterli.
+      if(mustSync && (now - teacherLastResumeCheckAt > 2500)){
+        teacherLastResumeCheckAt = now;
+        await syncTeacherSourceData({ requiredAt: requiredAt || now, reason, render:true, silent:true });
+      }else{
+        await showTeacherToday();
+        if(typeof refreshTeacherDailyKpis === 'function') await refreshTeacherDailyKpis();
       }
+      teacherLastHiddenAt = 0;
     } else if(session.role === 'veli'){
-      // İsteğe göre veli tarafında da tazelemek isterseniz burada çağrı ekleyin (opsiyonel)
-      // loadParentRange('today');
+      // Veli görünümü mevcut davranışını korur.
     } else if(session.role === 'admin'){
-      // refreshAdmin(); // isterseniz açın
+      // Admin görünümü mevcut davranışını korur.
     }
   }
 
-  // YENİ: Sayfa görünürlüğü/odak geri gelince çalıştır
   document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState === 'visible') refreshVisibleView();
+    if(document.visibilityState === 'hidden'){
+      teacherLastHiddenAt = Date.now();
+      return;
+    }
+    refreshVisibleView('visibility');
   });
 
-  // YENİ: bfcache'den (geri/ileri) dönünce tetikleyin (özellikle iOS/Safari)
   window.addEventListener('pageshow', (e) => {
-    if(e.persisted) refreshVisibleView();
+    if(e.persisted) refreshVisibleView('bfcache');
   });
 
-  // YENİ: Uygulamaya odaklanınca tazele
-  window.addEventListener('focus', refreshVisibleView);
+  window.addEventListener('focus', ()=> refreshVisibleView('focus'));
 
   /* --------------------------------------------------------------------------
      Scroll Persistence ("kaldığın yerden devam")
@@ -3372,14 +3644,31 @@ await loadSheets(); buildSlotOrder();
       let bridgeHandled = false;
       const bridgedTeacherId = readTeacherBridge('yoklama');
       if(bridgedTeacherId){
-        bridgeHandled = startTeacherSessionByCode(bridgedTeacherId, { silent:true, clearBridge:true });
+        bridgeHandled = await startTeacherSessionByCode(bridgedTeacherId, { silent:true, clearBridge:true, loginAt:Date.now() });
         cleanTeacherBridgeUrl();
         if(bridgeHandled) showToast('Yoklama sistemine otomatik giriş yapıldı ✓','ok');
         else Swal.fire('Hatalı','Aktarılan öğretmen kodu bulunamadı.','error');
       }
 
       const cached = localStorage.getItem('session');
-      if(!bridgeHandled && cached){ session = JSON.parse(cached); enterApp(); scheduleRestoreScroll(); }
+      if(!bridgeHandled && cached){
+        try{
+          session = JSON.parse(cached);
+          if(session?.role === 'ogretmen'){
+            // Oturum cihazda kayıtlı olsa bile yeni sayfa açılışı yeni bir giriş/uyanma anıdır.
+            session.loginAt = Date.now();
+            localStorage.setItem('session', JSON.stringify(session));
+            await syncTeacherSourceData({ requiredAt:session.loginAt, reason:'session-restore', render:false, silent:true });
+          }
+          enterApp();
+          if(session?.role === 'ogretmen') scheduleTeacherPostLoginVerification();
+          scheduleRestoreScroll();
+        }catch(err){
+          console.error('session restore error', err);
+          localStorage.removeItem('session');
+          session = null;
+        }
+      }
 
       UI.btnLogin.onclick = validateLogin;
       UI.btnLogout.onclick = ()=>{
@@ -3391,42 +3680,27 @@ await loadSheets(); buildSlotOrder();
       if(UI.btnGoBirebir) UI.btnGoBirebir.onclick = goToBirebirSystem;
 
 
-      // Öğretmen: Güçlü Yenileme (cache temizle + cache-busting reload)
-      function strongReload(){
-        try{ localStorage.removeItem('fenomenSheetsCache_v1'); }catch{}
-        try{ sessionStorage.removeItem('fenomenSheetsCache_v1'); }catch{}
-        try{ saveScrollState(true); }catch{} // WHY: yenilemede konumu kaybetme
-        try{
-          const url = new URL(window.location.href);
-          url.searchParams.set('_r', String(Date.now()));
-          window.location.replace(url.toString());
-        }catch{
-          window.location.reload();
-        }
-      }
-
+      // Öğretmen: v1.2 veri senkronizasyonu — sayfayı yeniden yüklemek yerine kaynağı doğrudan yeniden oku.
       if(UI.btnRefresh){
         UI.btnRefresh.onclick = async ()=>{
-          // Yalnızca öğretmen için görünür; ama yine de güvenlik kontrolü
           if(!session || session.role !== 'ogretmen') return;
-          // Offline ise de yenileme mümkün; fakat veri çekimi internet ister.
           if(!navigator.onLine){
+            renderTeacherSyncUI('warn','Offline');
             Swal.fire('Offline','İnternet bağlantısı yok. Online olunca tekrar deneyin.','warning');
             return;
           }
-          // Not: SweetAlert yüklü değilse direkt yenile.
+
+          UI.btnRefresh.disabled = true;
           try{
-            const ok = await Swal.fire({
-              title: 'Verileri Yenile',
-              text: 'Ders/öğrenci listeleri ve ekran verileri yeniden yüklenecek.',
-              icon: 'question',
-              showCancelButton: true,
-              confirmButtonText: 'Yenile',
-              cancelButtonText: 'Vazgeç'
+            const result = await syncTeacherSourceData({
+              requiredAt: Date.now(),
+              reason: 'manual',
+              render: true,
+              silent: false
             });
-            if(ok.isConfirmed) strongReload();
-          }catch{
-            strongReload();
+            if(result?.ok) showToast('Veriler yeniden okundu ve güncellendi ✓','ok');
+          }finally{
+            UI.btnRefresh.disabled = false;
           }
         };
       }
@@ -3668,95 +3942,199 @@ try{
       if(navigator.onLine) await flushQueue(false);
     }
 
-    async function loadSheets(){
-      const CACHE_KEY = 'fenomenSheetsCache_v1';
+    async function loadSheets(options={}){
+      const {
+        forceNetwork = false,
+        allowCacheFallback = true,
+        freshVariant = false
+      } = options || {};
 
       const useCache = () => {
-        try{
-          const raw = localStorage.getItem(CACHE_KEY);
-          if(!raw) return false;
-          const data = JSON.parse(raw);
-          if(!data || !data.teachers || !data.students || !data.schedule || !data.slots) return false;
-          teachers = data.teachers;
-          students = data.students;
-          schedule = data.schedule;
-          slots    = data.slots;
-          return true;
-        }catch(e){
-          console.error('Cache parse error', e);
-          return false;
-        }
+        const tryKey = (key)=>{
+          try{
+            const raw = localStorage.getItem(key);
+            if(!raw) return null;
+            const data = JSON.parse(raw);
+            if(!data || !Array.isArray(data.teachers) || !Array.isArray(data.students) || !Array.isArray(data.schedule) || !Array.isArray(data.slots)) return null;
+            return data;
+          }catch(e){
+            console.error('Cache parse error', e);
+            return null;
+          }
+        };
+
+        const data = tryKey(SHEETS_CACHE_KEY) || tryKey(LEGACY_SHEETS_CACHE_KEY);
+        if(!data) return null;
+        teachers = data.teachers;
+        students = data.students;
+        schedule = data.schedule;
+        slots = data.slots;
+        lastSheetsLoadedAt = Number(data.ts || 0);
+        return data;
       };
 
-      // Offline ise önce cache dene
+      // Offline durumda son doğrulanmış yerel kopyayı kullan.
       if(!navigator.onLine){
-        if(useCache()){
+        const cached = useCache();
+        if(cached){
           setStatus('Offline mod: Son kaydedilen ders programı kullanılıyor.', 'bad');
-          return;
-        }else{
-          setStatus('Offline: Ders listeleri için önce internetle en az bir kez açmalısınız.', 'bad');
-          return;
+          return { source:'cache', readAt:Number(cached.ts || 0), serverMaxAgeMs:0 };
         }
+        setStatus('Offline: Ders listeleri için önce internetle en az bir kez açmalısınız.', 'bad');
+        if(forceNetwork || !allowCacheFallback) throw new Error('Offline ve kullanılabilir veri önbelleği yok.');
+        return { source:'none', readAt:0, serverMaxAgeMs:0 };
       }
 
       try{
-        const [tRes,sRes,pRes,slRes] = await Promise.all([
-          fetch(sheetUrl('Ogretmenler')),
-          fetch(sheetUrl('Ogrenciler')),
-          fetch(sheetUrl('DersProgrami')),
-          fetch(sheetUrl('DersSaatleri')),
-        ]);
-        teachers = await tRes.json();
-        students = await sRes.json();
-        schedule = await pRes.json();
-        slots    = await slRes.json();
+        // raw=false, OpenSheet tarafından izin verilen ayrı bir URL anahtarıdır ve biçimlendirilmiş değerleri korur.
+        // v1.2 öğretmen doğrulamasında bu varyant kullanılarak eski sürümün URL önbelleğinden ayrışılır.
+        const urlFor = (tab)=> freshVariant ? `${sheetUrl(tab)}?raw=false` : sheetUrl(tab);
+        const fetchTab = async (tab)=>{
+          const resp = await fetchWithTimeout(urlFor(tab), {
+            method:'GET',
+            cache:'no-store',
+            credentials:'omit'
+          }, 15000);
+          if(!resp.ok) throw new Error(`${tab} okunamadı (HTTP ${resp.status})`);
+          const data = await resp.json();
+          if(!Array.isArray(data)) throw new Error(`${tab} beklenen liste biçiminde değil.`);
+          return { data, maxAgeMs: parseResponseMaxAgeMs(resp) };
+        };
 
-        // Başarılı yüklemeden sonra offline kullanım için önbelleğe kaydet
+        const [tRes,sRes,pRes,slRes] = await Promise.all([
+          fetchTab('Ogretmenler'),
+          fetchTab('Ogrenciler'),
+          fetchTab('DersProgrami'),
+          fetchTab('DersSaatleri')
+        ]);
+
+        // Atomik güncelleme: dört kaynak da başarılı olmadan mevcut çalışan veriyi bozma.
+        const nextTeachers = tRes.data;
+        const nextStudents = sRes.data;
+        const nextSchedule = pRes.data;
+        const nextSlots = slRes.data;
+        const readAt = Date.now();
+        const maxAgeMs = Math.max(tRes.maxAgeMs, sRes.maxAgeMs, pRes.maxAgeMs, slRes.maxAgeMs, 0);
+
+        teachers = nextTeachers;
+        students = nextStudents;
+        schedule = nextSchedule;
+        slots = nextSlots;
+        lastSheetsNetworkReadAt = readAt;
+        lastSheetsLoadedAt = readAt;
+        if(maxAgeMs) lastSheetServerMaxAgeMs = maxAgeMs;
+
         try{
-          const payload = JSON.stringify({teachers, students, schedule, slots, ts: Date.now()});
-          localStorage.setItem(CACHE_KEY, payload);
+          localStorage.setItem(SHEETS_CACHE_KEY, JSON.stringify({
+            teachers, students, schedule, slots,
+            ts: readAt,
+            version: APP_VERSION
+          }));
+          // Eski anahtarı temizle: iki farklı cache yapısı çakışmasın.
+          localStorage.removeItem(LEGACY_SHEETS_CACHE_KEY);
         }catch(e){
           console.error('Cache save error', e);
         }
+
+        return { source:'network', readAt, serverMaxAgeMs:maxAgeMs };
       }catch(err){
         console.error('loadSheets error', err);
-        // Online görünüyor ama sunucuya ulaşılamıyorsa son cache i dene
-        if(useCache()){
-          setStatus('Sunucuya ulaşılamıyor, önbellekteki son ders programı kullanılıyor.', 'bad');
-        }else{
-          throw err;
+        if(allowCacheFallback){
+          const cached = useCache();
+          if(cached){
+            setStatus('Sunucuya ulaşılamıyor, önbellekteki son ders programı kullanılıyor.', 'bad');
+            return { source:'cache', readAt:Number(cached.ts || 0), serverMaxAgeMs:0, error:err };
+          }
         }
+        throw err;
       }
     }
+    function getSlotByCode(code, program){
+      const key = String(code||'').trim();
+      if(!key) return null;
+      const p = safe(program);
+      if(p){
+        const hit = slots.find(r =>
+          String(r.SAAT_KODU??r.KOD??r.ID).trim()===key && safe(r.PROGRAM)===p
+        );
+        if(hit) return hit;
+      }
+      return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim()===key) || null;
+    }
+
     function buildSlotOrder(){
-      const tmp = slots.map(s=>{
-        const bas = (s.BASLANGIC||'23:59').toString();
-        const kod = safe(s.SAAT_KODU||s.KOD||s.ID);
-        return {kod, bas};
-      }).sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
-      tmp.forEach((x,i)=> slotOrderMap.set(x.kod, i+1));
+      // v1.2: program bazlı ve legacy sıra haritalarını aynı noktada üret; eski çift tanımı kaldırıldı.
+      slotOrderMapByProgram = new Map();
+      slotOrderMap = new Map();
+      const groups = new Map();
+
+      for(const s of slots){
+        const prog = safe(s.PROGRAM) || 'GENEL';
+        const kod  = safe(s.SAAT_KODU||s.KOD||s.ID);
+        const bas  = (s.BASLANGIC||'23:59').toString();
+        if(!kod) continue;
+        if(!groups.has(prog)) groups.set(prog, []);
+        groups.get(prog).push({kod, bas});
+      }
+
+      groups.forEach((arr, prog)=>{
+        arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+        const m = new Map();
+        arr.forEach((x,i)=> m.set(x.kod, i+1));
+        slotOrderMapByProgram.set(prog, m);
+      });
+
+      // Legacy kullanan ekranlar için ilk programı koru.
+      const first = Array.from(slotOrderMapByProgram.values())[0] || new Map();
+      slotOrderMap = new Map(first);
     }
 
     async function validateLogin(){
       const code = safe(UI.loginCode.value);
       if(!code) return Swal.fire('Uyarı','Lütfen kod giriniz.','warning');
 
-      if(code === '13579'){
-        session = {role:'admin', name:'Yönetici'};
-        localStorage.setItem('session', JSON.stringify(session));
-        return enterApp();
+      const loginAt = Date.now();
+      UI.btnLogin.disabled = true;
+      try{
+        if(code === '13579'){
+          session = {role:'admin', name:'Yönetici'};
+          localStorage.setItem('session', JSON.stringify(session));
+          return enterApp();
+        }
+
+        // Mevcut davranış korunur: aynı kod varsa öğrenci/veli önceliklidir.
+        let stu = students.find(s=> safe(s.NO)===code);
+        if(stu){
+          session = {role:'veli', ogrNo:safe(stu.NO)};
+          localStorage.setItem('session', JSON.stringify(session));
+          return enterApp();
+        }
+
+        let t = teachers.find(t=> safe(t.ID)===code);
+        if(t) return await startTeacherSessionByCode(code, { loginAt });
+
+        // Kod bellekte bulunamadıysa yeni eklenmiş öğretmen/öğrenci ihtimaline karşı bir kez güncel kaynağı oku.
+        if(navigator.onLine){
+          try{
+            await loadSheets({ forceNetwork:true, allowCacheFallback:false, freshVariant:true });
+            buildSlotOrder();
+            stu = students.find(s=> safe(s.NO)===code);
+            if(stu){
+              session = {role:'veli', ogrNo:safe(stu.NO)};
+              localStorage.setItem('session', JSON.stringify(session));
+              return enterApp();
+            }
+            t = teachers.find(x=> safe(x.ID)===code);
+            if(t) return await startTeacherSessionByCode(code, { loginAt });
+          }catch(err){
+            console.error('login refresh lookup error', err);
+          }
+        }
+
+        Swal.fire('Hatalı','Kod bulunamadı.','error');
+      }finally{
+        UI.btnLogin.disabled = false;
       }
-      const stu = students.find(s=> safe(s.NO)===code);
-      if(stu){
-        session = {role:'veli', ogrNo:safe(stu.NO)};
-        localStorage.setItem('session', JSON.stringify(session));
-        return enterApp();
-      }
-      const t = teachers.find(t=> safe(t.ID)===code);
-      if(t){
-        return startTeacherSessionByCode(code);
-      }
-      Swal.fire('Hatalı','Kod bulunamadı.','error');
     }
 
      function enterApp(){
@@ -3776,22 +4154,17 @@ try{
     // UI tekrar uygulanmadığı için switch kilitli kalıyordu.
     try{ applyAttendanceConfigToUI(); }catch(e){}
 
-    // önce tüm zamanlayıcıyı sıfırla
-    clearInterval(teacherRefreshTimer);
-    teacherRefreshTimer = null;
+    // v1.2: kısa UI yenilemesi ile ana veri senkronizasyonu ayrı zamanlayıcılardır.
+    clearTeacherSyncTimers();
     if(session.role==='ogretmen'){
+      if(!session.loginAt){
+        session.loginAt = Date.now();
+        localStorage.setItem('session', JSON.stringify(session));
+      }
       UI.userChip.textContent = `🏫 ${session.teacherName||'Öğretmen'}`;
+      renderTeacherSyncUI(lastSheetsNetworkReadAt >= session.loginAt ? 'ok' : 'syncing', lastSheetsNetworkReadAt >= session.loginAt ? 'Güncel' : 'Kontrol');
       showTeacherToday();
-
-      // YENİ: Her 60 sn’de bir yalnızca görünürken tazele
-      teacherRefreshTimer = setInterval(() => {
-        if(document.visibilityState === 'visible') {
-          showTeacherToday();
-          if(typeof refreshTeacherDailyKpis === 'function'){
-            refreshTeacherDailyKpis();
-          }
-        }
-      }, 60000);
+      startTeacherSourceSyncTimer();
 
     }else if(session.role==='admin'){
       UI.userChip.textContent = `🛠️ Yönetici`;
@@ -4076,8 +4449,8 @@ async function showTeacherToday(){
 }
 
     function restartTeacherAutoRefresh(){
-      clearInterval(teacherRefreshTimer);
-      teacherRefreshTimer = setInterval(async ()=>{
+      if(teacherUiRefreshTimer) clearInterval(teacherUiRefreshTimer);
+      teacherUiRefreshTimer = setInterval(async ()=>{
         if(UI.teacherView.classList.contains('hidden')) return;
         if(!UI.attCard.classList.contains('hidden')) return;
         await refreshLessonChips();
@@ -9214,7 +9587,7 @@ function printParentQuizzes(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.2 🔥</span></p>
   </footer>
  <style>
 .site-footer{
@@ -9230,55 +9603,26 @@ function printParentQuizzes(){
 .site-footer strong{
   color: var(--brand-2);
 }
+.version-badge{
+  display:inline-block;
+  margin-left:6px;
+  padding:2px 7px;
+  border-radius:999px;
+  border:var(--stroke);
+  font-weight:800;
+  font-size:.78rem;
+  color:var(--brand-2);
+  background:var(--glass);
+}
 
 </style>
-<script>
-function getSlotByCode(code, program){
-  const key = String(code||'').trim(); if(!key) return null;
-  const p = safe(program);
-  if(p){
-    const hit = slots.find(r =>
-      String(r.SAAT_KODU??r.KOD??r.ID).trim()===key && safe(r.PROGRAM)===p
-    );
-    if(hit) return hit;
-  }
-  return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).trim()===key) || null;
-}
-function slotOrderGet(code, program){
-  const key = String(code||'').trim();
-  const p = safe(program) || 'GENEL';
-  const m = slotOrderMapByProgram.get(p);
-  if(m && m.has(key)) return m.get(key);
-  return slotOrderMap.get(key) || null; // fallback (eski tek program)
-}
-function buildSlotOrder(){
-  slotOrderMapByProgram = new Map();
-  const groups = new Map(); // program -> [{kod, bas}]
-  for(const s of slots){
-    const prog = safe(s.PROGRAM) || 'GENEL';
-    const kod  = safe(s.SAAT_KODU||s.KOD||s.ID);
-    const bas  = (s.BASLANGIC||'23:59').toString();
-    if(!kod) continue;
-    if(!groups.has(prog)) groups.set(prog, []);
-    groups.get(prog).push({kod, bas});
-  }
-  groups.forEach((arr, prog) => {
-    arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
-    const m = new Map();
-    arr.forEach((x,i)=> m.set(x.kod, i+1));
-    slotOrderMapByProgram.set(prog, m);
-  });
-  // legacy haritayı ilk programla doldur (bazı admin görünümleri kullanıyor)
-  const first = Array.from(slotOrderMapByProgram.values())[0] || new Map();
-  slotOrderMap = new Map(first);
-}
-</script>
   <!-- PWA Service Worker -->
   <script>
     (function () {
       if (!('serviceWorker' in navigator)) return;
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('service-worker.js', { scope: './' })
+        navigator.serviceWorker.register('service-worker.js?v=1.2', { scope: './', updateViaCache: 'none' })
+          .then(function (reg) { return reg.update().catch(function () {}); })
           .catch(function (err) { console.warn('SW registration failed:', err); });
       });
     })();
