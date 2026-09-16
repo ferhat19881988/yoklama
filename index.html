@@ -2363,7 +2363,7 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '1.5 🔥';
+    const APP_VERSION = '1.6 🔥';
     const SHEETS_CACHE_KEY = 'fenomenSheetsCache_v2';
     const LEGACY_SHEETS_CACHE_KEY = 'fenomenSheetsCache_v1';
     const TEACHER_SYNC_STATE_KEY = 'fenomen_teacher_sync_v1';
@@ -4165,7 +4165,7 @@ await loadSheets(); buildSlotOrder();
       }
 
       // Admin controls
-      UI.admRefresh?.addEventListener('click', refreshAdmin);
+      UI.admRefresh?.addEventListener('click', refreshAdminAllData);
       UI.admWhatsApp?.addEventListener('click', sendWhatsAppReport);
       // v1.5 🔥 — Tarih ve sınıf değişince bağımlı Program/Saat filtrelerini aynı kapsamda yeniden kur.
       UI.admClass?.addEventListener('change', () => { syncAdminScheduleFilters(); refreshAdmin(); });
@@ -5036,8 +5036,8 @@ async function openLesson(lesson){
       const isVar = tempAtt[o.id].status==='var', isLate = !!tempAtt[o.id].late;
       const meta=[`No: ${o.no}`];
       if(scope.isMixed){
+        // v1.6 🔥 — Öğrenci satırında yalnızca sınıf gösterilir; grup filtreleme mantığı aynen korunur.
         meta.push(`Sınıf: ${o.sinif}`);
-        if(o.matchedGroups?.length) meta.push(`Grup: ${o.matchedGroups.join(', ')}`);
       }
       return `<li class="student" data-id="${o.id}" tabindex="0" aria-label="${o.ad}">
         <div class="stack"><div class="name">${o.ad}</div><div class="muted">${meta.join(' • ')}</div></div>
@@ -5692,7 +5692,93 @@ function getAdminFilters(){
   };
 }
 
-async function refreshAdmin(){
+// ===== v1.6 🔥 — Admin tam yenileme =====
+// Tek tıklamada ana tabloları ağdan zorla okur; Firebase modüllerini paralel doğrular.
+// Seçili günün yoklaması burada bir kez çekilir ve refreshAdmin'e aktarılır; aynı veri ikinci kez istenmez.
+let adminFullRefreshInFlight = null;
+async function refreshAdminAllData(){
+  if(!session || session.role !== 'admin') return { ok:false, skipped:true };
+  if(adminFullRefreshInFlight) return adminFullRefreshInFlight;
+
+  if(!navigator.onLine){
+    Swal.fire('Offline','Tüm verileri yeniden okumak için internet bağlantısı gerekiyor.','warning');
+    return { ok:false, offline:true };
+  }
+
+  const btn = UI.admRefresh;
+  const oldText = btn?.textContent || 'Yenile';
+  const previous = getAdminFilters();
+
+  adminFullRefreshInFlight = (async ()=>{
+    try{
+      if(btn){
+        btn.disabled = true;
+        btn.textContent = 'Yenileniyor…';
+      }
+
+      const date = previous.date || toDateStr(nowTR());
+      const attendancePath = attDayRoot(date, 'hepsi');
+
+      // Ağ okumaları paralel: sürelerin toplamını beklemek yerine en yavaş isteğin süresine yakın tamamlanır.
+      const [sheetResult, cfgSnap, daySnap, homeworksSnap, quizzesSnap, hwStatusSnap, qzResultsSnap] = await Promise.all([
+        loadSheets({ forceNetwork:true, allowCacheFallback:false, freshVariant:true }),
+        get(ref(db, ATT_CFG_PATH)),
+        get(ref(db, attendancePath)),
+        get(ref(db, 'homeworks')),
+        get(ref(db, 'quizzes')),
+        get(ref(db, 'hwStatus')),
+        get(ref(db, 'qzResults'))
+      ]);
+
+      // Master veriler değişmiş olabilir: saat ve filtre kataloglarını yeni veriyle yeniden kur.
+      buildSlotOrder();
+
+      const cfgVal = cfgSnap.val();
+      attendanceEnabled = (cfgVal === null || cfgVal === undefined) ? true : !!cfgVal;
+      attendanceConfigReady = true;
+      applyAttendanceConfigToUI();
+
+      // Firebase modüllerinin tamamı başarıyla okundu; değişkenleri özellikle kullanarak
+      // Promise.all içindeki okumaların optimizasyonla/yanlışlıkla kaldırılmamasını ve amacı net tutuyoruz.
+      void homeworksSnap; void quizzesSnap; void hwStatusSnap; void qzResultsSnap; void sheetResult;
+
+      // Öğrenci listesi değişmişse sınıf seçeneklerini yenile; mümkünse kullanıcının filtresini koru.
+      const classSet = new Set((students||[]).map(st=>safe(st.SINIF)).filter(Boolean));
+      const classes = Array.from(classSet).sort((a,b)=>a.localeCompare(b,'tr',{numeric:true}));
+      if(UI.admClass){
+        UI.admClass.innerHTML = `<option value="hepsi">Hepsi</option>` + classes.map(c=>`<option value="${c}">${c}</option>`).join('');
+        UI.admClass.value = classes.includes(previous.cls) ? previous.cls : 'hepsi';
+      }
+      if(UI.admDate) UI.admDate.value = date;
+      if(UI.admStatus){
+        const hasStatus = Array.from(UI.admStatus.options||[]).some(o=>o.value===previous.status);
+        UI.admStatus.value = hasStatus ? previous.status : 'hepsi';
+      }
+      if(UI.admProgram) UI.admProgram.value = previous.program || 'hepsi';
+      if(UI.admHour) UI.admHour.value = previous.hour || 'hepsi';
+      syncAdminScheduleFilters();
+
+      const dayData = daySnap.exists() ? (daySnap.val() || {}) : {};
+      await refreshAdmin({ dayDataOverride: dayData });
+      showToast('Tüm veriler yeniden okundu ve güncellendi ✓','ok');
+      return { ok:true, readAt:Date.now() };
+    }catch(err){
+      console.error('refreshAdminAllData error', err);
+      Swal.fire('Yenileme Hatası','Tüm veriler yeniden okunamadı. Mevcut ekrandaki veriler korunuyor.','warning');
+      return { ok:false, error:err };
+    }finally{
+      if(btn){
+        btn.disabled = false;
+        btn.textContent = oldText;
+      }
+      adminFullRefreshInFlight = null;
+    }
+  })();
+
+  return adminFullRefreshInFlight;
+}
+
+async function refreshAdmin(options={}){
   // v1.5 🔥 — Dışarıdan/yenilemeden gelen çağrılarda da eski günün gizli seçimi kalmasın.
   syncAdminScheduleFilters();
   const {date, cls, status, hour, program} = getAdminFilters();
@@ -5723,10 +5809,14 @@ async function refreshAdmin(){
   const byNo = new Map(studentPool.map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
 
   // Günlük kök verisi
-  // Her durumda günün tüm sınıflarını yükle (8A-8B gibi kombinasyonları yakalamak için)
-  const rootPath = attDayRoot(date, 'hepsi');
-  const daySnap = await get(ref(db, rootPath));
-  const dayData = daySnap.exists() ? daySnap.val() : {};
+  // Her durumda günün tüm sınıflarını yükle (8A-8B gibi kombinasyonları yakalamak için).
+  // v1.6 🔥: Tam Yenile bu veriyi zaten çektiyse aynı Firebase isteğini ikinci kez yapma.
+  let dayData = options?.dayDataOverride;
+  if(dayData === undefined){
+    const rootPath = attDayRoot(date, 'hepsi');
+    const daySnap = await get(ref(db, rootPath));
+    dayData = daySnap.exists() ? (daySnap.val() || {}) : {};
+  }
 
   // ---- TABLO: v1.5 🔥 — Gün kapsamlı gerçek zaman > program/saat > sınıf > öğrenci ----
   const rows = [];
@@ -9944,7 +10034,7 @@ function printParentQuizzes(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.5 🔥</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.6 🔥</span></p>
   </footer>
  <style>
 .site-footer{
