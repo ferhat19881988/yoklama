@@ -6156,7 +6156,7 @@ return;
           }).join('');
         return `<div class="adm-sum-slot"><div class="adm-sum-slot-title">${adminSlotShortText(sg.meta)}</div>${classesHtml}</div>`;
       }).join('');
-      return `<li class="adm-sum-time-block"><div class="adm-sum-time-head"><span>🕘 ${adminTimeRangeText(tg.meta)}</span><span class="muted">Kronolojik</span></div>${slotHtml}</li>`;
+      return `<li class="adm-sum-time-block"><div class="adm-sum-time-head"><span>🕘 ${adminTimeRangeText(tg.meta)}</span><span class="muted">Zaman Sıralı</span></div>${slotHtml}</li>`;
     }).join('');
     UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
   }
