@@ -494,6 +494,88 @@
       color:#fff;
     }
 
+    /* ===== v1.4 🔥 — Admin kronolojik detay görünümü ===== */
+    .adm-timeline-bar{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      padding:10px 12px;
+      margin-bottom:10px;
+      border:var(--stroke);
+      border-radius:14px;
+      background:rgba(255,255,255,.025);
+    }
+    .adm-timeline-label{
+      font-weight:900;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .adm-time-pagination{
+      margin-top:0;
+      justify-content:flex-start;
+      flex:1 1 420px;
+    }
+    .adm-time-pagination .page-btn{
+      padding:6px 10px;
+      font-weight:800;
+      min-width:92px;
+    }
+    .adm-time-row td{
+      padding:12px 14px !important;
+      background:linear-gradient(90deg, rgba(249,115,22,.18), rgba(249,115,22,.05)) !important;
+      border-top:2px solid rgba(249,115,22,.30);
+      border-bottom:1px solid rgba(249,115,22,.22) !important;
+      font-weight:900;
+    }
+    .adm-time-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .adm-time-title{ font-size:1.02rem; letter-spacing:.15px; }
+    .adm-time-meta{ color:var(--muted); font-size:.86rem; font-weight:800; }
+    .adm-slot-row td{
+      padding:9px 14px !important;
+      background:rgba(59,130,246,.08) !important;
+      font-weight:900;
+      border-bottom:1px solid rgba(59,130,246,.16) !important;
+    }
+    .adm-class-row td{
+      padding:8px 14px !important;
+      background:rgba(148,163,184,.09) !important;
+      font-weight:900;
+      border-bottom:1px solid rgba(148,163,184,.18) !important;
+    }
+    .adm-class-row .muted{ font-weight:700; }
+    .adm-time-row:hover, .adm-slot-row:hover, .adm-class-row:hover{ background:inherit !important; }
+
+    /* v1.4 🔥 — Özet ekranında gerçek zaman > program/saat > sınıf hiyerarşisi */
+    .adm-sum-time-block{ padding:0 !important; overflow:hidden; }
+    .adm-sum-time-head{
+      padding:10px 12px;
+      background:linear-gradient(90deg, rgba(249,115,22,.14), rgba(249,115,22,.04));
+      border-bottom:1px solid rgba(249,115,22,.18);
+      font-weight:900;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .adm-sum-slot{ padding:10px 12px; }
+    .adm-sum-slot + .adm-sum-slot{ border-top:1px solid rgba(148,163,184,.16); }
+    .adm-sum-slot-title{ font-weight:900; margin-bottom:8px; }
+    .adm-sum-class-block{ padding:8px 10px; border:var(--stroke); border-radius:12px; background:rgba(255,255,255,.02); }
+    .adm-sum-class-block + .adm-sum-class-block{ margin-top:8px; }
+    .adm-sum-class-title{ font-weight:900; margin-bottom:4px; }
+
+    @media (max-width:640px){
+      .adm-time-pagination .page-btn{ min-width:auto; flex:1 1 120px; }
+      .adm-time-row td,.adm-slot-row td,.adm-class-row td{ padding-left:10px !important; padding-right:10px !important; }
+    }
+
     .pill{ display:inline-block; padding:4px 10px; border-radius:999px; border:var(--stroke); background:var(--glass); font-size:.9rem }
     .muted{ color:var(--muted) }
 
@@ -2118,13 +2200,9 @@ div.admin-filters .button-row {
           </label>
 
           <label class="row" for="admHour" title="Ders saati seç">
-            <span class="muted">Ders Saati:</span>
+            <span class="muted" id="admHourLabel">Ders Zamanı:</span>
             <select id="admHour" class="input" aria-label="Ders saati filtresi">
-              <option value="1">1. saat</option>
-              <option value="2">2. saat</option>
-              <option value="3">3. saat</option>
-              <option value="4">4. saat</option>
-              <option value="hepsi" selected>Hepsi</option>
+              <option value="hepsi" selected>Tüm Zamanlar</option>
             </select>
           </label>
           <!-- Yeni: Program filtresi -->
@@ -2217,8 +2295,8 @@ div.admin-filters .button-row {
         <th style="width:80px">No</th>
         <th>Ad Soyad</th>
         <th style="width:110px">Sınıf</th>
-        <th>Geldiği Saatler</th>
-        <th>Gelemediği Saatler</th>
+        <th>Geldiği Ders Zamanları</th>
+        <th>Gelemediği Ders Zamanları</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -2237,7 +2315,7 @@ div.admin-filters .button-row {
           <div class="adm-sum-card" aria-label="Gelmeyenler ve Geç Gelenler">
             <div class="head">
               <h4>📌 Gelmeyenler &amp; Geç Gelenler</h4>
-              <div class="muted" style="font-weight:800;">Sınıf • Saat</div>
+              <div class="muted" style="font-weight:800;">Zaman • Program • Sınıf</div>
             </div>
             <div class="content">
               <ul id="admSumAbsLate" class="adm-sum-list clean"></ul>
@@ -2271,20 +2349,22 @@ div.admin-filters .button-row {
 
 
           <div class="print-area" id="admDetailArea">
+            <div id="admTimelineBar" class="adm-timeline-bar hidden" aria-label="Kronolojik ders zamanı gezinme">
+              <span class="adm-timeline-label">Zaman Akışı</span>
+              <div id="admPagination" class="pagination adm-time-pagination"></div>
+            </div>
             <div class="table-wrap">
               <table class="table" aria-label="Öğrenci listesi">
                 <thead>
                   <tr>
                     <th>No</th><th>Ad Soyad</th><th>Sınıf</th><th>Durum</th>
-                    <th>Geç</th><th>Ders</th><th>Saat</th><th>Öğretmen</th>
+                    <th>Geç</th><th>Ders</th><th>Ders Zamanı</th><th>Öğretmen</th>
                   </tr>
                 </thead>
                 <tbody id="admListBody"></tbody>
               </table>
             </div>
             <div id="admEmpty" class="muted hidden">Liste boş.</div>
-            <!-- Yeni: sayfalama (pagination) -->
-            <div id="admPagination" class="pagination"></div>
           </div>
 
           <div id="admMiniDash" class="grid cols-3">
@@ -2322,7 +2402,7 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '1.2';
+    const APP_VERSION = '1.4 🔥';
     const SHEETS_CACHE_KEY = 'fenomenSheetsCache_v2';
     const LEGACY_SHEETS_CACHE_KEY = 'fenomenSheetsCache_v1';
     const TEACHER_SYNC_STATE_KEY = 'fenomen_teacher_sync_v1';
@@ -2678,6 +2758,8 @@ function openWhatsAppComposer(opts){
       dashYok: document.getElementById('dashYok'),
       dashGec: document.getElementById('dashGec'),
       admHour: document.getElementById('admHour'),
+      admHourLabel: document.getElementById('admHourLabel'),
+      admTimelineBar: document.getElementById('admTimelineBar'),
 
       // Yeni: Program filtresi ve sayfalama kapsayıcıları
       admProgram: document.getElementById('admProgram'),
@@ -2763,11 +2845,9 @@ function openWhatsAppComposer(opts){
       admQuizzesBtn: document.getElementById('admQuizzesBtn'),
     };
 
-    // Yönetici listelemesi için sayfalama durumları
-    // admClassPage: Tüm sınıflar seçildiğinde her sınıfı ayrı sayfada gezmek için
-    // admPage: Diğer filtreler aktifken (sınıf veya durum) 20 öğrencilik sayfalarda gezmek için
-    let admPage = 1;
-    let admClassPage = 1;
+    // v1.4 🔥 — Admin detayında sayfalama artık sınıfa göre değil, gerçek ders zamanına göre ilerler.
+    // Böylece P1/P2 gibi programların “1. saat” kayıtları birbirine karışmaz.
+    let admTimePage = 1;
 
     // Admin görünüm modu: 'detail' | 'summary'
     let adminViewMode = (localStorage.getItem('admViewMode') || 'detail');
@@ -2802,6 +2882,7 @@ let session=null;
 let currentLesson=null;
 let tempAtt={};
 let currentRoster=[]; // yoklama panelindeki mevcut sınıf/grup listesi (SMS için)
+let currentLessonStoredEntries=[]; // v1.3 🔥: açık derse ait mevcut kayıt yolları (geri al/migrasyon için)
 
 let teacherUiRefreshTimer=null;        // 3 sn: ders/yoklama durum çipleri
 let teacherSourceSyncTimer=null;       // ~65 sn: ana veri kaynağı kontrolü
@@ -3160,6 +3241,234 @@ const dayNameTRForDateStr = (dateStr) => turkishDays[dayjs.tz(dateStr).day()];
 const safe = (v)=> (v??'').toString().trim();
 const ordinal = (n)=> `${n}. Saat`;
 
+// ===== v1.3 🔥 — Çoklu sınıf / çoklu grup ortak veri modeli =====
+// DersProgrami.SINIF virgülle çoklanabilir; öğrencinin SINIF'ı tek ve gerçek sınıftır.
+// GRUP hem DersProgrami hem Ogrenciler tarafında virgülle çoklanabilir.
+// Eşleşme sırası daima SINIF -> GRUP'tur. Sınıf kapsam dışındaysa grup öğrenci ekleyemez.
+const normTR = (v)=> safe(v).toLocaleLowerCase('tr-TR');
+
+function uniqueTokens(values){
+  const out=[];
+  const seen=new Set();
+  for(const v of values||[]){
+    const x=safe(v);
+    if(!x) continue;
+    const k=normTR(x);
+    if(seen.has(k)) continue;
+    seen.add(k); out.push(x);
+  }
+  return out;
+}
+
+function parseCsvValues(value){
+  return uniqueTokens(safe(value).split(',').map(x=>safe(x)).filter(Boolean));
+}
+
+let _studentClassMapCacheSource=null;
+let _studentClassMapCache=new Map();
+function getActualStudentClassMap(){
+  if(_studentClassMapCacheSource===students) return _studentClassMapCache;
+  const m=new Map();
+  (students||[]).forEach(st=>{
+    const cls=safe(st?.SINIF);
+    if(cls && !m.has(normTR(cls))) m.set(normTR(cls), cls);
+  });
+  _studentClassMapCacheSource=students;
+  _studentClassMapCache=m;
+  return m;
+}
+
+function parseClassValues(value){
+  const actual=getActualStudentClassMap();
+  const out=[];
+  const add=(v)=>{ const x=safe(v); if(x) out.push(actual.get(normTR(x)) || x); };
+
+  for(const token of parseCsvValues(value)){
+    // Gerçek sınıf adı tire içeriyorsa ASLA parçalama (örn. 1-2-3-4A).
+    if(actual.has(normTR(token))){ add(token); continue; }
+
+    // v1.2 geriye uyumluluk: yalnızca bütün parçalar gerçek sınıfsa 7A-7B eski birleşik sınıftır.
+    const legacyParts = token.split(/[-–]/).map(x=>safe(x)).filter(Boolean);
+    if(legacyParts.length > 1 && legacyParts.every(x=>actual.has(normTR(x)))) legacyParts.forEach(add);
+    else add(token);
+  }
+  return uniqueTokens(out);
+}
+
+function parseGroupValues(value){
+  return parseCsvValues(value);
+}
+
+let _lessonScopeCacheSource=null;
+let _lessonScopeCache=new Map();
+function lessonScopeFrom(lessonOrRow){
+  if(lessonOrRow?.classNormSet instanceof Set && Array.isArray(lessonOrRow?.classes) && safe(lessonOrRow?.scopeKey)) return lessonOrRow;
+  if(_lessonScopeCacheSource!==students){ _lessonScopeCacheSource=students; _lessonScopeCache=new Map(); }
+
+  const rawClass = safe(lessonOrRow?.sinif ?? lessonOrRow?.SINIF);
+  const rawGroup = safe(lessonOrRow?.grup ?? lessonOrRow?.GRUP);
+  const cacheKey=`${normTR(rawClass)}\u0000${normTR(rawGroup)}`;
+  if(_lessonScopeCache.has(cacheKey)) return _lessonScopeCache.get(cacheKey);
+
+  const classes = parseClassValues(rawClass);
+  const groups  = parseGroupValues(rawGroup);
+  const classNormSet = new Set(classes.map(normTR));
+
+  // Sadece seçilmiş sınıflarda gerçekten bulunan grup kodlarını etkin kabul et.
+  const availableGroupNormSet=new Set();
+  if(groups.length){
+    (students||[]).forEach(st=>{
+      if(!classNormSet.has(normTR(st?.SINIF))) return;
+      parseGroupValues(st?.GRUP).forEach(g=>availableGroupNormSet.add(normTR(g)));
+    });
+  }
+  const effectiveGroups = groups.filter(g=>availableGroupNormSet.has(normTR(g)));
+  const ignoredGroups   = groups.filter(g=>!availableGroupNormSet.has(normTR(g)));
+  const groupNormSet = new Set(effectiveGroups.map(normTR));
+  const hasGroupFilter = groups.length > 0;
+  const groupKeyPart = hasGroupFilter ? (Array.from(groupNormSet).sort().join(',') || '!nomatch') : '*';
+  const scopeKey = `${Array.from(classNormSet).sort().join(',')}::${groupKeyPart}`;
+
+  const scope={
+    rawClass, rawGroup, classes, groups, effectiveGroups, ignoredGroups,
+    classNormSet, groupNormSet, hasGroupFilter, scopeKey,
+    classLabel: classes.join(', ') || rawClass,
+    enteredGroupLabel: groups.join(', ') || rawGroup,
+    groupLabel: effectiveGroups.join(', '),
+    isMixed: classes.length > 1 || groups.length > 1
+  };
+  _lessonScopeCache.set(cacheKey, scope);
+  return scope;
+}
+
+function decorateLessonScope(lesson){
+  const scope=lessonScopeFrom(lesson);
+  return { ...lesson, ...scope };
+}
+
+function studentGroupValues(student){
+  return parseGroupValues(student?.GRUP);
+}
+
+function studentMatchesLessonScope(student, lessonOrScope){
+  const scope = lessonOrScope?.classNormSet ? lessonOrScope : lessonScopeFrom(lessonOrScope);
+  const studentClass = normTR(student?.SINIF);
+  if(!studentClass || !scope.classNormSet.has(studentClass)) return false;
+  if(!scope.hasGroupFilter) return true;
+  return studentGroupValues(student).some(g => scope.groupNormSet.has(normTR(g)));
+}
+
+let _lessonRosterCacheSource=null;
+let _lessonRosterCache=new Map();
+function buildLessonRoster(lesson){
+  if(_lessonRosterCacheSource!==students){ _lessonRosterCacheSource=students; _lessonRosterCache=new Map(); }
+  const scope = lessonScopeFrom(lesson);
+  if(_lessonRosterCache.has(scope.scopeKey)) return _lessonRosterCache.get(scope.scopeKey);
+
+  const list=(students||[])
+    .filter(st=> studentMatchesLessonScope(st, scope))
+    .map(st=>{
+      const groups = studentGroupValues(st);
+      const matchedGroups = scope.hasGroupFilter ? groups.filter(g=>scope.groupNormSet.has(normTR(g))) : [];
+      return {
+        id:safe(st.NO), no:safe(st.NO), ad:st.ADSOYAD||'', sinif:safe(st.SINIF),
+        groups, matchedGroups,
+        veliTel:safe(st.VeliTel ?? st.VELITEL ?? st.velitel ?? '')
+      };
+    })
+    .filter(st=>st.id)
+    .sort((a,b)=> a.sinif.localeCompare(b.sinif,'tr',{numeric:true,sensitivity:'base'}) || a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+
+  _lessonRosterCache.set(scope.scopeKey, list);
+  return list;
+}
+
+function lessonAttendanceKey(lesson){
+  const scope=lessonScopeFrom(lesson);
+  return `${safe(lesson?.saatKodu ?? lesson?.SAAT_KODU)}|${safe(lesson?.program ?? lesson?.PROGRAM ?? lesson?.prog)}|${scope.scopeKey}`;
+}
+
+function lessonStorageClassKeys(lesson){
+  const scope=lessonScopeFrom(lesson);
+  const actual=[...scope.classes];
+  const raw=scope.rawClass;
+  const actualNorm=new Set(actual.map(normTR));
+  const legacy=[];
+  if(raw && !actualNorm.has(normTR(raw))) legacy.push(raw); // v1.2 ham birleşik dal
+  if(actual.length>1){
+    // Eski dosyalarda virgül boşluklu/boşluksuz veya tireli birleşik anahtar kalmış olabilir.
+    legacy.push(actual.join(','), actual.join(', '), actual.join('-'));
+  }
+  return uniqueTokens([...legacy, ...actual]);
+}
+
+function recordMatchesLessonScope(rec, lesson){
+  const recKey=safe(rec?.scopeKey);
+  const recProgram=safe(rec?.program);
+  const lessonProgram=safe(lesson?.program ?? lesson?.PROGRAM ?? lesson?.prog);
+  // v1.2 kayıtlarında scopeKey yoktur ama program bilgisi varsa başka programa taşınmasına izin verme.
+  if(recProgram && lessonProgram && recProgram!==lessonProgram) return false;
+  if(!recKey) return true;
+  return recKey === lessonScopeFrom(lesson).scopeKey;
+}
+
+function storedClassKeyMatchesFilter(storedKey, cls){
+  const wanted=normTR(cls);
+  if(!wanted || wanted==='hepsi') return true;
+  return parseClassValues(storedKey).some(c=>normTR(c)===wanted);
+}
+
+function getLessonStorageKeysForMany(lessons){
+  return uniqueTokens((lessons||[]).flatMap(lessonStorageClassKeys));
+}
+
+async function loadAttendanceClassNodes(dateStr, classKeys){
+  const keys=uniqueTokens(classKeys);
+  const pairs=await Promise.all(keys.map(async cls=>{
+    try{
+      const snap=await get(ref(db, attDayRoot(dateStr, cls)));
+      return [cls, snap.exists() ? (snap.val()||{}) : {}];
+    }catch(err){
+      console.error('attendance class read error', dateStr, cls, err);
+      return [cls, {}];
+    }
+  }));
+  return Object.fromEntries(pairs);
+}
+
+function collectLessonRecordsFromNodes(classNodes, lesson){
+  const scope=lessonScopeFrom(lesson);
+  const rosterByNo=new Map(buildLessonRoster(lesson).map(st=>[safe(st.id),st]));
+  const entries=[];
+  const byStudent={};
+  const actualNorm=new Set(scope.classes.map(normTR));
+
+  // legacy önce, gerçek sınıf sonra: aynı öğrenci iki yerdeyse gerçek sınıf kaydı kazanır.
+  for(const storageClass of lessonStorageClassKeys(lesson)){
+    const byStudentNode=classNodes?.[storageClass]?.[safe(lesson?.saatKodu ?? lesson?.SAAT_KODU)]?.[safe(lesson?.ogretmenId ?? lesson?.OGRETMEN_ID ?? lesson?.teacherId)];
+    if(!byStudentNode || typeof byStudentNode!=='object') continue;
+    for(const [ogrNo,rec] of Object.entries(byStudentNode)){
+      const id=safe(ogrNo);
+      const st=rosterByNo.get(id);
+      if(!st || !recordMatchesLessonScope(rec, lesson)) continue;
+      if(actualNorm.has(normTR(storageClass)) && normTR(st.sinif)!==normTR(storageClass)) continue;
+      entries.push({ id, rec:rec||{}, storageClass, student:st });
+      byStudent[id]=rec||{};
+    }
+  }
+  return { entries, byStudent, any:entries.length>0 };
+}
+
+function lessonHasAttendanceInNodes(classNodes, lesson){
+  return collectLessonRecordsFromNodes(classNodes, lesson).any;
+}
+
+async function readLessonAttendance(dateStr, lesson){
+  const nodes=await loadAttendanceClassNodes(dateStr, lessonStorageClassKeys(lesson));
+  return collectLessonRecordsFromNodes(nodes, lesson);
+}
+// ===== /v1.3 🔥 =====
+
 function normalizeBridgeTeacherId(value=''){
   return safe(value);
 }
@@ -3314,6 +3623,147 @@ function labelProgram(prog){
   if(!key) return '';
   return programLabels[key] || prog;
 }
+
+// ===== v1.4 🔥 — Admin için tek ve ortak ders-zamanı modeli =====
+// Detay, Özet ve Yazdır ekranları aynı program/saat yorumunu kullanır.
+function adminTimeToMinutes(hm){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hm||'').trim());
+  if(!m) return Number.POSITIVE_INFINITY;
+  const h = Number(m[1]), min = Number(m[2]);
+  if(h < 0 || h > 23 || min < 0 || min > 59) return Number.POSITIVE_INFINITY;
+  return h * 60 + min;
+}
+
+function adminProgramText(prog){
+  const raw = safe(prog).trim();
+  if(!raw) return 'Program belirtilmemiş';
+  const lbl = safe(labelProgram(raw)).trim();
+  return (lbl && normTR(lbl) !== normTR(raw)) ? `${raw} • ${lbl}` : raw;
+}
+
+function getAdminSlotMeta(rec={}, saatKodu=''){
+  const code = safe(saatKodu || rec?.saatKodu || rec?.SAAT_KODU).trim();
+  const recProgram = safe(rec?.program ?? rec?.PROGRAM).trim();
+  const slot = getSlotByCode(code, recProgram) || {};
+  const program = recProgram || safe(slot.PROGRAM).trim();
+  const mapProgram = program || 'GENEL';
+
+  let hourNo = Number(rec?.saatNo);
+  if(!Number.isFinite(hourNo) || hourNo <= 0){
+    const mapped = slotOrderMapByProgram?.get?.(mapProgram)?.get?.(code);
+    if(Number.isFinite(Number(mapped)) && Number(mapped) > 0) hourNo = Number(mapped);
+  }
+  if(!Number.isFinite(hourNo) || hourNo <= 0){
+    const m = String(code||'').match(/\d+/);
+    hourNo = m ? Number(m[0]) : null;
+  }
+
+  const bas = safe(rec?.saatBas || rec?.bas || slot.BASLANGIC || '').trim();
+  const bit = safe(rec?.saatBit || rec?.bit || slot.BITIS || '').trim();
+  const startMin = adminTimeToMinutes(bas);
+  const endMin = adminTimeToMinutes(bit);
+  const filterKey = `slot:${encodeURIComponent(program)}:${encodeURIComponent(code)}`;
+  const timeKey = (bas || bit) ? `${bas}|${bit}` : `?:${program}|${code}|${hourNo||''}`;
+  const slotGroupKey = `${timeKey}|${program}|${hourNo||''}|${code}`;
+
+  return {
+    code, program, hourNo, bas, bit, startMin, endMin,
+    filterKey, timeKey, slotGroupKey
+  };
+}
+
+function compareAdminSlotMeta(a,b){
+  return (a.startMin - b.startMin) ||
+    (a.endMin - b.endMin) ||
+    safe(a.program).localeCompare(safe(b.program),'tr',{numeric:true,sensitivity:'base'}) ||
+    ((Number(a.hourNo)||999) - (Number(b.hourNo)||999)) ||
+    safe(a.code).localeCompare(safe(b.code),'tr',{numeric:true,sensitivity:'base'});
+}
+
+function adminTimeRangeText(meta){
+  const b = safe(meta?.bas).trim();
+  const e = safe(meta?.bit).trim();
+  if(b && e) return `${b}–${e}`;
+  if(b) return `${b}–?`;
+  if(e) return `?–${e}`;
+  return 'Saat bilgisi yok';
+}
+
+function adminSlotShortText(meta){
+  const parts = [];
+  if(meta?.program) parts.push(adminProgramText(meta.program));
+  if(meta?.hourNo) parts.push(`${meta.hourNo}. Saat`);
+  return parts.join(' • ') || 'Ders saati';
+}
+
+function adminSlotLongText(meta){
+  const range = adminTimeRangeText(meta);
+  const short = adminSlotShortText(meta);
+  return short ? `${range} • ${short}` : range;
+}
+
+function adminHourPass(selected, rec, saatKodu){
+  const value = safe(selected || 'hepsi');
+  if(!value || value === 'hepsi') return true;
+  const meta = getAdminSlotMeta(rec, saatKodu);
+  if(value.startsWith('slot:')) return meta.filterKey === value;
+  // Eski sayısal seçeneklerle geriye dönük uyumluluk
+  return String(meta.hourNo ?? '') === String(value);
+}
+
+function getAdminPrograms(){
+  const set = new Set();
+  (slots||[]).forEach(s => { const p=safe(s.PROGRAM).trim(); if(p) set.add(p); });
+  (schedule||[]).forEach(r => { const p=safe(r.PROGRAM).trim(); if(p) set.add(p); });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'tr',{numeric:true,sensitivity:'base'}));
+}
+
+function rebuildAdminProgramOptions(){
+  if(!UI?.admProgram) return;
+  const cur = UI.admProgram.value || 'hepsi';
+  const progs = getAdminPrograms();
+  UI.admProgram.innerHTML = `<option value="hepsi">Hepsi</option>` + progs.map(p=>`<option value="${p}">${adminProgramText(p)}</option>`).join('');
+  UI.admProgram.value = progs.includes(cur) ? cur : 'hepsi';
+}
+
+function getAdminSlotCatalog(program='hepsi'){
+  const seen = new Set();
+  const out = [];
+  for(const s of (slots||[])){
+    const p = safe(s.PROGRAM).trim();
+    if(program && program !== 'hepsi' && p !== program) continue;
+    const code = safe(s.SAAT_KODU || s.KOD || s.ID).trim();
+    if(!code) continue;
+    const meta = getAdminSlotMeta({
+      program:p,
+      saatBas:s.BASLANGIC,
+      saatBit:s.BITIS,
+      saatNo:slotOrderMapByProgram?.get?.(p || 'GENEL')?.get?.(code)
+    }, code);
+    if(seen.has(meta.filterKey)) continue;
+    seen.add(meta.filterKey);
+    out.push(meta);
+  }
+  return out.sort(compareAdminSlotMeta);
+}
+
+function rebuildAdminHourOptions(program='hepsi'){
+  if(!UI?.admHour) return;
+  const cur = UI.admHour.value || 'hepsi';
+  const catalog = getAdminSlotCatalog(program);
+  const allLabel = (program && program !== 'hepsi') ? 'Tüm Ders Saatleri' : 'Tüm Zamanlar';
+  if(UI.admHourLabel) UI.admHourLabel.textContent = (program && program !== 'hepsi') ? 'Ders Saati:' : 'Ders Zamanı:';
+
+  const options = catalog.map(meta => {
+    const text = (program && program !== 'hepsi')
+      ? `${meta.hourNo ? `${meta.hourNo}. Saat` : 'Saat'} • ${adminTimeRangeText(meta)}`
+      : adminSlotLongText(meta);
+    return `<option value="${meta.filterKey}">${text}</option>`;
+  }).join('');
+  UI.admHour.innerHTML = `<option value="hepsi">${allLabel}</option>${options}`;
+  UI.admHour.value = catalog.some(x=>x.filterKey===cur) ? cur : 'hepsi';
+}
+
 function parseTime(hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return nowTR().hour(h).minute(m).second(0).millisecond(0); }
 function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return dayjs.tz(dateStr).hour(h).minute(m).second(0).millisecond(0); }
 
@@ -3727,17 +4177,21 @@ await loadSheets(); buildSlotOrder();
       // Admin controls
       UI.admRefresh?.addEventListener('click', refreshAdmin);
       UI.admWhatsApp?.addEventListener('click', sendWhatsAppReport);
-      // Filtreler değiştiğinde sayfa numaralarını sıfırla ve listeyi tazele
-      UI.admClass?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
-      UI.admStatus?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
-      UI.admDate?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
+      // v1.4 🔥 — Filtre değişince kronolojik zaman sayfası başa döner.
+      UI.admClass?.addEventListener('change', () => { admTimePage = 1; refreshAdmin(); });
+      UI.admStatus?.addEventListener('change', () => { admTimePage = 1; refreshAdmin(); });
+      UI.admDate?.addEventListener('change', () => { admTimePage = 1; refreshAdmin(); });
       UI.admTeacherReport?.addEventListener('click', openTeacherReportModal);
       UI.admStudentStats?.addEventListener('click', openStudentStatsModal);
       UI.admWeeklyAbsence?.addEventListener('click', openWeeklyAbsenceModal);
       UI.admHistory?.addEventListener('click', openHistoryModal);
-      UI.admHour?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
-      // Program filtresi değişikliği
-      UI.admProgram?.addEventListener('change', () => { admClassPage = 1; admPage = 1; refreshAdmin(); });
+      UI.admHour?.addEventListener('change', () => { admTimePage = 1; refreshAdmin(); });
+      // Program değişince ders zamanı seçeneklerini de o programa göre yeniden kur.
+      UI.admProgram?.addEventListener('change', () => {
+        admTimePage = 1;
+        rebuildAdminHourOptions(UI.admProgram?.value || 'hepsi');
+        refreshAdmin();
+      });
       
 
       // Admin: Yoklama aktif/pasif (Tatil Modu)
@@ -3781,17 +4235,11 @@ try{
         refreshAdmin();
       });
 
-// Sayfalama düğmeleri tıklaması
+// v1.4 🔥 — Zaman akışı düğmeleri
       UI.admPagination?.addEventListener('click', (e) => {
         const btn = e.target.closest('.page-btn');
         if(!btn) return;
-        const page = parseInt(btn.getAttribute('data-page')) || 1;
-        const {cls, status} = getAdminFilters();
-        if(cls === 'hepsi' && status === 'hepsi'){
-          admClassPage = page;
-        } else {
-          admPage = page;
-        }
+        admTimePage = parseInt(btn.getAttribute('data-page')) || 1;
         refreshAdmin();
       });
 
@@ -4216,24 +4664,15 @@ try{
     card.style.zIndex = String(++clickZ);
   });
 })();
-async function getTakenSetTodayForTeacher(){
+async function getTakenSetTodayForTeacher(classNodesOverride=null){
   const tarih = toDateStr(nowTR());
-  const todayName = todayNameTR().toLocaleLowerCase('tr-TR');
+  const lessons = (teacherLessonsToday||[]).filter(Boolean);
+  if(!lessons.length) return new Set();
 
-  const mine = schedule
-    .filter(r => safe(r.OGRETMEN_ID)===safe(session.ogretmenId))
-    .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR')===todayName);
-
+  const classNodes = classNodesOverride || await loadAttendanceClassNodes(tarih, getLessonStorageKeysForMany(lessons));
   const taken = new Set();
-  for (const r of mine){
-    const c   = safe(r.SINIF);
-    const sk  = safe(r.SAAT_KODU);
-    if(!c || !sk) continue;
-    // Neden: Kendi dalını kontrol ederek çakışmayı engeller
-    const snap = await get(ref(db, attPath(tarih, c, sk, session.ogretmenId)));
-    if (snap.exists()){
-      taken.add(`${c}|${sk}`);
-    }
+  for(const lesson of lessons){
+    if(lessonHasAttendanceInNodes(classNodes, lesson)) taken.add(lessonAttendanceKey(lesson));
   }
   return taken;
 }
@@ -4299,7 +4738,7 @@ async function showTeacherToday(){
       const prog = safe(r.PROGRAM);
       const slot = slotByCodeProg(r.SAAT_KODU, prog) || {};
       const tInfo = teacherById(r.OGRETMEN_ID);
-      return {
+      return decorateLessonScope({
         gun: safe(r.GUN),
         saatKodu: safe(r.SAAT_KODU),
         sinif: safe(r.SINIF),
@@ -4307,12 +4746,12 @@ async function showTeacherToday(){
         bas: safe(slot.BASLANGIC),
         bit: safe(slot.BITIS),
         dersName: lessonNameFromRow(r, tInfo),
-        ogretmenId: tInfo?.id,
-        ogretmenAd: tInfo?.name,
-        ogretmenBrans: tInfo?.branch,
+        ogretmenId: tInfo?.id || safe(r.OGRETMEN_ID),
+        ogretmenAd: tInfo?.name || '',
+        ogretmenBrans: tInfo?.branch || '',
         program: prog || '',
         saatNo: slotNoProg(safe(r.SAAT_KODU), prog)
-      };
+      });
     })
     .sort((a,b)=> (a.bas||'23:59').localeCompare(b.bas||'23:59','tr'));
 
@@ -4325,11 +4764,14 @@ async function showTeacherToday(){
     UI.noLesson?.classList.add('hidden');
   }
 
-  const takenSet = attendanceEnabled ? await getTakenSetTodayForTeacher() : new Set();
+  const teacherAttendanceNodes = attendanceEnabled
+    ? await loadAttendanceClassNodes(toDateStr(nowTR()), getLessonStorageKeysForMany(mine))
+    : {};
+  const takenSet = attendanceEnabled ? await getTakenSetTodayForTeacher(teacherAttendanceNodes) : new Set();
   const gecikenYoklamalar = [];
 
   UI.lessonsGrid.innerHTML = mine.map((m,i)=>{
-    const hasTaken = takenSet.has(`${m.sinif}|${m.saatKodu}`);
+    const hasTaken = takenSet.has(lessonAttendanceKey(m));
         const st = attendanceEnabled ? lessonStatusInfo(m, hasTaken) : { chip:'future', text:'Tatil Modu' };
 
     const now = nowTR();
@@ -4340,15 +4782,15 @@ async function showTeacherToday(){
     if (now.isBefore(basSaati.subtract(10, 'minute'))) canTake = false;
     if (now.isAfter(bitSaati.add(5, 'hour')))         canTake = false;
     if (attendanceEnabled && !hasTaken && now.isAfter(basSaati.add(5, 'minute')) && now.isBefore(bitSaati.add(5, 'hour'))) {
-      gecikenYoklamalar.push(`${m.sinif} • ${m.dersName} (${m.bas}-${m.bit})`);
+      gecikenYoklamalar.push(`${m.classLabel || m.sinif} • ${m.dersName} (${m.bas}-${m.bit})`);
     }
 
     return `
       <div class="lesson ${st.chip}" role="button" tabindex="0"
            data-idx="${i}" data-taken="${hasTaken?1:0}" data-cantake="${canTake?1:0}"
-           data-bas="${m.bas||''}" data-bit="${m.bit||''}" data-sinif="${m.sinif||''}" data-saatkodu="${m.saatKodu||''}" data-ders="${m.dersName||''}">
+           data-bas="${m.bas||''}" data-bit="${m.bit||''}" data-sinif="${m.classLabel||m.sinif||''}" data-saatkodu="${m.saatKodu||''}" data-ders="${m.dersName||''}">
         <div>
-          <div class="title">${m.sinif} • ${m.dersName}</div>
+          <div class="title">${m.classLabel || m.sinif} • ${m.dersName}</div>
           <div class="sub">
             ${m.gun} • ${m.saatNo?`${m.saatNo}. Saat`:'Saat'} • ${m.bas||''}-${m.bit||''}${labelProgram(m.program)?` • ${labelProgram(m.program)}`:''}
           </div>
@@ -4403,7 +4845,7 @@ async function showTeacherToday(){
   });
 
   restartTeacherAutoRefresh?.();
-  await refreshTeacherDailyKpis?.();
+  await refreshTeacherDailyKpis?.(undefined, teacherAttendanceNodes);
 
   try {
     await loadTeacherClasses?.();
@@ -4453,45 +4895,62 @@ async function showTeacherToday(){
       teacherUiRefreshTimer = setInterval(async ()=>{
         if(UI.teacherView.classList.contains('hidden')) return;
         if(!UI.attCard.classList.contains('hidden')) return;
-        await refreshLessonChips();
-        await refreshTeacherDailyKpis();
+        const tarih=toDateStr(nowTR());
+        const classNodes=await loadAttendanceClassNodes(tarih, getLessonStorageKeysForMany(teacherLessonsToday||[]));
+        await refreshLessonChips(classNodes);
+        await refreshTeacherDailyKpis(undefined, classNodes);
       }, 3000);
     }
 
-    async function refreshLessonChips(){
-      const takenSet = attendanceEnabled ? await getTakenSetTodayForTeacher() : new Set();
+    async function refreshLessonChips(classNodesOverride=null){
+      const takenSet = attendanceEnabled ? await getTakenSetTodayForTeacher(classNodesOverride) : new Set();
       const cards = Array.from(UI.lessonsGrid.querySelectorAll('.lesson'));
       cards.forEach(card=>{
         const bas = card.getAttribute('data-bas')||'';
         const bit = card.getAttribute('data-bit')||'';
-        const sinif = card.getAttribute('data-sinif')||'';
-        const saatKodu = card.getAttribute('data-saatkodu')||'';
-        const hasTaken = takenSet.has(`${sinif}|${saatKodu}`);
+        const idx = Number(card.getAttribute('data-idx'));
+        const lesson = Number.isFinite(idx) ? teacherLessonsToday?.[idx] : null;
+        const hasTaken = lesson ? takenSet.has(lessonAttendanceKey(lesson)) : false;
         card.setAttribute('data-taken', hasTaken?'1':'0');
-                const st = attendanceEnabled ? lessonStatusInfo({ bas, bit }, hasTaken) : { chip:'future', text:'Tatil Modu' };
-        const chip = card.querySelector('.chip'); chip.textContent = st.text; chip.className = 'chip '+st.chip;
+        const st = attendanceEnabled ? lessonStatusInfo({ bas, bit }, hasTaken) : { chip:'future', text:'Tatil Modu' };
+        const chip = card.querySelector('.chip');
+        if(chip){ chip.textContent = st.text; chip.className = 'chip '+st.chip; }
       });
     }
 
-async function refreshTeacherDailyKpis(dateStr){
+async function refreshTeacherDailyKpis(dateStr, classNodesOverride=null){
   const tarih = dateStr || toDateStr(nowTR());
   const dayName = turkishDays[dayjs(tarih).day()];
   const todayRows = schedule
     .filter(r=> safe(r.OGRETMEN_ID)===safe(session.ogretmenId))
-    .filter(r=> safe(r.GUN).toLocaleLowerCase('tr-TR')===dayName.toLocaleLowerCase('tr-TR'));
+    .filter(r=> safe(r.GUN).toLocaleLowerCase('tr-TR')===dayName.toLocaleLowerCase('tr-TR'))
+    .map(r=> decorateLessonScope({
+      sinif:safe(r.SINIF), grup:safe(r.GRUP), saatKodu:safe(r.SAAT_KODU),
+      ogretmenId:safe(r.OGRETMEN_ID), program:safe(r.PROGRAM)||''
+    }));
 
+  const classNodes = classNodesOverride || await loadAttendanceClassNodes(tarih, getLessonStorageKeysForMany(todayRows));
   let v=0, y=0, g=0;
-  for(const r of todayRows){
-    const c  = safe(r.SINIF);
-    const sk = safe(r.SAAT_KODU);
-    if(!c || !sk) continue;
-    const snap = await get(ref(db, attPath(tarih, c, sk, session.ogretmenId)));
-    if(!snap.exists()) continue;
-    const data = snap.val();
-    for(const k in data){
-      const rec = data[k];
-      if(rec?.durum==='var') v++; else if(rec?.durum==='yok') y++;
-      if(rec?.late) g++;
+  const seen=new Set();
+
+  for(const lesson of todayRows){
+    const scope=lessonScopeFrom(lesson);
+    const rosterByNo=new Map(buildLessonRoster(lesson).map(st=>[safe(st.id),st]));
+    const actualNorm=new Set(scope.classes.map(normTR));
+    for(const storageClass of lessonStorageClassKeys(lesson)){
+      const byStudent=classNodes?.[storageClass]?.[lesson.saatKodu]?.[lesson.ogretmenId];
+      if(!byStudent || typeof byStudent!=='object') continue;
+      for(const [ogrNo,rec] of Object.entries(byStudent)){
+        const id=safe(ogrNo);
+        const st=rosterByNo.get(id);
+        if(!st || !recordMatchesLessonScope(rec, lesson)) continue;
+        if(actualNorm.has(normTR(storageClass)) && normTR(st.sinif)!==normTR(storageClass)) continue;
+        const logicalKey=`${normTR(st.sinif)}|${lesson.saatKodu}|${lesson.ogretmenId}|${id}|${scope.scopeKey}|${safe(lesson.program)}`;
+        if(seen.has(logicalKey)) continue;
+        seen.add(logicalKey);
+        if(rec?.durum==='var') v++; else if(rec?.durum==='yok') y++;
+        if(rec?.durum==='var' && rec?.late) g++;
+      }
     }
   }
   updateTeacherKpis(v+y, v, y, g);
@@ -4500,9 +4959,9 @@ async function refreshTeacherDailyKpis(dateStr){
     /* ---------- ATTENDANCE PANEL ---------- */
 // 2) Güncellenmiş TAM fonksiyon: openLesson(lesson) — KLONLAMA DÂHİL
 async function openLesson(lesson){
-  currentLesson = lesson;
+  currentLesson = decorateLessonScope(lesson);
+  lesson = currentLesson;
   UI.attCard.classList.remove('hidden');
-  // Config henüz gelmediyse: bir kez DB'den oku (race condition önle)
   if(!attendanceConfigReady){
     try{
       const snapCfg = await get(ref(db, ATT_CFG_PATH));
@@ -4513,63 +4972,47 @@ async function openLesson(lesson){
     }catch(e){ console.error(e); }
   }
 
-  // Yoklama pasifse: Tatil Modu ekranı (öğrenci/yoklama listesi görünmesin)
   if(attendanceConfigReady && !attendanceEnabled){
     showHolidayMode(lesson);
     focusAndScroll(UI.attCard, UI.studentList);
     return;
   }
-  // Ek güvenlik
   if(!attendanceEnabled){
     showHolidayMode(lesson);
     focusAndScroll(UI.attCard, UI.studentList);
     return;
   }
 
-  // Normal mod: kontrolleri geri getir
   restoreNormalAttendanceUI();
 
-  UI.attTitle.textContent = `📝 Yoklama — ${lesson.sinif} • ${lesson.dersName} • ${lesson.saatNo?ordinal(lesson.saatNo):('Saat '+lesson.saatKodu)} (${lesson.bas||''}-${lesson.bit||''}) • ${lesson.ogretmenAd}`;
+  const scope = lessonScopeFrom(lesson);
+  const groupTitle = scope.hasGroupFilter ? ` • Grup: ${scope.groupLabel || 'eşleşen grup yok'}` : '';
+  UI.attTitle.textContent = `📝 Yoklama — ${scope.classLabel}${groupTitle} • ${lesson.dersName} • ${lesson.saatNo?ordinal(lesson.saatNo):('Saat '+lesson.saatKodu)} (${lesson.bas||''}-${lesson.bit||''}) • ${lesson.ogretmenAd}`;
 
-  const lessonGroup = safe(lesson.grup);
-  const list = students
-    .filter(s=>{
-      // Grup dersi: sadece bu gruptaki öğrenciler (sınıf bağımsız)
-      if(lessonGroup){
-        return safe(s.GRUP).toLocaleLowerCase('tr-TR') === lessonGroup.toLocaleLowerCase('tr-TR');
-      }
-      // Normal ders: sadece ilgili sınıf
-      return safe(s.SINIF).toLocaleLowerCase('tr-TR') === lesson.sinif.toLocaleLowerCase('tr-TR');
-    })
-    .map(s=>({id:safe(s.NO), ad:s.ADSOYAD||'', no:safe(s.NO), veliTel: safe(s.VeliTel ?? s.VELITEL ?? s.velitel ?? '') }))
-    .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
-
-  // SMS: veli telefonları listede görünmez; sadece 1. ve 2. saat bildirimleri için tutulur
+  const list = buildLessonRoster(lesson);
   currentRoster = list;
 
   const tarih = toDateStr(nowTR());
-  const path  = attPath(tarih, lesson.sinif, lesson.saatKodu, lesson.ogretmenId);
-  const snap  = await get(ref(db, path));
-  const existing = snap.exists() ? snap.val() : {};
+  const existingResult = await readLessonAttendance(tarih, lesson);
+  const existing = existingResult.byStudent || {};
+  currentLessonStoredEntries = existingResult.entries || [];
 
-  // Bu derste geri al butonu durumu
-  const anyThisLesson = Object.keys(existing).length > 0;
+  const anyThisLesson = !!existingResult.any;
   UI.undoBtn.disabled = !anyThisLesson;
 
-  // --- KLON TEKLİFİ (yalnızca bu derste kayıt yoksa) ---
-  let prefillMode = 'existing'; // 'existing' | 'clone' | 'default'
+  let prefillMode = 'existing';
   let cloneData = null;
 
   if (!anyThisLesson) {
-    const prev = findPrevConsecutiveSlot(lesson); // aynı gün + aynı öğretmen + aynı sınıf + hemen önceki saat
+    const prev = findPrevConsecutiveSlot(lesson);
     if (prev) {
-      const prevSnap = await get(ref(db, attPath(tarih, lesson.sinif, prev.saatKodu, lesson.ogretmenId)));
-      if (prevSnap.exists()) {
-        // Kullanıcıya sor
+      const prevResult = await readLessonAttendance(tarih, prev);
+      if (prevResult.any) {
+        const prevScope = lessonScopeFrom(prev);
         const ask = await Swal.fire({
           icon:'question',
           title:'Önceki yoklamayı klonla?',
-          html:`${lesson.sinif} sınıfının <b>${(prev.saatNo||lesson.saatNo-1)}. Saat</b> yoklaması bulundu.<br>
+          html:`${prevScope.classLabel} sınıf/grup kapsamının <b>${(prev.saatNo||lesson.saatNo-1)}. Saat</b> yoklaması bulundu.<br>
                 Bu derse uygulansın mı?<br><br>
                 <small>Kurallar: VAR→VAR, GEÇ→VAR, YOK→YOK</small>`,
           showCancelButton:true,
@@ -4578,57 +5021,51 @@ async function openLesson(lesson){
         });
         if (ask.isConfirmed) {
           prefillMode = 'clone';
-          cloneData = prevSnap.val();
-        } else {
-          prefillMode = 'default';
-        }
-      } else {
-        prefillMode = 'default';
-      }
-    } else {
-      prefillMode = 'default';
-    }
+          cloneData = prevResult.byStudent || {};
+        } else prefillMode = 'default';
+      } else prefillMode = 'default';
+    } else prefillMode = 'default';
   }
-  // -----------------------------------------------------
 
   tempAtt = {};
   const cfg = JSON.parse(localStorage.getItem("cfg")||"{}");
   const _defaultVar = (cfg.defaultVar ?? true);
 
-  // Doldurma: mevcut/klon/varsayılan
   list.forEach(o=>{
     let status='', late=false;
-
     if (prefillMode==='existing' && existing[o.id]) {
       const prev = existing[o.id];
       status = (prev.durum==='var') ? 'var' : 'yok';
       late   = !!prev.late;
     } else if (prefillMode==='clone') {
       const src = cloneData?.[o.id] || null;
-      // Klon kuralı: VAR→VAR (late=false), GEÇ→VAR (late=false), YOK→YOK
       if (src) {
         if (src.durum === 'yok') { status='yok'; late=false; }
         else { status='var'; late=false; }
-      } else {
-        status = _defaultVar ? 'var' : ''; late=false;
-      }
-    } else {
-      status = _defaultVar ? 'var' : ''; late=false;
-    }
-
+      } else status = _defaultVar ? 'var' : '';
+    } else status = _defaultVar ? 'var' : '';
     tempAtt[o.id] = { status, late };
   });
 
-  UI.studentList.innerHTML = list.map(o=>{
-    const isVar = tempAtt[o.id].status==='var', isLate = !!tempAtt[o.id].late;
-    return `<li class="student" data-id="${o.id}" tabindex="0" aria-label="${o.ad}">
-      <div class="stack"><div class="name">${o.ad}</div><div class="muted">No: ${o.no}</div></div>
-      <div class="row">
-        <button class="late ${isLate?'on':''}" data-role="late" type="button">⏰ Geç</button>
-        <button class="switch ${isVar?'on':''}" data-role="switch" type="button" aria-pressed="${isVar}" title="${isVar?'Var':'Yok'}"></button>
-      </div>
-    </li>`;
-  }).join('');
+  if(!list.length){
+    UI.studentList.innerHTML = `<li class="muted" style="padding:14px 0;">Bu dersin sınıf/grup kapsamına uyan öğrenci bulunamadı.</li>`;
+  }else{
+    UI.studentList.innerHTML = list.map(o=>{
+      const isVar = tempAtt[o.id].status==='var', isLate = !!tempAtt[o.id].late;
+      const meta=[`No: ${o.no}`];
+      if(scope.isMixed){
+        meta.push(`Sınıf: ${o.sinif}`);
+        if(o.matchedGroups?.length) meta.push(`Grup: ${o.matchedGroups.join(', ')}`);
+      }
+      return `<li class="student" data-id="${o.id}" tabindex="0" aria-label="${o.ad}">
+        <div class="stack"><div class="name">${o.ad}</div><div class="muted">${meta.join(' • ')}</div></div>
+        <div class="row">
+          <button class="late ${isLate?'on':''}" data-role="late" type="button">⏰ Geç</button>
+          <button class="switch ${isVar?'on':''}" data-role="switch" type="button" aria-pressed="${isVar}" title="${isVar?'Var':'Yok'}"></button>
+        </div>
+      </li>`;
+    }).join('');
+  }
 
   Array.from(UI.studentList.querySelectorAll('.student')).forEach(li=>{
     const id = li.getAttribute('data-id');
@@ -4656,22 +5093,25 @@ async function openLesson(lesson){
   UI.undoBtn.onclick = undoAttendance;
 
   renderSummary();
-
   focusAndScroll(UI.attCard, UI.studentList);
 }
 
 
-  function closeAttendance(){
+  function closeAttendance(refresh=true){
       // bir sonraki açılış için UI'ı varsayılan hale getir
       restoreNormalAttendanceUI();
       UI.attCard.classList.add('hidden');
       UI.studentList.innerHTML = '';
       currentLesson = null;
       tempAtt = {};
+      currentRoster = [];
+      currentLessonStoredEntries = [];
       const firstLesson = document.querySelector('.lesson'); firstLesson?.focus();
-      // >>> İptal sonrası anında tazele
-      refreshLessonChips();                 // Çipler
-      refreshTeacherDailyKpis();            // KPI
+      // İptal/manuel kapatma sonrası tazele; kayıt/geri al akışında showTeacherToday tek seferde yeniler.
+      if(refresh){
+        refreshLessonChips();
+        refreshTeacherDailyKpis();
+      }
     }
 
     function setAll(val){
@@ -4874,10 +5314,10 @@ function collectParentAttendanceSmsBatch(){
     const isLate = !!rec.late;
 
     if(status === 'yok'){
-      const message = buildVeliSmsText({type:'absent', studentName: st.ad, hourNo, bas, bit, classLabel: currentLesson?.sinif || currentLesson?.grup || ''});
+      const message = buildVeliSmsText({type:'absent', studentName: st.ad, hourNo, bas, bit, classLabel: st.sinif || currentLesson?.classLabel || currentLesson?.sinif || ''});
       items.push({ studentId: st.id, studentName: st.ad, gsm: st.veliTel, message });
     }else if(status === 'var' && isLate){
-      const message = buildVeliSmsText({type:'late', studentName: st.ad, hourNo, bas, bit, classLabel: currentLesson?.sinif || currentLesson?.grup || ''});
+      const message = buildVeliSmsText({type:'late', studentName: st.ad, hourNo, bas, bit, classLabel: st.sinif || currentLesson?.classLabel || currentLesson?.sinif || ''});
       items.push({ studentId: st.id, studentName: st.ad, gsm: st.veliTel, message });
     }
   });
@@ -4939,12 +5379,28 @@ async function saveAttendance(){
     showHolidayMode(currentLesson);
     return false;
   }
+
   const tarih = toDateStr(nowTR());
-  const sinif = currentLesson.sinif;
-  const pathBase = attPath(tarih, sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
+  const scope = lessonScopeFrom(currentLesson);
+  const rosterByNo = new Map((currentRoster||[]).map(st=>[safe(st.id),st]));
+  if(!rosterByNo.size){
+    await Swal.fire('Öğrenci Yok','Bu dersin sınıf/grup kapsamına uyan öğrenci bulunamadığı için yoklama kaydedilmedi.','info');
+    return false;
+  }
 
   const updates = {};
+  for(const entry of currentLessonStoredEntries||[]){
+    const st=rosterByNo.get(safe(entry?.id)) || entry?.student;
+    if(!st?.sinif) continue;
+    const oldPath=`${attPath(tarih, entry.storageClass, currentLesson.saatKodu, currentLesson.ogretmenId)}/${safe(entry.id)}`;
+    const newPath=`${attPath(tarih, st.sinif, currentLesson.saatKodu, currentLesson.ogretmenId)}/${safe(entry.id)}`;
+    if(oldPath !== newPath) updates[oldPath]=null;
+  }
+
   Object.entries(tempAtt).forEach(([id, d])=>{
+    const st=rosterByNo.get(safe(id));
+    if(!st?.sinif) return;
+    const pathBase = attPath(tarih, st.sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
     if(d.status){
       updates[`${pathBase}/${id}`] = {
         durum:d.status, late:!!d.late, ts:Date.now(),
@@ -4957,13 +5413,14 @@ async function saveAttendance(){
         saatBas: currentLesson.bas || '',
         saatBit: currentLesson.bit || '',
         gun: currentLesson.gun,
-        // Program bilgisini kayda ekle: boşsa boş string olarak sakla.
-        program: currentLesson.program || ''
+        program: currentLesson.program || '',
+        sinif: st.sinif,
+        scopeKey: scope.scopeKey,
+        dersSiniflari: scope.classLabel || '',
+        dersGruplari: scope.groupLabel || '',
+        appVersion: APP_VERSION
       };
-    }else{
-      // Neden: Boş durumda bu öğrenciyi bu dersten sil
-      updates[`${pathBase}/${id}`] = null;
-    }
+    }else updates[`${pathBase}/${id}`] = null;
   });
 
   try{
@@ -4972,15 +5429,13 @@ async function saveAttendance(){
       await flushQueue(false);
       setStatus('Kaydedildi.', 'ok');
       showToast('Kaydedildi ✓','ok');
-      Swal.fire('Kaydedildi','Yoklama kaydedildi.','success');
+      Swal.fire('Kaydedildi','Yoklama gerçek sınıflara ayrı ayrı kaydedildi.','success');
     }else{
-      // Offline kuyruk: çoklu yol güncellemesini tek paket sakla
       queueOfflineWrite('/', updates);
-      Swal.fire('Offline','Kayıt kuyruğa alındı.','info');
+      Swal.fire('Offline','Kayıt gerçek sınıf yollarına göre kuyruğa alındı.','info');
     }
-    closeAttendance();
+    closeAttendance(false);
     await showTeacherToday();
-    await refreshTeacherDailyKpis();
     return true;
   }catch(e){
     console.error(e); setStatus('Hata: kayıt sırasında sorun.', 'bad');
@@ -4988,6 +5443,7 @@ async function saveAttendance(){
     return false;
   }
 }
+
 async function undoAttendance(){
   if(!currentLesson) return;
   if(attendanceConfigReady && !attendanceEnabled){
@@ -4996,27 +5452,32 @@ async function undoAttendance(){
     return;
   }
   const tarih = toDateStr(nowTR());
-  const sinif = currentLesson.sinif;
-  const base = attPath(tarih, sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
 
-  const ok = await Swal.fire({title:'Geri al?', text:'Bu derse ait kayıtlar silinecek.', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç'});
+  const ok = await Swal.fire({title:'Geri al?', text:'Bu ders kapsamına ait kayıtlar öğrencilerin gerçek sınıflarından silinecek.', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç'});
   if(!ok.isConfirmed) return;
 
   try{
-    const snap = await get(ref(db, base));
-    if(!snap.exists()) return Swal.fire('Kayıt yok','Silinecek kayıt bulunamadı.','info');
+    let entries=currentLessonStoredEntries||[];
+    if(navigator.onLine){
+      const latest=await readLessonAttendance(tarih, currentLesson);
+      entries=latest.entries||[];
+    }
+    if(!entries.length) return Swal.fire('Kayıt yok','Silinecek kayıt bulunamadı.','info');
 
-    const data = snap.val();
-    const updates = {};
-    for(const ogrNo in data){ updates[`${base}/${ogrNo}`] = null; }
+    const updates={};
+    for(const entry of entries){
+      updates[`${attPath(tarih, entry.storageClass, currentLesson.saatKodu, currentLesson.ogretmenId)}/${safe(entry.id)}`]=null;
+    }
 
-    if(navigator.onLine){ await update(ref(db), updates); }
-    else{ queueOfflineWrite('/', updates); }
+    if(navigator.onLine) await update(ref(db), updates);
+    else queueOfflineWrite('/', updates);
 
-    Swal.fire('Geri alındı','Kayıtlar silindi.','success');
-    closeAttendance(); await showTeacherToday(); await refreshTeacherDailyKpis();
+    Swal.fire('Geri alındı','Bu ders kapsamına ait kayıtlar silindi.','success');
+    closeAttendance(false);
+    await showTeacherToday();
   }catch(e){ console.error(e); Swal.fire('Hata','Geri alırken sorun oluştu.','error'); }
 }
+
     /* ---------- PARENT VIEW ---------- */
     async function showParentView(){
       UI.parentView.classList.remove('hidden');
@@ -5231,17 +5692,11 @@ async function loadParentRange(kind){
       const classSet = new Set(students.map(s=> safe(s.SINIF)).filter(Boolean));
       const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
       UI.admClass.innerHTML = `<option value="hepsi" selected>Hepsi</option>` + classes.map(c=> `<option value="${c}">${c}</option>`).join('');
-      // Program filtre seçeneklerini doldur: mevcut program kodlarını kullan
-      if (UI.admProgram) {
-        const progs = Array.from((typeof slotOrderMapByProgram !== 'undefined' && slotOrderMapByProgram && slotOrderMapByProgram.keys) ? slotOrderMapByProgram.keys() : []);
-        const opts = ['hepsi', ...progs.filter(p => p)];
-        UI.admProgram.innerHTML = opts.map(p => {
-          const lbl = p === 'hepsi' ? 'Hepsi' : labelProgram(p);
-          return `<option value="${p}">${lbl}</option>`;
-        }).join('');
-        UI.admProgram.value = 'hepsi';
-      }
-      UI.admHour && (UI.admHour.value = 'hepsi'); // ilk açılış: Hepsi
+      // v1.4 🔥 — Program ve ders zamanı filtreleri ortak slot kataloğundan kurulur.
+      rebuildAdminProgramOptions();
+      if(UI.admProgram) UI.admProgram.value = 'hepsi';
+      rebuildAdminHourOptions('hepsi');
+      admTimePage = 1;
       // Özet/Detay görünümü uygula
       setAdminViewMode(adminViewMode);
       refreshAdmin();
@@ -5272,6 +5727,7 @@ async function refreshAdmin(){
       UI.admListBody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:16px;">Program pasif (Tatil Modu)</td></tr>`;
     }
     if(UI.admPagination) UI.admPagination.innerHTML = '';
+    UI.admTimelineBar?.classList.add('hidden');
     if(UI.dashVar) UI.dashVar.textContent = 'Tatil';
     if(UI.dashYok) UI.dashYok.textContent = 'Tatil';
     if(UI.dashGec) UI.dashGec.textContent = 'Tatil';
@@ -5279,16 +5735,9 @@ async function refreshAdmin(){
   }
 
 
-  // Öğrenci sözlüğü (adı/sınıfı hızlı erişim için)
-  // Öğrencileri sınıfa göre filtrele (tire ile birleştirilmiş sınıfları da dahil)
+  // Öğrenci SINIF alanı tek ve gerçek sınıftır; sınıf adındaki tireler parçalanmaz.
   const studentPool = (cls && cls !== 'hepsi')
-    ? students.filter(s => {
-        const sc = safe(s.SINIF);
-        if(!sc) return false;
-        if(sc === cls) return true;
-        // Tire ile birleştirilmiş isimleri ayırıp bak (örn. "8A-8B")
-        return sc.split(/[-–]/).map(x => x.trim()).includes(cls);
-      })
+    ? students.filter(st => normTR(st.SINIF) === normTR(cls))
     : students;
   const byNo = new Map(studentPool.map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
 
@@ -5298,26 +5747,16 @@ async function refreshAdmin(){
   const daySnap = await get(ref(db, rootPath));
   const dayData = daySnap.exists() ? daySnap.val() : {};
 
-  // ---- TABLO: Saat & Durum filtresi uygulanır ----
-  const isHourPass = (rec, saatKodu) => {
-    if (hour === 'hepsi') return true;
-    const recHour = rec?.saatNo ?? (() => {
-      const m = String(saatKodu || '').match(/\d+/);
-      return m ? parseInt(m[0], 10) : undefined;
-    })();
-    return String(recHour ?? '') === String(hour);
-  };
-
+  // ---- TABLO: v1.4 🔥 — Gerçek zaman > program/saat > sınıf > öğrenci ----
   const rows = [];
   const pushRow = (sinif, no, rec, saatKodu) => {
     const stu = byNo.get(no);
-    if (!stu) return;                // sınıf kapsamı dışında
-    if (!isHourPass(rec, saatKodu)) return;
+    if (!stu) return; // sınıf kapsamı dışında
+    if (!adminHourPass(hour, rec, saatKodu)) return;
 
     const durum = rec?.durum || '';
     const gec   = !!rec?.late;
 
-    // Durum filtresi
     const pass =
       status === 'hepsi' ||
       (status === 'gelen'    && durum === 'var') ||
@@ -5325,35 +5764,19 @@ async function refreshAdmin(){
       (status === 'gec'      && durum === 'var' && gec);
     if (!pass) return;
 
-    // Program kodunu al
-    const recProg = safe(rec?.program) || '';
-    // Program filtresini push aşamasında uygulamıyoruz; tüm kayıtlar eklenir, filtreleme daha sonra yapılır
-
-    // Program etiketi (varsa)
-    const progLbl = labelProgram(rec?.program);
-    let saatText;
-    if (rec?.saatNo){
-      const timeRange = `${rec?.saatBas || ''}-${rec?.saatBit || ''}`;
-      saatText = `${ordinal(rec.saatNo)} (${timeRange})`;
-    } else if (rec?.saatBas || rec?.saatBit) {
-      const timeRange = `${rec?.saatBas || ''}-${rec?.saatBit || ''}`;
-      saatText = `(${timeRange})`;
-    } else {
-      saatText = '';
-    }
-    if (progLbl) {
-      saatText = saatText ? `${saatText} • ${progLbl}` : progLbl;
-    }
+    const slotMeta = getAdminSlotMeta(rec, saatKodu);
     rows.push({
-      no: no,
+      no,
       ad: stu.ad,
-      sinif: sinif,
+      sinif,
       durum,
       gec,
       ders: rec?.ders || '',
-      saat: saatText,
       ogretmen: rec?.ogretmenAd || '',
-      program: recProg
+      program: slotMeta.program,
+      saatKodu,
+      slotMeta,
+      saat: adminSlotLongText(slotMeta)
     });
   };
 
@@ -5370,97 +5793,121 @@ async function refreshAdmin(){
   if (cls === 'hepsi') {
     Object.entries(dayData || {}).forEach(([sinif, node]) => scanClassNode(safe(sinif), node));
   } else {
-    // Belirli sınıf için: 8A-8B gibi birleşik isimlerde eşleşme var mı bak
     Object.entries(dayData || {}).forEach(([sinif, node]) => {
-      const parts = safe(sinif).split(/[-–]/).map(x => x.trim());
-      if (parts.includes(cls)) {
-        scanClassNode(safe(sinif), node);
-      }
+      if(storedClassKeyMatchesFilter(sinif, cls)) scanClassNode(safe(sinif), node);
     });
   }
 
-  // Program seçeneklerini güncelle: tüm kayıtlar üzerinden benzersiz program kodlarını topla
-  if (UI.admProgram) {
-    const progSet = new Set(rows.map(r => r.program).filter(p => p));
-    const currentProgVal = UI.admProgram.value || 'hepsi';
-    const progOptions = ['hepsi', ...Array.from(progSet).sort((a,b) => a.localeCompare(b,'tr',{numeric:true}))];
-    const progHtml = progOptions.map(p => `<option value="${p}">${p}</option>`).join('');
-    UI.admProgram.innerHTML = progHtml;
-    if (progOptions.includes(currentProgVal)) {
-      UI.admProgram.value = currentProgVal;
-    } else {
-      UI.admProgram.value = 'hepsi';
-    }
-  }
-  // Güncellenen program filtresini yeniden al
-  const { program: selProgram } = getAdminFilters();
+  // Program listesi kayıt durumuna göre daralmaz; ders saati kaynağındaki tüm programlar korunur.
+  rebuildAdminProgramOptions();
+  if(UI.admProgram && getAdminPrograms().includes(program)) UI.admProgram.value = program;
+  const selProgram = UI.admProgram?.value || 'hepsi';
 
-  // Sıralama
-  const filteredRowsByProg = (selProgram && selProgram !== 'hepsi') ? rows.filter(r => r.program === selProgram) : rows;
-  const sortedRows = filteredRowsByProg.sort((a, b) => (a.sinif + a.ad).localeCompare(b.sinif + b.ad, 'tr', { numeric: true, sensitivity: 'base' }));
+  const filteredRowsByProg = (selProgram && selProgram !== 'hepsi')
+    ? rows.filter(r => r.program === selProgram)
+    : rows;
 
-  // Paginasyon: sınıf ve durum filtreleri "hepsi" ise sınıf bazlı sayfalama, aksi halde 20'lik sayfa
+  const sortedRows = [...filteredRowsByProg].sort((a,b) =>
+    compareAdminSlotMeta(a.slotMeta, b.slotMeta) ||
+    safe(a.sinif).localeCompare(safe(b.sinif),'tr',{numeric:true,sensitivity:'base'}) ||
+    safe(a.ad).localeCompare(safe(b.ad),'tr',{numeric:true,sensitivity:'base'}) ||
+    safe(a.no).localeCompare(safe(b.no),'tr',{numeric:true,sensitivity:'base'})
+  );
+
+  // Gerçek saat aralığı bazında sayfalama: aynı zaman aralığındaki farklı programlar birlikte görünür.
   let displayRows = sortedRows;
   const pagEl = UI.admPagination;
-  // Temizle
-  if (pagEl) pagEl.innerHTML = '';
-  if (cls === 'hepsi' && status === 'hepsi') {
-    // sınıf bazlı
-    const classList = Array.from(new Set(sortedRows.map(r => r.sinif)));
-    classList.sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
-    const totalPages = classList.length || 1;
-    if (admClassPage > totalPages) admClassPage = 1;
-    const selectedClass = classList[admClassPage - 1] || classList[0];
-    displayRows = sortedRows.filter(r => r.sinif === selectedClass);
-    if (pagEl && totalPages > 1) {
-      let html = '';
-      for(let i=1; i<=totalPages; i++){
-        html += `<button type="button" class="page-btn${i===admClassPage?' active':''}" data-page="${i}">${i}</button>`;
-      }
-      pagEl.innerHTML = html;
-    }
-  } else {
-    // 20'lik sayfa
-    const totalPages = Math.max(1, Math.ceil(sortedRows.length / 20));
-    if (admPage > totalPages) admPage = 1;
-    const start = (admPage - 1) * 20;
-    const end   = start + 20;
-    displayRows = sortedRows.slice(start, end);
-    if (pagEl && totalPages > 1) {
-      let html = '';
-      for(let i=1; i<=totalPages; i++){
-        html += `<button type="button" class="page-btn${i===admPage?' active':''}" data-page="${i}">${i}</button>`;
-      }
-      pagEl.innerHTML = html;
-    }
+  if(pagEl) pagEl.innerHTML = '';
+
+  const timeGroups = [];
+  const timeSeen = new Set();
+  for(const r of sortedRows){
+    const key = r.slotMeta.timeKey;
+    if(timeSeen.has(key)) continue;
+    timeSeen.add(key);
+    timeGroups.push({ key, meta:r.slotMeta });
   }
 
-  // Tablo yaz
-  UI.admListBody.innerHTML = displayRows.map(r => {
-      const isAbsent = r.durum === 'yok';
-      const isLate   = (r.durum === 'var' && r.gec);
+  if(hour === 'hepsi' && timeGroups.length > 1){
+    if(admTimePage > timeGroups.length) admTimePage = 1;
+    if(admTimePage < 1) admTimePage = 1;
+    const selectedTime = timeGroups[admTimePage - 1];
+    displayRows = sortedRows.filter(r => r.slotMeta.timeKey === selectedTime.key);
 
-      const rowClass = [
-        isAbsent ? 'adm-row-absent' : '',
-        isLate   ? 'adm-row-late'   : ''
-      ].filter(Boolean).join(' ');
+    if(pagEl){
+      pagEl.innerHTML = timeGroups.map((g,i)=>{
+        const active = (i + 1) === admTimePage ? ' active' : '';
+        const label = adminTimeRangeText(g.meta);
+        return `<button type="button" class="page-btn${active}" data-page="${i+1}" title="${label}">${label}</button>`;
+      }).join('');
+    }
+    UI.admTimelineBar?.classList.remove('hidden');
+  }else{
+    admTimePage = 1;
+    UI.admTimelineBar?.classList.add('hidden');
+  }
 
-      const dTxt = r.durum === 'var' ? 'GELDİ' : (r.durum === 'yok' ? 'GELMEDİ' : '—');
-      const gecCell  = isLate ? '<span class="late-label">GEÇ GELDİ</span>' : '';
-      const saatCell = r.saat || '';
+  const renderStudentRow = (r) => {
+    const isAbsent = r.durum === 'yok';
+    const isLate   = (r.durum === 'var' && r.gec);
+    const rowClass = [
+      isAbsent ? 'adm-row-absent' : '',
+      isLate   ? 'adm-row-late'   : ''
+    ].filter(Boolean).join(' ');
+    const dTxt = r.durum === 'var' ? 'GELDİ' : (r.durum === 'yok' ? 'GELMEDİ' : '—');
+    const gecCell = isLate ? '<span class="late-label">GEÇ GELDİ</span>' : '';
+    return `<tr class="${rowClass}">
+      <td>${r.no}</td>
+      <td>${r.ad}</td>
+      <td>${r.sinif}</td>
+      <td>${dTxt}</td>
+      <td>${gecCell}</td>
+      <td>${r.ders || ''}</td>
+      <td>${adminSlotLongText(r.slotMeta)}</td>
+      <td>${r.ogretmen || ''}</td>
+    </tr>`;
+  };
 
-      return `<tr class="${rowClass}">
-        <td>${r.no}</td>
-        <td>${r.ad}</td>
-        <td>${r.sinif}</td>
-        <td>${dTxt}</td>
-        <td>${gecCell}</td>
-        <td>${r.ders || ''}</td>
-        <td>${saatCell}</td>
-        <td>${r.ogretmen || ''}</td>
-      </tr>`;
-    }).join('');
-  // Boş liste kontrolü: mevcut sayfada kayıt yoksa gizle göster
+  const renderAdminDetailChronological = (items) => {
+    if(!items.length) return '';
+    let html = '';
+    let i = 0;
+    while(i < items.length){
+      const timeKey = items[i].slotMeta.timeKey;
+      const timeRows = [];
+      while(i < items.length && items[i].slotMeta.timeKey === timeKey){
+        timeRows.push(items[i++]);
+      }
+      const timeMeta = timeRows[0].slotMeta;
+      const programCount = new Set(timeRows.map(r=>r.slotMeta.slotGroupKey)).size;
+      html += `<tr class="adm-time-row"><td colspan="8"><div class="adm-time-head"><span class="adm-time-title">🕘 ${adminTimeRangeText(timeMeta)}</span><span class="adm-time-meta">${programCount} ders bloğu • ${timeRows.length} kayıt</span></div></td></tr>`;
+
+      let j = 0;
+      while(j < timeRows.length){
+        const slotKey = timeRows[j].slotMeta.slotGroupKey;
+        const slotRows = [];
+        while(j < timeRows.length && timeRows[j].slotMeta.slotGroupKey === slotKey){
+          slotRows.push(timeRows[j++]);
+        }
+        const slotMeta = slotRows[0].slotMeta;
+        html += `<tr class="adm-slot-row"><td colspan="8">${adminSlotShortText(slotMeta)}</td></tr>`;
+
+        let k = 0;
+        while(k < slotRows.length){
+          const className = slotRows[k].sinif;
+          const classRows = [];
+          while(k < slotRows.length && slotRows[k].sinif === className){
+            classRows.push(slotRows[k++]);
+          }
+          html += `<tr class="adm-class-row"><td colspan="8">${className} SINIFI <span class="muted">• ${classRows.length} kayıt</span></td></tr>`;
+          html += classRows.map(renderStudentRow).join('');
+        }
+      }
+    }
+    return html;
+  };
+
+  UI.admListBody.innerHTML = renderAdminDetailChronological(displayRows);
   UI.admEmpty.classList.toggle('hidden', displayRows.length > 0);
 
   // ---- KARTLAR: Gün geneli, öğrenci bazında tekil mantık ----
@@ -5497,12 +5944,8 @@ async function refreshAdmin(){
   if (cls === 'hepsi') {
     Object.entries(dayData || {}).forEach(([sinif, node]) => scanForAgg(safe(sinif), node));
   } else {
-    // Belirli sınıf için: tire ile ayrılmış isimlere bak
     Object.entries(dayData || {}).forEach(([sinif, node]) => {
-      const parts = safe(sinif).split(/[-–]/).map(x => x.trim());
-      if(parts.includes(cls)){
-        scanForAgg(safe(sinif), node);
-      }
+      if(storedClassKeyMatchesFilter(sinif, cls)) scanForAgg(safe(sinif), node);
     });
   }
 
@@ -5605,17 +6048,13 @@ return;
           const stu = byNo.get(no) || {ad:'', sinif:safe(sinifKey)};
           const sinif = safe(stu.sinif || sinifKey);
 
-          const progKey = (recProg || safe(rec?.program) || '').toString().trim();
-          const k = `${sinif}|${hNo||'?'}|${progKey || '-'}`;
-          if(!groups.has(k)) groups.set(k, { sinif, hourNo:hNo||'?', prog: progKey, saatBas:'', saatBit:'', abs:[], late:[] });
-
-          // Grup meta bilgisi (saat aralığı + program) — ilk bulunan kayıttan alınır
-          const gMeta = groups.get(k);
-          if(gMeta){
-            if(!gMeta.saatBas) gMeta.saatBas = safe(rec?.saatBas || rec?.bas || '');
-            if(!gMeta.saatBit) gMeta.saatBit = safe(rec?.saatBit || rec?.bit || '');
-            if(!gMeta.prog)    gMeta.prog    = progKey;
-          }
+          const slotMeta = getAdminSlotMeta(rec, saatKodu);
+          const progKey = slotMeta.program || (recProg || safe(rec?.program) || '').toString().trim();
+          const k = `${slotMeta.slotGroupKey}|${sinif}`;
+          if(!groups.has(k)) groups.set(k, {
+            sinif, hourNo:hNo||slotMeta.hourNo||'?', prog:progKey,
+            saatBas:slotMeta.bas, saatBit:slotMeta.bit, slotMeta, abs:[], late:[]
+          });
 
           const lineBase = `${no} — ${(stu.ad||'').trim() || '—'}`.trim();
 
@@ -5635,7 +6074,11 @@ return;
 
   const groupArr = Array.from(groups.values())
     .filter(g => g.abs.length || g.late.length)
-    .sort((a,b)=> (a.sinif + String(a.hourNo) + (a.prog||'')).localeCompare(b.sinif + String(b.hourNo) + (b.prog||''), 'tr', {numeric:true}));
+    .sort((a,b)=>
+      compareAdminSlotMeta(a.slotMeta || getAdminSlotMeta({program:a.prog,saatNo:a.hourNo,saatBas:a.saatBas,saatBit:a.saatBit}, ''),
+                           b.slotMeta || getAdminSlotMeta({program:b.prog,saatNo:b.hourNo,saatBas:b.saatBas,saatBit:b.saatBit}, '')) ||
+      safe(a.sinif).localeCompare(safe(b.sinif),'tr',{numeric:true,sensitivity:'base'})
+    );
 
   const fmtClassLabel = (cls) => {
     const c = safe(cls).trim();
@@ -5644,35 +6087,35 @@ return;
     if(low.includes('sınıf')) return c;
     return `${c} Sınıfı`;
   };
-  const fmtTimeRange = (bas, bit) => {
-    const b = safe(bas).trim();
-    const e = safe(bit).trim();
-    if(!b && !e) return '';
-    return ` (${b || '??:??'}-${e || '??:??'})`;
-  };
-  const fmtProg = (prog) => {
-    const p = safe(prog).trim();
-    if(!p || p === '-') return '';
-    const lbl = labelProgram(p);
-    return lbl ? ` • ${lbl}` : ` • ${p}`;
-  };
-
 
   if(UI.admSumAbsLate){
-    UI.admSumAbsLate.innerHTML = groupArr.map(g=>{
-      const absNames = g.abs.join(', ');
-      const lateNames = g.late.join(', ');
+    const byTime = new Map();
+    for(const g of groupArr){
+      const meta = g.slotMeta || getAdminSlotMeta({program:g.prog,saatNo:g.hourNo,saatBas:g.saatBas,saatBit:g.saatBit}, '');
+      if(!byTime.has(meta.timeKey)) byTime.set(meta.timeKey, { meta, slots:new Map() });
+      const tg = byTime.get(meta.timeKey);
+      if(!tg.slots.has(meta.slotGroupKey)) tg.slots.set(meta.slotGroupKey, { meta, groups:[] });
+      tg.slots.get(meta.slotGroupKey).groups.push(g);
+    }
 
-      const absLine = g.abs.length
-        ? `<div class="adm-sum-line"><span class="adm-sum-label bad">Gelmeyen:</span><span class="mono">${g.abs.length}</span> kişi — ${absNames}</div>`
-        : '';
-
-      const lateLine = g.late.length
-        ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}</div>`
-        : '';
-
-      const head = `${fmtClassLabel(g.sinif)} • ${g.hourNo}. Saat${fmtTimeRange(g.saatBas, g.saatBit)}${fmtProg(g.prog)}`;
-      return `<li><div class="adm-sum-top"><span class="adm-sum-key">${head}</span></div>${absLine}${lateLine}</li>`;
+    UI.admSumAbsLate.innerHTML = Array.from(byTime.values()).map(tg=>{
+      const slotHtml = Array.from(tg.slots.values()).map(sg=>{
+        const classesHtml = sg.groups
+          .sort((a,b)=>safe(a.sinif).localeCompare(safe(b.sinif),'tr',{numeric:true,sensitivity:'base'}))
+          .map(g=>{
+            const absNames = g.abs.join(', ');
+            const lateNames = g.late.join(', ');
+            const absLine = g.abs.length
+              ? `<div class="adm-sum-line"><span class="adm-sum-label bad">Gelmeyen:</span><span class="mono">${g.abs.length}</span> kişi — ${absNames}</div>`
+              : '';
+            const lateLine = g.late.length
+              ? `<div class="adm-sum-line"><span class="adm-sum-label warn">Geç gelen:</span><span class="mono">${g.late.length}</span> kişi — ${lateNames}</div>`
+              : '';
+            return `<div class="adm-sum-class-block"><div class="adm-sum-class-title">${fmtClassLabel(g.sinif)}</div>${absLine}${lateLine}</div>`;
+          }).join('');
+        return `<div class="adm-sum-slot"><div class="adm-sum-slot-title">${adminSlotShortText(sg.meta)}</div>${classesHtml}</div>`;
+      }).join('');
+      return `<li class="adm-sum-time-block"><div class="adm-sum-time-head"><span>🕘 ${adminTimeRangeText(tg.meta)}</span><span class="muted">Kronolojik</span></div>${slotHtml}</li>`;
     }).join('');
     UI.admSumAbsLateEmpty && UI.admSumAbsLateEmpty.classList.toggle('hidden', groupArr.length > 0);
   }
@@ -5696,19 +6139,7 @@ return;
     ? nowTR()
     : parseOnDate(date, '23:59');
 
-  const hasAttendance = (lesson) => {
-    const clsWanted = safe(lesson.sinif);
-    const keys = Object.keys(dayData||{}).filter(k=>{
-      const kk = safe(k);
-      if(kk === clsWanted) return true;
-      return kk.split(/[-–]/).map(x=>x.trim()).includes(clsWanted);
-    });
-    for(const k of keys){
-      const node = dayData?.[k]?.[lesson.saatKodu]?.[lesson.ogretmenId];
-      if(node && typeof node === 'object' && Object.keys(node).length > 0) return true;
-    }
-    return false;
-  };
+  const hasAttendance = (lesson) => lessonHasAttendanceInNodes(dayData, lesson);
 
   const missing = [];
   schedule
@@ -5728,33 +6159,51 @@ return;
       // 30 dk geçti mi?
       if(refNow.isBefore(start.add(30,'minute'))) return;
 
-      const lesson = {
+      const lesson = decorateLessonScope({
         sinif: safe(r.SINIF),
+        grup: safe(r.GRUP),
         saatKodu: safe(r.SAAT_KODU),
         ogretmenId: safe(tInfo.id),
         ogretmenAd: safe(tInfo.name),
         dersName: lessonNameFromRow(r, tInfo),
         bas, bit, program: prog
-      };
+      });
 
       if(!hasAttendance(lesson)){
         missing.push(lesson);
       }
     });
 
-  missing.sort((a,b)=> (a.bas||'').localeCompare(b.bas||'') || a.ogretmenAd.localeCompare(b.ogretmenAd,'tr'));
+  missing.sort((a,b)=> {
+    const am = getAdminSlotMeta(a, a.saatKodu);
+    const bm = getAdminSlotMeta(b, b.saatKodu);
+    return compareAdminSlotMeta(am,bm) ||
+      safe(a.classLabel || a.sinif).localeCompare(safe(b.classLabel || b.sinif),'tr',{numeric:true,sensitivity:'base'}) ||
+      safe(a.ogretmenAd).localeCompare(safe(b.ogretmenAd),'tr',{numeric:true,sensitivity:'base'});
+  });
 
   if(UI.admSumMissingTeach){
-    UI.admSumMissingTeach.innerHTML = missing.slice(0, 18).map(m=>{
-      const saatTxt = (m.bas && m.bit) ? `${m.bas}-${m.bit}` : (m.bas||'');
-      return `<li><b>${m.ogretmenAd}</b> — ${m.sinif} • ${m.dersName}<br><span class="muted">${saatTxt}${labelProgram(m.program)?` • ${labelProgram(m.program)}`:''}</span></li>`;
+    const visibleMissing = missing.slice(0, 18);
+    const byTime = new Map();
+    visibleMissing.forEach(m=>{
+      const meta = getAdminSlotMeta(m, m.saatKodu);
+      if(!byTime.has(meta.timeKey)) byTime.set(meta.timeKey, {meta, items:[]});
+      byTime.get(meta.timeKey).items.push({m,meta});
+    });
+    UI.admSumMissingTeach.innerHTML = Array.from(byTime.values()).map(tg=>{
+      const lines = tg.items.map(({m,meta})=>`<div class="adm-sum-class-block">
+        <div class="adm-sum-class-title">${adminSlotShortText(meta)} • ${m.classLabel || m.sinif}</div>
+        <div><b>${m.ogretmenAd}</b> — ${m.dersName}</div>
+        ${m.hasGroupFilter?`<div class="muted">Grup: ${m.groupLabel || 'eşleşen grup yok'}</div>`:''}
+      </div>`).join('');
+      return `<li class="adm-sum-time-block"><div class="adm-sum-time-head"><span>⏱️ ${adminTimeRangeText(tg.meta)}</span><span class="muted">Yoklama bekleniyor</span></div><div class="adm-sum-slot">${lines}</div></li>`;
     }).join('');
     UI.admSumMissingTeachEmpty && UI.admSumMissingTeachEmpty.classList.toggle('hidden', missing.length > 0);
   
   // ---------- Alt Bölüm: 1. derste gelmeyip 2. derste gelenler (ETÜT hariç) ----------
   // Not: Bu bölüm sınıf filtresinden bağımsızdır; her sınıf kendi içinde listelenir.
   const progFilter = safe(program);
-  const progIsEtut = progFilter && progFilter.toLocaleUpperCase('tr-TR') === 'ETÜT';
+  const progIsEtut = !!progFilter && (normTR(progFilter) === normTR('ETÜT') || normTR(labelProgram(progFilter)) === normTR('ETÜT'));
   const byNoAll = new Map((students||[]).map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
   const lateCand = new Map(); // key: sinif|prog -> Map(no -> {no,ad,sinif,prog,abs1:false,var2:false})
 
@@ -5776,7 +6225,7 @@ return;
             if(!stu) return;
 
             const recProg = safe(rec?.program)||'';
-            if(recProg.toLocaleUpperCase('tr-TR') === 'ETÜT') return;
+            if(normTR(recProg) === normTR('ETÜT') || normTR(labelProgram(recProg)) === normTR('ETÜT')) return;
             if(progFilter && progFilter !== 'hepsi' && recProg !== progFilter) return;
 
             const h = extractHour(rec, saatKodu);
@@ -5817,8 +6266,7 @@ return;
       UI.admSumLateArrivals.innerHTML = classKeys.map(clsName => {
         const items = byClass.get(clsName) || [];
         const names = items.map(s=>{
-          const pLbl = labelProgram(s.prog);
-          const progTxt = pLbl ? ` • ${pLbl}` : (s.prog ? ` • ${s.prog}` : '');
+          const progTxt = s.prog ? ` • ${adminProgramText(s.prog)}` : '';
           return `${s.no} — ${s.ad}<span class="muted"> (1. derste yok, 2. derste var${progTxt})</span>`;
         }).join(', ');
         return `<li>
@@ -5862,8 +6310,7 @@ return;
     Object.entries(dayData||{}).forEach(([sinifKey, node])=> scanAgg(safe(sinifKey), node));
   }else{
     Object.entries(dayData||{}).forEach(([sinifKey, node])=>{
-      const parts = safe(sinifKey).split(/[-–]/).map(x=>x.trim());
-      if(parts.includes(cls)) scanAgg(safe(sinifKey), node);
+      if(storedClassKeyMatchesFilter(sinifKey, cls)) scanAgg(safe(sinifKey), node);
     });
   }
 
@@ -5888,7 +6335,7 @@ return;
   }
   if(UI.admSumTotalsSub){
     const scope = (cls && cls !== 'hepsi') ? cls : 'Tüm sınıflar';
-    const progLbl = (program && program !== 'hepsi') ? labelProgram(program) : 'Tüm programlar';
+    const progLbl = (program && program !== 'hepsi') ? adminProgramText(program) : 'Tüm programlar';
     UI.admSumTotalsSub.textContent = `${formatTurkishDate(date)} • ${scope} • ${progLbl}`;
   }
 }
@@ -5909,14 +6356,10 @@ return;
     // WhatsApp raporu — yüzdeleri "geç" hariç toplam üstünden hesapla + tek sınıfta en çok/en az yazma + daha anlaşılır metin
 // WhatsApp raporu — yüzdeye göre karşılaştır, eşitse "en çok/en az" yazma
 function sendWhatsAppReport(){
-  const {date, cls, status} = getAdminFilters();
+  const {date, cls, program} = getAdminFilters();
 
-  // Kapsam metni
-  const scope = (cls==='hepsi' ? 'Tüm sınıflar' : cls) + ' • ' + (
-    status==='hepsi' ? 'Hepsi' :
-    status==='gelen' ? 'Gelenler' :
-    status==='gelmeyen' ? 'Gelmeyenler' : 'Geç Gelenler'
-  );
+  // v1.4 🔥 — Bu rapor KPI mantığı gereği gün genelidir; saat/durum filtresi gibi gösterilmez.
+  const scope = `${cls==='hepsi' ? 'Tüm sınıflar' : cls} • ${program==='hepsi' ? 'Tüm programlar' : adminProgramText(program)} • Gün geneli`;
 
   // refreshAdmin() içinde hazırlanıyor
   const st = lastWAReport?.stats;
@@ -6066,7 +6509,7 @@ async function openTeacherReportModal(){
       const saat = `${safe(slot.BASLANGIC)} - ${safe(slot.BITIS)}`;
       // Etüt bilgisi: program kodunu etiketle
       const progLbl = labelProgram(l.prog);
-      return `${l.sinif} • ${no!=='-'?`${no}. Saat`:'Saat'} (${saat})${progLbl?` • ${progLbl}`:''}`;
+      return `${l.classLabel || l.sinif} • ${no!=='-'?`${no}. Saat`:'Saat'} (${saat})${l.hasGroupFilter?` • Grup: ${l.groupLabel || 'eşleşen grup yok'}`:''}${progLbl?` • ${progLbl}`:''}`;
     };
 
     const run = async ()=>{
@@ -6077,13 +6520,16 @@ async function openTeacherReportModal(){
 
       const lessons = rowsToday.map(r=>{
         const tInfo = teacherById(r.OGRETMEN_ID);
-        return {
+        return decorateLessonScope({
           teacherId: safe(r.OGRETMEN_ID),
           teacherName: tInfo?.name || `Öğretmen #${r.OGRETMEN_ID}`,
+          ogretmenId: safe(r.OGRETMEN_ID),
           sinif: safe(r.SINIF),
+          grup: safe(r.GRUP),
           saatKodu: safe(r.SAAT_KODU),
-          prog: safe(r.PROGRAM) || ''
-        };
+          prog: safe(r.PROGRAM) || '',
+          program: safe(r.PROGRAM) || ''
+        });
       });
 
       const byTeacher = new Map();
@@ -6095,17 +6541,11 @@ async function openTeacherReportModal(){
         t.total++; t.details.push(l);
       });
 
-      const classSet = Array.from(new Set(lessons.map(l=> l.sinif)));
-      const classNodes = {};
-      for(const c of classSet){
-        const s = await get(ref(db, attDayRoot(date, c)));
-        classNodes[c] = s.exists() ? s.val() : {};
-      }
+      const classNodes = await loadAttendanceClassNodes(date, getLessonStorageKeysForMany(lessons));
 
       for(const [, t] of byTeacher.entries()){
         for(const l of t.details){
-          const node = classNodes[l.sinif]?.[l.saatKodu]?.[l.teacherId];
-          const hasTaken = node && Object.keys(node).length > 0;
+          const hasTaken = lessonHasAttendanceInNodes(classNodes, l);
 
           if(hasTaken){
             t.taken++; t.takenList.push(l);
@@ -6809,31 +7249,28 @@ async function showStudentReport(no, name){
           </tr>`);
       };
 
-      const scanClass = async (sinif)=>{
-        const snap = await get(ref(db, attDayRoot(date, sinif))); // {saatKodu:{ogretmenId:{ogrNo:{rec}}}}
-        const data = snap.exists() ? snap.val() : {};
-        Object.entries(data).forEach(([saatKodu, byTeacher])=>{
+      const scanClassNode = (sinif, data)=>{
+        Object.entries(data||{}).forEach(([saatKodu, byTeacher])=>{
           Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
             let varC=0,yokC=0,gecC=0, ogretmenAd='';
-            let sampleRec=null; // WHY: saat metni için bir örnek kayıt
+            let sampleRec=null;
             Object.values(byStudent||{}).forEach(rec=>{
               ogretmenAd = rec?.ogretmenAd || ogretmenAd;
               if(!sampleRec) sampleRec = rec;
               if(rec?.durum==='var') varC++; else if(rec?.durum==='yok') yokC++;
-              if(rec?.late) gecC++;
+              if(rec?.durum==='var' && rec?.late) gecC++;
             });
             if(varC+yokC+gecC>0) pushRow(date, sinif, ogretmenAd, ogretmenId, saatKodu, varC, yokC, gecC, sampleRec);
           });
         });
       };
 
-      if(cls==='hepsi'){
-        const daySnap = await get(ref(db, attDayRoot(date)));
-        const dayData = daySnap.exists() ? daySnap.val() : {};
-        await Promise.all(Object.keys(dayData).map(scanClass));
-      }else{
-        await scanClass(cls);
-      }
+      // v1.3 🔥: gün verisini tek sorguda oku; sınıf filtresini bellekte uygula.
+      const daySnap = await get(ref(db, attDayRoot(date, 'hepsi')));
+      const dayData = daySnap.exists() ? (daySnap.val()||{}) : {};
+      Object.entries(dayData).forEach(([storedClass,node])=>{
+        if(cls==='hepsi' || storedClassKeyMatchesFilter(storedClass, cls)) scanClassNode(storedClass, node);
+      });
 
       h.querySelector('#hEmpty').classList.toggle('hidden', tbBody.children.length>0);
     };
@@ -6956,7 +7393,6 @@ function formatDateTR(yyyymmdd){
 function findPrevConsecutiveSlot(lesson){
   if(!lesson?.saatNo || lesson.saatNo <= 1) return null;
 
-  // yerel yardımcılar
   const slotNoProg = (() => {
     const cache = new Map();
     return (code, program) => {
@@ -6964,10 +7400,7 @@ function findPrevConsecutiveSlot(lesson){
       if (!cache.has(p)) {
         const arr = slots
           .filter(s => ((s.PROGRAM??'').toString().trim() || 'GENEL') === p)
-          .map(s => ({
-            kod: (s.SAAT_KODU||s.KOD||s.ID||'').toString().trim(),
-            bas: (s.BASLANGIC||'23:59').toString()
-          }))
+          .map(s => ({ kod:(s.SAAT_KODU||s.KOD||s.ID||'').toString().trim(), bas:(s.BASLANGIC||'23:59').toString() }))
           .filter(x => x.kod);
         arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
         const m = new Map(); arr.forEach((x,i)=> m.set(x.kod, i+1));
@@ -6980,15 +7413,21 @@ function findPrevConsecutiveSlot(lesson){
 
   const hedefNo = lesson.saatNo - 1;
   const today = todayNameTR().toLocaleLowerCase('tr-TR');
+  const wantedScope=lessonScopeFrom(lesson).scopeKey;
+  const wantedProgram=safe(lesson?.program ?? lesson?.PROGRAM ?? lesson?.prog);
 
   const candidates = schedule
     .filter(r => safe(r.OGRETMEN_ID)===safe(lesson.ogretmenId))
     .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR')===today)
-    .filter(r => safe(r.SINIF).toLocaleLowerCase('tr-TR')===lesson.sinif.toLocaleLowerCase('tr-TR'))
+    .filter(r => lessonScopeFrom(r).scopeKey===wantedScope)
+    .filter(r => !wantedProgram || safe(r.PROGRAM)===wantedProgram)
     .map(r => {
       const sk = safe(r.SAAT_KODU);
       const p  = safe(r.PROGRAM);
-      return { saatKodu: sk, saatNo: slotNoProg(sk, p) || null };
+      return decorateLessonScope({
+        sinif:safe(r.SINIF), grup:safe(r.GRUP), saatKodu:sk, saatNo:slotNoProg(sk,p)||null,
+        ogretmenId:safe(r.OGRETMEN_ID), program:p
+      });
     });
 
   return candidates.find(c => c.saatNo === hedefNo) || null;
@@ -7047,7 +7486,7 @@ async function openAdminPrintModal(){
       </div>
 
       <div class="muted" style="font-size:.9rem">
-        Not: Bu yazdırma işlemi, <b>filtrelerden bağımsız</b> olarak sadece burada seçtiğiniz sınıflar için çalışır.
+        Not: Bu yazdırma işlemi, <b>filtrelerden bağımsız</b> olarak sadece burada seçtiğiniz sınıflar için çalışır. Dersler <b>gerçek saat • program • ders saati</b> biçiminde kronolojik gösterilir.
       </div>
     </div>
   `;
@@ -7087,74 +7526,85 @@ async function openAdminPrintModal(){
   await printAttendanceForClasses(res.value.dStr, res.value.selected);
 }
 
-async function buildPrintRowsForClass(dStr, cls){
-  // Öğrenci havuzu (sadece sınıf)
-  const studentPool = (students||[]).filter(s => safe(s.SINIF) === safe(cls));
-  const byNo = new Map(studentPool.map(s => [safe(s.NO), { ad: s.ADSOYAD || '' }]));
+async function buildPrintRowsForClass(dStr, cls, dayDataOverride=null){
+  const studentPool = (students||[]).filter(st => normTR(st.SINIF) === normTR(cls));
+  const byNo = new Map(studentPool.map(st => [safe(st.NO), { ad: st.ADSOYAD || '' }]));
 
-  // Günlük veriyi çek
-  const rootPath = attDayRoot(dStr, cls);
-  const snap = await get(ref(db, rootPath));
-  const dayData = snap.exists() ? (snap.val() || {}) : {};
+  let dayData=dayDataOverride;
+  if(!dayData){
+    const snap = await get(ref(db, attDayRoot(dStr, 'hepsi')));
+    dayData = snap.exists() ? (snap.val() || {}) : {};
+  }
 
   const perStudent = new Map();
   const ensure = (no) => {
-    if(!byNo.has(no)) return null; // neden: bu sınıfa ait olmayan kayıtlar
+    if(!byNo.has(no)) return null;
     if(!perStudent.has(no)) {
-      const stu = byNo.get(no);
-      perStudent.set(no, { no, ad: stu.ad, present:new Set(), absent:new Set() });
+      const st = byNo.get(no);
+      perStudent.set(no, { no, ad: st.ad, present:new Map(), absent:new Map() });
     }
     return perStudent.get(no);
   };
 
-  const labelFrom = (saatKodu, rec) => {
-    const n = rec?.saatNo ?? (String(saatKodu||'').match(/\d+/)?.[0] ?? '').toString();
-    return n ? `${n}. saat` : 'Saat';
+  const legacyMeta = (hour) => ({
+    code:`legacy-${hour}`, program:'', hourNo:Number(hour)||hour,
+    bas:'', bit:'', startMin:Number.POSITIVE_INFINITY, endMin:Number.POSITIVE_INFINITY,
+    filterKey:`legacy:${hour}`, timeKey:`legacy:${hour}`, slotGroupKey:`legacy:${hour}`
+  });
+
+  const addSlot = (bucket, saatKodu, rec, legacyHour=null) => {
+    const meta = legacyHour != null ? legacyMeta(legacyHour) : getAdminSlotMeta(rec, saatKodu);
+    const key = meta.filterKey || meta.slotGroupKey;
+    const label = legacyHour != null
+      ? `${legacyHour}. Saat • Eski kayıt`
+      : adminSlotLongText(meta);
+    bucket.set(key, {meta,label});
   };
 
   const scanNode = (node) => {
     if(!node) return;
-
-    // Eski şema tespiti
     const isLegacy = Object.values(node||{}).some(v => v && typeof v === 'object' && ('var' in v || 'yok' in v));
     if (isLegacy) {
       Object.entries(node).forEach(([hour, recs])=>{
-        const label = `${String(hour)}. saat`;
-        Object.keys(recs?.var || {}).forEach(no => ensure(safe(no))?.present.add(label));
-        Object.keys(recs?.yok || {}).forEach(no => ensure(safe(no))?.absent.add(label));
+        Object.keys(recs?.var || {}).forEach(no => { const st=ensure(safe(no)); if(st) addSlot(st.present,'',{},hour); });
+        Object.keys(recs?.yok || {}).forEach(no => { const st=ensure(safe(no)); if(st) addSlot(st.absent,'',{},hour); });
       });
       return;
     }
-
-    // Yeni şema
     Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
       Object.values(byTeacher || {}).forEach(byStudent=>{
         Object.entries(byStudent || {}).forEach(([ogrNo, rec])=>{
-          const s = ensure(safe(ogrNo));
-          if(!s) return;
-          const label = labelFrom(saatKodu, rec);
-          if(rec?.durum === 'var') s.present.add(label);
-          else if(rec?.durum === 'yok') s.absent.add(label);
+          const st = ensure(safe(ogrNo));
+          if(!st) return;
+          if(rec?.durum === 'var') addSlot(st.present, saatKodu, rec);
+          else if(rec?.durum === 'yok') addSlot(st.absent, saatKodu, rec);
         });
       });
     });
   };
 
-  scanNode(dayData);
+  Object.entries(dayData || {}).forEach(([storedClass, node])=>{
+    if(storedClassKeyMatchesFilter(storedClass, cls)) scanNode(node);
+  });
 
-  // Çakışma temizliği: aynı saat hem var hem yoksa "var" öncelikli
-  for (const s of perStudent.values()) {
-    s.absent = new Set([...s.absent].filter(h => !s.present.has(h)));
+  // Aynı program/zamanda çakışma varsa GELDİ önceliklidir.
+  for (const st of perStudent.values()) {
+    for(const key of st.present.keys()) st.absent.delete(key);
   }
+
+  const labelsOf = (m) => Array.from(m.values())
+    .sort((a,b)=>compareAdminSlotMeta(a.meta,b.meta) || a.label.localeCompare(b.label,'tr',{numeric:true,sensitivity:'base'}))
+    .map(x=>x.label)
+    .join(', ');
 
   const rows = [...perStudent.values()]
     .sort((a,b)=>(a.ad).localeCompare(b.ad,'tr',{numeric:true,sensitivity:'base'}))
-    .map(s => `
+    .map(st => `
       <tr>
-        <td>${s.no}</td>
-        <td>${s.ad}</td>
-        <td>${[...s.present].join(', ')}</td>
-        <td>${[...s.absent].join(', ')}</td>
+        <td>${st.no}</td>
+        <td>${st.ad}</td>
+        <td>${labelsOf(st.present)}</td>
+        <td>${labelsOf(st.absent)}</td>
       </tr>`).join('');
 
   return rows || `<tr><td colspan="4" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
@@ -7197,15 +7647,17 @@ async function printAttendanceForClasses(dStr, classes){
     ${style}
   </head><body>
     <h1>Yoklama Listesi</h1>
-    <div class="meta">Tarih: ${formatDateTRLong(dStr)}</div>
+    <div class="meta">Tarih: ${formatDateTRLong(dStr)} • Sıralama: Gerçek saat → Program → Ders saati</div>
     <div id="content"></div>
   </body></html>`);
   w.document.close();
 
   const content = w.document.getElementById('content');
+  const daySnap = await get(ref(db, attDayRoot(dStr, 'hepsi')));
+  const dayData = daySnap.exists() ? (daySnap.val() || {}) : {};
   for (let i=0; i<classes.length; i++){
     const cls = classes[i];
-    const rows = await buildPrintRowsForClass(dStr, cls);
+    const rows = await buildPrintRowsForClass(dStr, cls, dayData);
     const section = w.document.createElement('section');
     section.className = 'sheet';
     section.innerHTML = `
@@ -7215,8 +7667,8 @@ async function printAttendanceForClasses(dStr, classes){
           <tr>
             <th style="width:84px">No</th>
             <th>Ad Soyad</th>
-            <th style="width:26%">Geldiği Saatler</th>
-            <th style="width:26%">Gelmediği Saatler</th>
+            <th style="width:30%">Geldiği Ders Zamanları</th>
+            <th style="width:30%">Gelmediği Ders Zamanları</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -7240,120 +7692,73 @@ if (UI?.admPrint) {
 
 // Admin: Yazdırmadan önce özet tabloyu hazırla
 async function buildAdminPrintSheet(){
-  const { date, cls } = getAdminFilters();
+  const { date, cls, program, hour } = getAdminFilters();
   const dStr = date || toDateStr(nowTR());
 
-  // Başlıktaki uzun tarih
   const psDateText = document.getElementById('psDateText');
-  if (psDateText) psDateText.textContent = formatDateTRLong(dStr);
-
-  // Tablo tipografi ve kolon genişlikleri (A4 hizası sabit kalsın)
-  const table = document.getElementById('admPrintTable');
-  if (table) {
-    table.style.font = '13px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif';
-    table.style.color = '#111';
-    table.style.width = '100%';
-    table.style.borderCollapse = 'collapse';
-    if (!table.querySelector('colgroup')) {
-      table.insertAdjacentHTML('afterbegin', `
-        <colgroup>
-          <col style="width:80px">
-          <col style="width:32%">
-          <col style="width:110px">
-          <col style="width:24%">
-          <col style="width:24%">
-        </colgroup>
-      `);
-    }
-    table.querySelectorAll('th,td').forEach(cell=>{
-      cell.style.border = '1px solid #e6e6e6';
-      cell.style.padding = '6px 8px';
-      cell.style.verticalAlign = 'top';
-      cell.style.wordBreak = 'break-word';
-    });
+  if (psDateText) {
+    const scopeProg = (program && program !== 'hepsi') ? adminProgramText(program) : 'Tüm programlar';
+    psDateText.textContent = `${formatDateTRLong(dStr)} • ${scopeProg}`;
   }
 
-  // Öğrenci havuzu
-  const studentPool = (cls && cls !== 'hepsi') ? students.filter(s => safe(s.SINIF) === cls) : students;
+  const studentPool = (cls && cls !== 'hepsi') ? students.filter(st => normTR(st.SINIF) === normTR(cls)) : students;
   const byNo = new Map(studentPool.map(s => [safe(s.NO), { ad: s.ADSOYAD || '', sinif: safe(s.SINIF) }]));
-
-  // Günlük veriyi çek
-  const rootPath = attDayRoot(dStr, cls);
-  const snap = await get(ref(db, rootPath));
+  const snap = await get(ref(db, attDayRoot(dStr, 'hepsi')));
   const dayData = snap.exists() ? snap.val() : {};
 
-  // Derleme
   const perStudent = new Map();
-  const ensure = (sinif, no) => {
-    if(!byNo.has(no)) return null; // Neden: filtre dışı kayıtlar
-    const key = `${sinif}#${no}`;
-    if(!perStudent.has(key)) {
-      const stu = byNo.get(no);
-      perStudent.set(key, { no, ad: stu.ad, sinif, present:new Set(), absent:new Set() });
-    }
+  const ensure = (_storedSinif, no) => {
+    if(!byNo.has(no)) return null;
+    const stu = byNo.get(no);
+    const realClass = safe(stu.sinif);
+    const key = `${realClass}#${no}`;
+    if(!perStudent.has(key)) perStudent.set(key, { no, ad: stu.ad, sinif:realClass, present:new Map(), absent:new Map() });
     return perStudent.get(key);
   };
 
-  // Saat etiketi: önce kayıt içindeki saatNo; yoksa saatKodu'ndan rakam
-  const labelFrom = (saatKodu, rec) => {
-    const n = rec?.saatNo ?? (String(saatKodu||'').match(/\d+/)?.[0] ?? '').toString();
-    return n ? `${n}. saat` : 'Saat';
+  const addRec = (bucket, saatKodu, rec) => {
+    const meta = getAdminSlotMeta(rec, saatKodu);
+    if(program && program !== 'hepsi' && meta.program !== program) return;
+    if(!adminHourPass(hour, rec, saatKodu)) return;
+    bucket.set(meta.filterKey, {meta,label:adminSlotLongText(meta)});
   };
 
-  // Hem eski (var/yok) hem yeni (saatKodu->ogretmenId->ogrNo->rec) şemayı destekle
   const scanClassNode = (sinif, node) => {
     if(!node) return;
-
-    // Eski şema tespiti
     const isLegacy = Object.values(node||{}).some(v => v && typeof v === 'object' && ('var' in v || 'yok' in v));
     if (isLegacy) {
-      Object.entries(node).forEach(([hour, recs])=>{
-        const label = `${String(hour)}. saat`;
-        Object.keys(recs?.var || {}).forEach(no => ensure(sinif, safe(no))?.present.add(label));
-        Object.keys(recs?.yok || {}).forEach(no => ensure(sinif, safe(no))?.absent.add(label));
+      Object.entries(node).forEach(([h,recs])=>{
+        const meta = {code:`legacy-${h}`,program:'',hourNo:Number(h)||h,bas:'',bit:'',startMin:Infinity,endMin:Infinity,filterKey:`legacy:${h}`,timeKey:`legacy:${h}`,slotGroupKey:`legacy:${h}`};
+        const item = {meta,label:`${h}. Saat • Eski kayıt`};
+        Object.keys(recs?.var || {}).forEach(no => ensure(sinif, safe(no))?.present.set(meta.filterKey,item));
+        Object.keys(recs?.yok || {}).forEach(no => ensure(sinif, safe(no))?.absent.set(meta.filterKey,item));
       });
       return;
     }
-
-    // Yeni şema
     Object.entries(node||{}).forEach(([saatKodu, byTeacher])=>{
       Object.values(byTeacher || {}).forEach(byStudent=>{
         Object.entries(byStudent || {}).forEach(([ogrNo, rec])=>{
-          const s = ensure(sinif, safe(ogrNo));
-          if(!s) return;
-          const label = labelFrom(saatKodu, rec);
-          if(rec?.durum === 'var') s.present.add(label);
-          else if(rec?.durum === 'yok') s.absent.add(label);
+          const st = ensure(sinif, safe(ogrNo));
+          if(!st) return;
+          if(rec?.durum === 'var') addRec(st.present,saatKodu,rec);
+          else if(rec?.durum === 'yok') addRec(st.absent,saatKodu,rec);
         });
       });
     });
   };
 
-  if (cls === 'hepsi') {
-    Object.entries(dayData || {}).forEach(([sinif, node]) => scanClassNode(safe(sinif), node));
-  } else {
-    scanClassNode(cls, dayData);
-  }
+  if (cls === 'hepsi') Object.entries(dayData || {}).forEach(([sinif,node])=>scanClassNode(safe(sinif),node));
+  else Object.entries(dayData || {}).forEach(([sinif,node])=>{ if(storedClassKeyMatchesFilter(sinif,cls)) scanClassNode(safe(sinif),node); });
 
-  // Çakışma temizliği: aynı saat hem var hem yoksa "var" öncelikli
-  for (const s of perStudent.values()) {
-    s.absent = new Set([...s.absent].filter(h => !s.present.has(h)));
-  }
+  for (const st of perStudent.values()) for(const k of st.present.keys()) st.absent.delete(k);
+  const labels = m => Array.from(m.values()).sort((a,b)=>compareAdminSlotMeta(a.meta,b.meta)).map(x=>x.label).join(', ');
 
-  // Gövdeyi yaz
   const tbody = document.querySelector('#admPrintTable tbody');
   if (!tbody) return;
   const rows = [...perStudent.values()]
     .sort((a,b)=>(a.sinif+a.ad).localeCompare(b.sinif+b.ad,'tr',{numeric:true,sensitivity:'base'}))
-    .map(s => `
-      <tr>
-        <td>${s.no}</td>
-        <td>${s.ad}</td>
-        <td>${s.sinif}</td>
-        <td>${[...s.present].join(', ')}</td>
-        <td>${[...s.absent].join(', ')}</td>
-      </tr>`).join('');
-
+    .map(st=>`<tr><td>${st.no}</td><td>${st.ad}</td><td>${st.sinif}</td><td>${labels(st.present)}</td><td>${labels(st.absent)}</td></tr>`)
+    .join('');
   tbody.innerHTML = rows || `<tr><td colspan="5" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
 }
 
@@ -7715,11 +8120,12 @@ function renderTeacherHomeworks(items, gidMap, opts={}){
 // Öğretmen: sınıf listesini yükle (ödev/quiz için)
 async function loadTeacherClasses(){
   if(!session || session.role !== 'ogretmen') return;
-  const classes = Array.from(new Set(schedule
+  const actualClassMap=getActualStudentClassMap();
+  const classes = uniqueTokens(schedule
     .filter(r => safe(r.OGRETMEN_ID) === safe(session.ogretmenId))
-    .map(r => safe(r.SINIF))
-    .filter(Boolean)
-  )).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
+    .flatMap(r => parseClassValues(r.SINIF))
+    .filter(c => actualClassMap.has(normTR(c)))
+  ).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
   // Sınıf seçimi için checkbox'lar oluştur
   if(UI.hwClassSelect){
     UI.hwClassSelect.innerHTML = classes.map(c => `<label><input type="checkbox" value="${c}" /> ${c}</label>`).join('');
@@ -9587,7 +9993,7 @@ function printParentQuizzes(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.2 🔥</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.4 🔥</span></p>
   </footer>
  <style>
 .site-footer{
