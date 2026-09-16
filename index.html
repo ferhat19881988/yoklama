@@ -494,33 +494,7 @@
       color:#fff;
     }
 
-    /* ===== v1.4 🔥 — Admin kronolojik detay görünümü ===== */
-    .adm-timeline-bar{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-      padding:10px 12px;
-      margin-bottom:10px;
-      border:var(--stroke);
-      border-radius:14px;
-      background:rgba(255,255,255,.025);
-    }
-    .adm-timeline-label{
-      font-weight:900;
-      color:var(--muted);
-      white-space:nowrap;
-    }
-    .adm-time-pagination{
-      margin-top:0;
-      justify-content:flex-start;
-      flex:1 1 420px;
-    }
-    .adm-time-pagination .page-btn{
-      padding:6px 10px;
-      font-weight:800;
-      min-width:92px;
-    }
+    /* ===== v1.5 🔥 — Admin kronolojik detay görünümü ===== */
     .adm-time-row td{
       padding:12px 14px !important;
       background:linear-gradient(90deg, rgba(249,115,22,.18), rgba(249,115,22,.05)) !important;
@@ -572,7 +546,6 @@
     .adm-sum-class-title{ font-weight:900; margin-bottom:4px; }
 
     @media (max-width:640px){
-      .adm-time-pagination .page-btn{ min-width:auto; flex:1 1 120px; }
       .adm-time-row td,.adm-slot-row td,.adm-class-row td{ padding-left:10px !important; padding-right:10px !important; }
     }
 
@@ -1634,14 +1607,6 @@ div.admin-filters .button-row {
     word-break:break-word;
   }
 
-  /* Sayfalama kompakt */
-  #adminView #admPagination{ margin-top:6px; }
-  #adminView #admPagination .page-btn{
-    padding:6px 10px;
-    border-radius:10px;
-    font-size:.85rem;
-  }
-
   /* Mini dashboard: 2+1 düzen */
   #adminView #admMiniDash{
     display:grid !important;
@@ -2349,10 +2314,6 @@ div.admin-filters .button-row {
 
 
           <div class="print-area" id="admDetailArea">
-            <div id="admTimelineBar" class="adm-timeline-bar hidden" aria-label="Kronolojik ders zamanı gezinme">
-              <span class="adm-timeline-label">Zaman Akışı</span>
-              <div id="admPagination" class="pagination adm-time-pagination"></div>
-            </div>
             <div class="table-wrap">
               <table class="table" aria-label="Öğrenci listesi">
                 <thead>
@@ -2402,7 +2363,7 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '1.4 🔥';
+    const APP_VERSION = '1.5 🔥';
     const SHEETS_CACHE_KEY = 'fenomenSheetsCache_v2';
     const LEGACY_SHEETS_CACHE_KEY = 'fenomenSheetsCache_v1';
     const TEACHER_SYNC_STATE_KEY = 'fenomen_teacher_sync_v1';
@@ -2759,11 +2720,9 @@ function openWhatsAppComposer(opts){
       dashGec: document.getElementById('dashGec'),
       admHour: document.getElementById('admHour'),
       admHourLabel: document.getElementById('admHourLabel'),
-      admTimelineBar: document.getElementById('admTimelineBar'),
 
-      // Yeni: Program filtresi ve sayfalama kapsayıcıları
+      // v1.5 🔥 — Program filtresi seçili tarih/sınıf kapsamına göre oluşturulur.
       admProgram: document.getElementById('admProgram'),
-      admPagination: document.getElementById('admPagination'),
 
       // Admin: Özet/Detay görünümü
       admSummaryToggle: document.getElementById('admSummaryToggle'),
@@ -2844,10 +2803,6 @@ function openWhatsAppComposer(opts){
       admHomeworksBtn: document.getElementById('admHomeworksBtn'),
       admQuizzesBtn: document.getElementById('admQuizzesBtn'),
     };
-
-    // v1.4 🔥 — Admin detayında sayfalama artık sınıfa göre değil, gerçek ders zamanına göre ilerler.
-    // Böylece P1/P2 gibi programların “1. saat” kayıtları birbirine karışmaz.
-    let admTimePage = 1;
 
     // Admin görünüm modu: 'detail' | 'summary'
     let adminViewMode = (localStorage.getItem('admViewMode') || 'detail');
@@ -3137,7 +3092,6 @@ function applyAttendanceConfigToUI(){
     if(UI.admListBody){
       UI.admListBody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:16px;">Program pasif (Tatil Modu)</td></tr>`;
     }
-    if(UI.admPagination) UI.admPagination.innerHTML = '';
   }else{
     // Tatil modundan çıkınca eski "Tatil" etiketleri kalmasın; listeyi hemen tazele
     if(UI.dashVar && UI.dashVar.textContent === 'Tatil') UI.dashVar.textContent = '—';
@@ -3154,7 +3108,6 @@ function applyAttendanceConfigToUI(){
     scheduleAdminRefreshFromCfg();
   }
 
-    if(UI.admPagination) UI.admPagination.innerHTML = '';
 
 // Admin: Öğretmen Uyum Raporu tatil modunda devre dışı
   if(UI.admTeacherReport){
@@ -3711,46 +3664,75 @@ function adminHourPass(selected, rec, saatKodu){
   return String(meta.hourNo ?? '') === String(value);
 }
 
-function getAdminPrograms(){
-  const set = new Set();
-  (slots||[]).forEach(s => { const p=safe(s.PROGRAM).trim(); if(p) set.add(p); });
-  (schedule||[]).forEach(r => { const p=safe(r.PROGRAM).trim(); if(p) set.add(p); });
-  return Array.from(set).sort((a,b)=>a.localeCompare(b,'tr',{numeric:true,sensitivity:'base'}));
+// ===== v1.5 🔥 — Admin filtreleri: seçili tarih > sınıf > program > ders zamanı =====
+// Kaynak yoklama kayıtları değil, DersProgrami'dır. Böylece henüz yoklama alınmamış
+// dersler de filtrelerde görünür; başka güne ait program/saatler ise hiç gösterilmez.
+function adminScheduleRows(dateStr, cls='hepsi', program='hepsi'){
+  const dayName = normTR(dayNameTRForDateStr(dateStr || toDateStr(nowTR())));
+  const wantedClass = normTR(cls);
+  const wantedProgram = safe(program);
+
+  return (schedule||[]).filter(row=>{
+    if(normTR(row?.GUN) !== dayName) return false;
+
+    if(wantedClass && wantedClass !== 'hepsi'){
+      const classes = parseClassValues(row?.SINIF);
+      if(!classes.some(c=>normTR(c) === wantedClass)) return false;
+    }
+
+    if(wantedProgram && wantedProgram !== 'hepsi' && safe(row?.PROGRAM) !== wantedProgram) return false;
+    return true;
+  });
 }
 
-function rebuildAdminProgramOptions(){
-  if(!UI?.admProgram) return;
+function getAdminProgramCatalog(dateStr, cls='hepsi'){
+  const byProgram = new Map();
+  for(const row of adminScheduleRows(dateStr, cls, 'hepsi')){
+    const program = safe(row?.PROGRAM);
+    if(!program) continue;
+    const code = safe(row?.SAAT_KODU);
+    const meta = getAdminSlotMeta({ program }, code);
+    const prev = byProgram.get(program);
+    if(!prev || compareAdminSlotMeta(meta, prev.meta) < 0) byProgram.set(program, { program, meta });
+  }
+  return Array.from(byProgram.values()).sort((a,b)=>
+    compareAdminSlotMeta(a.meta,b.meta) ||
+    a.program.localeCompare(b.program,'tr',{numeric:true,sensitivity:'base'})
+  );
+}
+
+function getAdminPrograms(dateStr, cls='hepsi'){
+  return getAdminProgramCatalog(dateStr, cls).map(x=>x.program);
+}
+
+function rebuildAdminProgramOptions(dateStr, cls='hepsi'){
+  if(!UI?.admProgram) return 'hepsi';
   const cur = UI.admProgram.value || 'hepsi';
-  const progs = getAdminPrograms();
+  const progs = getAdminPrograms(dateStr, cls);
   UI.admProgram.innerHTML = `<option value="hepsi">Hepsi</option>` + progs.map(p=>`<option value="${p}">${adminProgramText(p)}</option>`).join('');
   UI.admProgram.value = progs.includes(cur) ? cur : 'hepsi';
+  return UI.admProgram.value;
 }
 
-function getAdminSlotCatalog(program='hepsi'){
+function getAdminSlotCatalog(program='hepsi', dateStr, cls='hepsi'){
   const seen = new Set();
   const out = [];
-  for(const s of (slots||[])){
-    const p = safe(s.PROGRAM).trim();
-    if(program && program !== 'hepsi' && p !== program) continue;
-    const code = safe(s.SAAT_KODU || s.KOD || s.ID).trim();
+  for(const row of adminScheduleRows(dateStr, cls, program)){
+    const p = safe(row?.PROGRAM);
+    const code = safe(row?.SAAT_KODU);
     if(!code) continue;
-    const meta = getAdminSlotMeta({
-      program:p,
-      saatBas:s.BASLANGIC,
-      saatBit:s.BITIS,
-      saatNo:slotOrderMapByProgram?.get?.(p || 'GENEL')?.get?.(code)
-    }, code);
-    if(seen.has(meta.filterKey)) continue;
+    const meta = getAdminSlotMeta({ program:p }, code);
+    if(seen.has(meta.filterKey)) continue; // aynı program+saat farklı sınıflarda yalnızca bir kez
     seen.add(meta.filterKey);
     out.push(meta);
   }
   return out.sort(compareAdminSlotMeta);
 }
 
-function rebuildAdminHourOptions(program='hepsi'){
-  if(!UI?.admHour) return;
+function rebuildAdminHourOptions(program='hepsi', dateStr, cls='hepsi'){
+  if(!UI?.admHour) return 'hepsi';
   const cur = UI.admHour.value || 'hepsi';
-  const catalog = getAdminSlotCatalog(program);
+  const catalog = getAdminSlotCatalog(program, dateStr, cls);
   const allLabel = (program && program !== 'hepsi') ? 'Tüm Ders Saatleri' : 'Tüm Zamanlar';
   if(UI.admHourLabel) UI.admHourLabel.textContent = (program && program !== 'hepsi') ? 'Ders Saati:' : 'Ders Zamanı:';
 
@@ -3762,6 +3744,14 @@ function rebuildAdminHourOptions(program='hepsi'){
   }).join('');
   UI.admHour.innerHTML = `<option value="hepsi">${allLabel}</option>${options}`;
   UI.admHour.value = catalog.some(x=>x.filterKey===cur) ? cur : 'hepsi';
+  return UI.admHour.value;
+}
+
+function syncAdminScheduleFilters(){
+  const date = UI?.admDate?.value || toDateStr(nowTR());
+  const cls = UI?.admClass?.value || 'hepsi';
+  const program = rebuildAdminProgramOptions(date, cls);
+  rebuildAdminHourOptions(program, date, cls);
 }
 
 function parseTime(hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0); return nowTR().hour(h).minute(m).second(0).millisecond(0); }
@@ -4177,19 +4167,19 @@ await loadSheets(); buildSlotOrder();
       // Admin controls
       UI.admRefresh?.addEventListener('click', refreshAdmin);
       UI.admWhatsApp?.addEventListener('click', sendWhatsAppReport);
-      // v1.4 🔥 — Filtre değişince kronolojik zaman sayfası başa döner.
-      UI.admClass?.addEventListener('change', () => { admTimePage = 1; refreshAdmin(); });
-      UI.admStatus?.addEventListener('change', () => { admTimePage = 1; refreshAdmin(); });
-      UI.admDate?.addEventListener('change', () => { admTimePage = 1; refreshAdmin(); });
+      // v1.5 🔥 — Tarih ve sınıf değişince bağımlı Program/Saat filtrelerini aynı kapsamda yeniden kur.
+      UI.admClass?.addEventListener('change', () => { syncAdminScheduleFilters(); refreshAdmin(); });
+      UI.admStatus?.addEventListener('change', refreshAdmin);
+      UI.admDate?.addEventListener('change', () => { syncAdminScheduleFilters(); refreshAdmin(); });
       UI.admTeacherReport?.addEventListener('click', openTeacherReportModal);
       UI.admStudentStats?.addEventListener('click', openStudentStatsModal);
       UI.admWeeklyAbsence?.addEventListener('click', openWeeklyAbsenceModal);
       UI.admHistory?.addEventListener('click', openHistoryModal);
-      UI.admHour?.addEventListener('change', () => { admTimePage = 1; refreshAdmin(); });
-      // Program değişince ders zamanı seçeneklerini de o programa göre yeniden kur.
+      UI.admHour?.addEventListener('change', refreshAdmin);
       UI.admProgram?.addEventListener('change', () => {
-        admTimePage = 1;
-        rebuildAdminHourOptions(UI.admProgram?.value || 'hepsi');
+        const date = UI.admDate?.value || toDateStr(nowTR());
+        const cls = UI.admClass?.value || 'hepsi';
+        rebuildAdminHourOptions(UI.admProgram?.value || 'hepsi', date, cls);
         refreshAdmin();
       });
       
@@ -4232,14 +4222,6 @@ try{
 
       UI.admSummaryToggle?.addEventListener('change', ()=>{
         setAdminViewMode(UI.admSummaryToggle.checked ? 'summary' : 'detail');
-        refreshAdmin();
-      });
-
-// v1.4 🔥 — Zaman akışı düğmeleri
-      UI.admPagination?.addEventListener('click', (e) => {
-        const btn = e.target.closest('.page-btn');
-        if(!btn) return;
-        admTimePage = parseInt(btn.getAttribute('data-page')) || 1;
         refreshAdmin();
       });
 
@@ -5692,11 +5674,10 @@ async function loadParentRange(kind){
       const classSet = new Set(students.map(s=> safe(s.SINIF)).filter(Boolean));
       const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
       UI.admClass.innerHTML = `<option value="hepsi" selected>Hepsi</option>` + classes.map(c=> `<option value="${c}">${c}</option>`).join('');
-      // v1.4 🔥 — Program ve ders zamanı filtreleri ortak slot kataloğundan kurulur.
-      rebuildAdminProgramOptions();
+      // v1.5 🔥 — Program ve ders zamanı yalnızca seçili gün/sınıfın DersProgrami kayıtlarından kurulur.
       if(UI.admProgram) UI.admProgram.value = 'hepsi';
-      rebuildAdminHourOptions('hepsi');
-      admTimePage = 1;
+      if(UI.admHour) UI.admHour.value = 'hepsi';
+      syncAdminScheduleFilters();
       // Özet/Detay görünümü uygula
       setAdminViewMode(adminViewMode);
       refreshAdmin();
@@ -5712,6 +5693,8 @@ function getAdminFilters(){
 }
 
 async function refreshAdmin(){
+  // v1.5 🔥 — Dışarıdan/yenilemeden gelen çağrılarda da eski günün gizli seçimi kalmasın.
+  syncAdminScheduleFilters();
   const {date, cls, status, hour, program} = getAdminFilters();
 
   // Skeleton: liste yüklenirken boş ekran yerine iskelet göster
@@ -5726,8 +5709,6 @@ async function refreshAdmin(){
     if(UI.admListBody){
       UI.admListBody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:16px;">Program pasif (Tatil Modu)</td></tr>`;
     }
-    if(UI.admPagination) UI.admPagination.innerHTML = '';
-    UI.admTimelineBar?.classList.add('hidden');
     if(UI.dashVar) UI.dashVar.textContent = 'Tatil';
     if(UI.dashYok) UI.dashYok.textContent = 'Tatil';
     if(UI.dashGec) UI.dashGec.textContent = 'Tatil';
@@ -5747,7 +5728,7 @@ async function refreshAdmin(){
   const daySnap = await get(ref(db, rootPath));
   const dayData = daySnap.exists() ? daySnap.val() : {};
 
-  // ---- TABLO: v1.4 🔥 — Gerçek zaman > program/saat > sınıf > öğrenci ----
+  // ---- TABLO: v1.5 🔥 — Gün kapsamlı gerçek zaman > program/saat > sınıf > öğrenci ----
   const rows = [];
   const pushRow = (sinif, no, rec, saatKodu) => {
     const stu = byNo.get(no);
@@ -5798,14 +5779,13 @@ async function refreshAdmin(){
     });
   }
 
-  // Program listesi kayıt durumuna göre daralmaz; ders saati kaynağındaki tüm programlar korunur.
-  rebuildAdminProgramOptions();
-  if(UI.admProgram && getAdminPrograms().includes(program)) UI.admProgram.value = program;
-  const selProgram = UI.admProgram?.value || 'hepsi';
-
-  const filteredRowsByProg = (selProgram && selProgram !== 'hepsi')
-    ? rows.filter(r => r.program === selProgram)
-    : rows;
+  // v1.5 🔥 — Yalnızca seçili tarih/sınıf için DersProgrami'nda gerçekten bulunan slotlar gösterilir.
+  const selProgram = program || 'hepsi';
+  const allowedSlotKeys = new Set(getAdminSlotCatalog(selProgram, date, cls).map(m=>m.filterKey));
+  const filteredRowsByProg = rows.filter(r =>
+    allowedSlotKeys.has(r.slotMeta.filterKey) &&
+    (selProgram === 'hepsi' || r.program === selProgram)
+  );
 
   const sortedRows = [...filteredRowsByProg].sort((a,b) =>
     compareAdminSlotMeta(a.slotMeta, b.slotMeta) ||
@@ -5814,38 +5794,9 @@ async function refreshAdmin(){
     safe(a.no).localeCompare(safe(b.no),'tr',{numeric:true,sensitivity:'base'})
   );
 
-  // Gerçek saat aralığı bazında sayfalama: aynı zaman aralığındaki farklı programlar birlikte görünür.
-  let displayRows = sortedRows;
-  const pagEl = UI.admPagination;
-  if(pagEl) pagEl.innerHTML = '';
-
-  const timeGroups = [];
-  const timeSeen = new Set();
-  for(const r of sortedRows){
-    const key = r.slotMeta.timeKey;
-    if(timeSeen.has(key)) continue;
-    timeSeen.add(key);
-    timeGroups.push({ key, meta:r.slotMeta });
-  }
-
-  if(hour === 'hepsi' && timeGroups.length > 1){
-    if(admTimePage > timeGroups.length) admTimePage = 1;
-    if(admTimePage < 1) admTimePage = 1;
-    const selectedTime = timeGroups[admTimePage - 1];
-    displayRows = sortedRows.filter(r => r.slotMeta.timeKey === selectedTime.key);
-
-    if(pagEl){
-      pagEl.innerHTML = timeGroups.map((g,i)=>{
-        const active = (i + 1) === admTimePage ? ' active' : '';
-        const label = adminTimeRangeText(g.meta);
-        return `<button type="button" class="page-btn${active}" data-page="${i+1}" title="${label}">${label}</button>`;
-      }).join('');
-    }
-    UI.admTimelineBar?.classList.remove('hidden');
-  }else{
-    admTimePage = 1;
-    UI.admTimelineBar?.classList.add('hidden');
-  }
+  // v1.5 🔥 — “Tüm Zamanlar” gerçek anlamıyla tüm günü tek kronolojik akışta gösterir.
+  // Tek bir ders zamanı seçilirse adminHourPass zaten yalnızca o bloğu bırakır.
+  const displayRows = sortedRows;
 
   const renderStudentRow = (r) => {
     const isAbsent = r.durum === 'yok';
@@ -9993,7 +9944,7 @@ function printParentQuizzes(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.4 🔥</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.5 🔥</span></p>
   </footer>
  <style>
 .site-footer{
