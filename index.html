@@ -2540,12 +2540,16 @@ div.admin-filters .button-row {
     dayjs.locale('tr');
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, get, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
     const APP_VERSION = '1.7 🔥';
+    const APP_RELEASE_PATH = 'config/appRelease';
+    const APP_VERSION_CHECK_INTERVAL_MS = 60 * 1000;
+    const APP_VERSION_RELOAD_GUARD_KEY = 'fenomen_version_reload_guard_v1';
     const SHEETS_CACHE_KEY = 'fenomenSheetsCache_v2';
     const LEGACY_SHEETS_CACHE_KEY = 'fenomenSheetsCache_v1';
     const TEACHER_SYNC_STATE_KEY = 'fenomen_teacher_sync_v1';
+    const SESSION_SYNC_STATE_KEY = 'fenomen_session_sync_v1';
     const TEACHER_SOURCE_SYNC_MIN_MS = 65 * 1000;
 
 // =========================
@@ -3027,8 +3031,201 @@ let lastSheetsNetworkReadAt = 0;
 let lastSheetsLoadedAt = 0;
 let lastSheetServerMaxAgeMs = 60 * 1000;
 let teacherSyncInFlight = null;
-let teacherLastHiddenAt = 0;
-let teacherLastResumeCheckAt = 0;
+let sessionSourceSyncInFlight = null;
+let appLastHiddenAt = 0;
+let appLastResumeCheckAt = 0;
+let appVersionCheckInFlight = null;
+let appVersionCheckTimer = null;
+let lastAppVersionCheckAt = 0;
+
+function normalizeAppVersion(value=''){
+  const match = String(value ?? '').match(/\d+(?:\.\d+)*/);
+  return match ? match[0] : '0';
+}
+
+function compareAppVersions(a, b){
+  const aa = normalizeAppVersion(a).split('.').map(n=>Number(n)||0);
+  const bb = normalizeAppVersion(b).split('.').map(n=>Number(n)||0);
+  const len = Math.max(aa.length, bb.length);
+  for(let i=0;i<len;i++){
+    const av = aa[i] || 0;
+    const bv = bb[i] || 0;
+    if(av > bv) return 1;
+    if(av < bv) return -1;
+  }
+  return 0;
+}
+
+function readSessionSyncState(){
+  try{ return JSON.parse(localStorage.getItem(SESSION_SYNC_STATE_KEY) || '{}') || {}; }
+  catch(_){ return {}; }
+}
+
+function writeSessionSyncState(extra={}){
+  try{
+    const prev = readSessionSyncState();
+    localStorage.setItem(SESSION_SYNC_STATE_KEY, JSON.stringify({
+      ...prev,
+      ...extra,
+      role: safe(session?.role || ''),
+      version: APP_VERSION
+    }));
+  }catch(_){ }
+}
+
+async function probeHostedAppVersion(){
+  const probeUrl = new URL(window.location.href);
+  probeUrl.searchParams.set('__version_probe', String(Date.now()));
+  const resp = await fetch(probeUrl.toString(), { cache:'no-store', credentials:'same-origin' });
+  if(!resp.ok) throw new Error(`Sürüm dosyası okunamadı (HTTP ${resp.status})`);
+  const html = await resp.text();
+  const match = html.match(/const\s+APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+  return match ? normalizeAppVersion(match[1]) : '';
+}
+
+async function prepareServiceWorkerForVersionReload(){
+  if(!('serviceWorker' in navigator)) return;
+  try{
+    // Yalnızca bu sayfanın scope'unu yöneten worker'a dokun; aynı origin'deki diğer uygulamaları etkileme.
+    const reg = await navigator.serviceWorker.getRegistration();
+    if(!reg) return;
+    try{ await reg.update(); }catch(_){ }
+    try{ reg.waiting?.postMessage?.({ type:'SKIP_WAITING' }); }catch(_){ }
+    // Eski worker navigation cache'inden eski index.html gelmesini engelle.
+    // Yeni sayfa açılınca aşağıdaki mevcut kayıt kodu worker'ı tekrar kurar.
+    try{ await reg.unregister(); }catch(_){ }
+  }catch(err){
+    console.warn('service worker version refresh error', err);
+  }
+}
+
+async function reloadIntoVersion(remoteVersion){
+  const target = normalizeAppVersion(remoteVersion);
+  if(!target || compareAppVersions(target, APP_VERSION) <= 0) return false;
+
+  // Yayın sunucusunda yeni HTML gerçekten hazır değilse reload döngüsüne girme.
+  let hostedVersion = '';
+  try{ hostedVersion = await probeHostedAppVersion(); }catch(err){ console.warn('version probe failed', err); }
+  if(!hostedVersion){
+    setStatus(`Yeni sürüm v${target} algılandı; yayın dosyası henüz doğrulanamadı.`, 'info');
+    return false;
+  }
+  if(compareAppVersions(hostedVersion, target) < 0){
+    setStatus(`Yeni sürüm v${target} veritabanında hazır; yayın dosyasının güncellenmesi bekleniyor.`, 'info');
+    return false;
+  }
+
+  try{
+    const now = Date.now();
+    const guard = JSON.parse(sessionStorage.getItem(APP_VERSION_RELOAD_GUARD_KEY) || '{}');
+    if(guard?.target === target && (now - Number(guard?.at || 0)) < 20000){
+      setStatus(`Yeni sürüm v${target} algılandı; tarayıcı önbelleği tekrar kontrol edilecek.`, 'info');
+      return false;
+    }
+    sessionStorage.setItem(APP_VERSION_RELOAD_GUARD_KEY, JSON.stringify({ target, at:now }));
+    await prepareServiceWorkerForVersionReload();
+
+    const next = new URL(window.location.href);
+    next.searchParams.set('__appv', target);
+    next.searchParams.set('__cb', String(now));
+    window.location.replace(next.toString());
+    return true;
+  }catch(err){
+    console.error('version reload error', err);
+    return false;
+  }
+}
+
+async function checkAndPublishAppVersion({reason='check', force=false}={}){
+  if(!db || !navigator.onLine) return { ok:false, skipped:true, offline:!navigator.onLine };
+
+  const now = Date.now();
+  if(!force && (now - lastAppVersionCheckAt) < 5000){
+    return { ok:true, skipped:true, throttled:true };
+  }
+  if(appVersionCheckInFlight) return appVersionCheckInFlight;
+  lastAppVersionCheckAt = now;
+
+  appVersionCheckInFlight = (async ()=>{
+    try{
+      const localVersion = normalizeAppVersion(APP_VERSION);
+      const releaseRef = ref(db, APP_RELEASE_PATH);
+
+      // Önce salt okunur kontrol: eski istemciler yalnızca sürümü okumak için yazma iznine ihtiyaç duymaz.
+      const firstSnap = await get(releaseRef);
+      let release = firstSnap.val();
+      let remoteVersion = normalizeAppVersion(
+        (release && typeof release === 'object') ? release.version : release
+      );
+
+      if(remoteVersion && remoteVersion !== '0' && compareAppVersions(remoteVersion, localVersion) > 0){
+        const upgradeTriggered = await reloadIntoVersion(remoteVersion);
+        return { ok:true, remoteVersion, localVersion, upgradeTriggered, reason };
+      }
+
+      // Açık kalan eski sayfa için ayrıca yayındaki index.html sürümünü yokla.
+      // Böylece yeni sürümü henüz hiç kimse açmamış olsa bile eski istemci yeni dosyayı fark edip RTDB'ye taşıyabilir.
+      let hostedVersion = '';
+      try{ hostedVersion = await probeHostedAppVersion(); }catch(err){ console.warn('hosted version check failed', err); }
+      let publishVersion = localVersion;
+      if(hostedVersion && compareAppVersions(hostedVersion, publishVersion) > 0){
+        publishVersion = hostedVersion;
+      }
+
+      // Yalnızca elimizdeki doğrulanmış sürüm RTDB'den daha yeniyse (veya kayıt yoksa) publish et.
+      // Transaction kritik: aynı anda açık eski bir sayfa daha yeni sürümü asla aşağı çekemez.
+      if(!remoteVersion || remoteVersion === '0' || compareAppVersions(publishVersion, remoteVersion) > 0){
+        try{
+          const tx = await runTransaction(releaseRef, current => {
+            const currentVersion = normalizeAppVersion(
+              (current && typeof current === 'object') ? current.version : current
+            );
+            if(!currentVersion || currentVersion === '0' || compareAppVersions(publishVersion, currentVersion) > 0){
+              return {
+                version: publishVersion,
+                label: compareAppVersions(publishVersion, localVersion) === 0 ? APP_VERSION : `v${publishVersion}`,
+                updatedAt: Date.now(),
+                updatedBy: compareAppVersions(publishVersion, localVersion) > 0 ? 'host-probe' : safe(session?.role || 'system')
+              };
+            }
+            return current;
+          }, { applyLocally:false });
+          release = tx?.snapshot?.val?.();
+          remoteVersion = normalizeAppVersion(
+            (release && typeof release === 'object') ? release.version : release
+          );
+        }catch(publishErr){
+          console.warn('app version publish error', publishErr);
+          // Okuma başarılıysa uygulamayı durdurma; yalnızca otomatik publish yapılamamış olur.
+        }
+      }
+
+      if(remoteVersion && remoteVersion !== '0' && compareAppVersions(remoteVersion, localVersion) > 0){
+        const upgradeTriggered = await reloadIntoVersion(remoteVersion);
+        return { ok:true, remoteVersion, localVersion, upgradeTriggered, reason };
+      }
+
+      try{ sessionStorage.removeItem(APP_VERSION_RELOAD_GUARD_KEY); }catch(_){ }
+      return { ok:true, remoteVersion:remoteVersion || localVersion, localVersion, reason };
+    }catch(err){
+      // Sürüm kontrolü veri kullanımını engellemesin; hata durumunda mevcut uygulama çalışmaya devam eder.
+      console.error('app version check error', err);
+      return { ok:false, error:err, reason };
+    }finally{
+      appVersionCheckInFlight = null;
+    }
+  })();
+
+  return appVersionCheckInFlight;
+}
+
+function startAppVersionWatcher(){
+  if(appVersionCheckTimer) clearInterval(appVersionCheckTimer);
+  appVersionCheckTimer = setInterval(()=>{
+    if(document.visibilityState !== 'visible' || !navigator.onLine) return;
+    checkAndPublishAppVersion({ reason:'timer' });
+  }, APP_VERSION_CHECK_INTERVAL_MS);
+}
 
 function formatSyncDateTime(ms){
   const n = Number(ms || 0);
@@ -3172,6 +3369,91 @@ async function syncTeacherSourceData({requiredAt=0, reason='manual', render=true
   })();
 
   return teacherSyncInFlight;
+}
+
+async function refreshAdminAfterMasterDataSync(){
+  if(!UI?.adminView || UI.adminView.classList.contains('hidden')) return;
+  const previousClass = UI.admClass?.value || 'hepsi';
+  const classSet = new Set((students||[]).map(st=>safe(st.SINIF)).filter(Boolean));
+  const classes = Array.from(classSet).sort((a,b)=>a.localeCompare(b,'tr',{numeric:true}));
+  if(UI.admClass){
+    UI.admClass.innerHTML = `<option value="hepsi">Hepsi</option>` + classes.map(c=>`<option value="${c}">${c}</option>`).join('');
+    UI.admClass.value = classes.includes(previousClass) ? previousClass : 'hepsi';
+  }
+  syncAdminScheduleFilters();
+  await refreshAdmin();
+}
+
+async function syncSessionSourceData({requiredAt=0, reason='manual', render=true, silent=true}={}){
+  if(!session) return { ok:false, skipped:true };
+  if(session.role === 'ogretmen'){
+    return syncTeacherSourceData({ requiredAt, reason, render, silent });
+  }
+
+  if(!navigator.onLine){
+    return { ok:false, offline:true };
+  }
+  if(sessionSourceSyncInFlight) return sessionSourceSyncInFlight;
+
+  const needAt = Number(requiredAt || 0);
+  sessionSourceSyncInFlight = (async ()=>{
+    try{
+      let result = await loadSheets({
+        forceNetwork:true,
+        allowCacheFallback:false,
+        freshVariant:true
+      });
+      buildSlotOrder();
+
+      let readAt = Number(result?.readAt || lastSheetsNetworkReadAt || 0);
+      if(needAt && readAt < needAt){
+        result = await loadSheets({
+          forceNetwork:true,
+          allowCacheFallback:false,
+          freshVariant:true
+        });
+        buildSlotOrder();
+        readAt = Number(result?.readAt || lastSheetsNetworkReadAt || 0);
+        if(readAt < needAt) throw new Error('Veri okuma zamanı giriş anından eski kaldı.');
+      }
+
+      if(session.role === 'veli'){
+        const st = students.find(x=>safe(x.NO) === safe(session.ogrNo));
+        if(!st){
+          const err = new Error('Veli/öğrenci kaydı güncel veri kaynağında bulunamadı.');
+          err.code = 'PARENT_NOT_FOUND';
+          throw err;
+        }
+      }
+
+      writeSessionSyncState({
+        loginAt:Number(session.loginAt || 0),
+        dataReadAt:readAt,
+        checkedAt:Date.now(),
+        lastReason:reason,
+        matched:!needAt || readAt >= needAt
+      });
+
+      if(render){
+        if(session.role === 'admin') await refreshAdminAfterMasterDataSync();
+        else if(session.role === 'veli') await showParentView({ resetFilters:false });
+      }
+      return { ok:true, readAt, reason };
+    }catch(err){
+      console.error('syncSessionSourceData error', err);
+      if(!silent){
+        const msg = err?.code === 'PARENT_NOT_FOUND'
+          ? 'Öğrenci kaydı güncel veri kaynağında bulunamadı.'
+          : 'Yeni veriler alınamadı. Mevcut ekrandaki veriler korunuyor.';
+        try{ Swal.fire('Veri Güncellenemedi', msg, 'warning'); }catch(_){ }
+      }
+      return { ok:false, error:err, invalidSession:err?.code === 'PARENT_NOT_FOUND' };
+    }finally{
+      sessionSourceSyncInFlight = null;
+    }
+  })();
+
+  return sessionSourceSyncInFlight;
 }
 
 // Attendance (Yoklama) enable/disable (Admin -> Firebase config)
@@ -4235,31 +4517,28 @@ async function refreshVisibleView(reason='resume'){
     if(!session) return;
     if(document.visibilityState !== 'visible') return;
 
-    if(session.role === 'ogretmen'){
-      const now = Date.now();
-      const requiredAt = Math.max(Number(session.loginAt || 0), Number(teacherLastHiddenAt || 0));
-      const dataAge = now - Number(lastSheetsNetworkReadAt || 0);
-      const mustSync = (requiredAt > Number(lastSheetsNetworkReadAt || 0)) || dataAge >= TEACHER_SOURCE_SYNC_MIN_MS;
+    const versionState = await checkAndPublishAppVersion({ reason:`resume-${reason}` });
+    if(versionState?.upgradeTriggered) return;
 
-      // focus + visibilitychange + pageshow aynı anda gelebilir; kısa süre içinde tek kontrol yeterli.
-      if(mustSync && (now - teacherLastResumeCheckAt > 2500)){
-        teacherLastResumeCheckAt = now;
-        await syncTeacherSourceData({ requiredAt: requiredAt || now, reason, render:true, silent:true });
-      }else{
-        await showTeacherToday();
-        if(typeof refreshTeacherDailyKpis === 'function') await refreshTeacherDailyKpis();
-      }
-      teacherLastHiddenAt = 0;
-    } else if(session.role === 'veli'){
-      // Veli görünümü mevcut davranışını korur.
-    } else if(session.role === 'admin'){
-      // Admin görünümü mevcut davranışını korur.
+    const now = Date.now();
+    const requiredAt = Math.max(Number(session.loginAt || 0), Number(appLastHiddenAt || 0));
+    const dataAge = now - Number(lastSheetsNetworkReadAt || 0);
+    const mustSync = (requiredAt > Number(lastSheetsNetworkReadAt || 0)) || dataAge >= TEACHER_SOURCE_SYNC_MIN_MS;
+
+    // focus + visibilitychange + pageshow aynı anda gelebilir; kısa süre içinde tek kontrol yeterli.
+    if(mustSync && (now - appLastResumeCheckAt > 2500)){
+      appLastResumeCheckAt = now;
+      await syncSessionSourceData({ requiredAt:requiredAt || now, reason, render:true, silent:true });
+    }else if(session.role === 'ogretmen'){
+      await showTeacherToday();
+      if(typeof refreshTeacherDailyKpis === 'function') await refreshTeacherDailyKpis();
     }
+    appLastHiddenAt = 0;
   }
 
   document.addEventListener('visibilitychange', () => {
     if(document.visibilityState === 'hidden'){
-      teacherLastHiddenAt = Date.now();
+      appLastHiddenAt = Date.now();
       return;
     }
     refreshVisibleView('visibility');
@@ -4403,7 +4682,14 @@ async function refreshVisibleView(reason='resume'){
     async function init(){
       // Kaldığın yerden devam: scroll konumunu sakla/geri yükle
       setupScrollPersistence();
+      const versionBadge = document.getElementById('appVersionBadge');
+      if(versionBadge) versionBadge.textContent = `v${APP_VERSION}`;
       const app = initializeApp(firebaseConfig); appFB=app; db=getDatabase(appFB);
+
+      // Uygulama sürümünü RTDB ile karşılaştır; daha yeni açık sayfa eski sürüm tarafından geri alınamaz.
+      const initialVersionState = await checkAndPublishAppVersion({ reason:'init', force:true });
+      if(initialVersionState?.upgradeTriggered) return;
+      startAppVersionWatcher();
       
       // Yoklama aktif/pasif durumunu dinle (Admin -> Firebase)
       initAttendanceConfigListener();
@@ -4422,11 +4708,12 @@ await loadSheets(); buildSlotOrder();
       if(!bridgeHandled && cached){
         try{
           session = JSON.parse(cached);
-          if(session?.role === 'ogretmen'){
-            // Oturum cihazda kayıtlı olsa bile yeni sayfa açılışı yeni bir giriş/uyanma anıdır.
+          if(session?.role){
+            // Tüm roller için yeni sayfa açılışı yeni bir giriş/uyanma anıdır.
             session.loginAt = Date.now();
             localStorage.setItem('session', JSON.stringify(session));
-            await syncTeacherSourceData({ requiredAt:session.loginAt, reason:'session-restore', render:false, silent:true });
+            const restoreSync = await syncSessionSourceData({ requiredAt:session.loginAt, reason:'session-restore', render:false, silent:true });
+            if(restoreSync?.invalidSession) throw restoreSync.error || new Error('Güncel oturum kaydı bulunamadı.');
           }
           enterApp();
           if(session?.role === 'ogretmen') scheduleTeacherPostLoginVerification();
@@ -4461,6 +4748,8 @@ await loadSheets(); buildSlotOrder();
 
           UI.btnRefresh.disabled = true;
           try{
+            const versionState = await checkAndPublishAppVersion({ reason:'teacher-refresh', force:true });
+            if(versionState?.upgradeTriggered) return;
             const result = await syncTeacherSourceData({
               requiredAt: Date.now(),
               reason: 'manual',
@@ -4696,7 +4985,12 @@ try{
       }
 
       setNetUI();
-      window.addEventListener('online', async ()=>{ setNetUI(); await flushQueue(true); });
+      window.addEventListener('online', async ()=>{
+        setNetUI();
+        const versionState = await checkAndPublishAppVersion({ reason:'online', force:true });
+        if(versionState?.upgradeTriggered) return;
+        await flushQueue(true);
+      });
       window.addEventListener('offline', ()=> setNetUI());
       if(navigator.onLine) await flushQueue(false);
     }
@@ -4855,17 +5149,27 @@ try{
       const loginAt = Date.now();
       UI.btnLogin.disabled = true;
       try{
+        const versionState = await checkAndPublishAppVersion({ reason:'login', force:true });
+        if(versionState?.upgradeTriggered) return;
+
         if(code === '13579'){
-          session = {role:'admin', name:'Yönetici'};
+          session = {role:'admin', name:'Yönetici', loginAt};
           localStorage.setItem('session', JSON.stringify(session));
+          await syncSessionSourceData({ requiredAt:loginAt, reason:'login', render:false, silent:true });
           return enterApp();
         }
 
         // Mevcut davranış korunur: aynı kod varsa öğrenci/veli önceliklidir.
         let stu = students.find(s=> safe(s.NO)===code);
         if(stu){
-          session = {role:'veli', ogrNo:safe(stu.NO)};
+          session = {role:'veli', ogrNo:safe(stu.NO), loginAt};
           localStorage.setItem('session', JSON.stringify(session));
+          const synced = await syncSessionSourceData({ requiredAt:loginAt, reason:'login', render:false, silent:true });
+          if(synced?.invalidSession){
+            localStorage.removeItem('session');
+            session = null;
+            return Swal.fire('Hatalı','Öğrenci kaydı güncel veri kaynağında bulunamadı.','error');
+          }
           return enterApp();
         }
 
@@ -4879,8 +5183,14 @@ try{
             buildSlotOrder();
             stu = students.find(s=> safe(s.NO)===code);
             if(stu){
-              session = {role:'veli', ogrNo:safe(stu.NO)};
+              session = {role:'veli', ogrNo:safe(stu.NO), loginAt};
               localStorage.setItem('session', JSON.stringify(session));
+              const synced = await syncSessionSourceData({ requiredAt:loginAt, reason:'login-refresh', render:false, silent:true });
+              if(synced?.invalidSession){
+                localStorage.removeItem('session');
+                session = null;
+                return Swal.fire('Hatalı','Öğrenci kaydı güncel veri kaynağında bulunamadı.','error');
+              }
               return enterApp();
             }
             t = teachers.find(x=> safe(x.ID)===code);
@@ -5731,7 +6041,8 @@ async function undoAttendance(){
 }
 
     /* ---------- PARENT VIEW ---------- */
-    async function showParentView(){
+    async function showParentView(options={}){
+      const resetFilters = options?.resetFilters !== false;
       UI.parentView.classList.remove('hidden');
       UI.teacherView.classList.add('hidden'); UI.adminView.classList.add('hidden');
       const st = students.find(s=> safe(s.NO)===safe(session.ogrNo));
@@ -5747,17 +6058,18 @@ async function undoAttendance(){
       }
       await loadParentRange(initialKind);
 
-      // Reset parent filters to show current items when opening the parent view
-      parentHwFilter = 'current';
-      parentQzFilter = 'current';
-      // Update filter button styles if elements exist
+      // İlk açılışta mevcut öğeleri göster; arka plandan dönüş senkronunda kullanıcının filtresini koru.
+      if(resetFilters){
+        parentHwFilter = 'current';
+        parentQzFilter = 'current';
+      }
       if(UI.hwFilterCurrent && UI.hwFilterPast){
-        UI.hwFilterCurrent.classList.remove('ghost');
-        UI.hwFilterPast.classList.add('ghost');
+        UI.hwFilterCurrent.classList.toggle('ghost', parentHwFilter !== 'current');
+        UI.hwFilterPast.classList.toggle('ghost', parentHwFilter === 'current');
       }
       if(UI.qzFilterCurrent && UI.qzFilterPast){
-        UI.qzFilterCurrent.classList.remove('ghost');
-        UI.qzFilterPast.classList.add('ghost');
+        UI.qzFilterCurrent.classList.toggle('ghost', parentQzFilter !== 'current');
+        UI.qzFilterPast.classList.toggle('ghost', parentQzFilter === 'current');
       }
 
       // Ödev ve quiz listelerini yükle
@@ -5765,9 +6077,11 @@ async function undoAttendance(){
       await loadParentQuizzes();
 
       // Veli için "Detaylı Öğrenci Raporu" — Admin’deki birebir rapor
-      UI.parentReportBtn?.addEventListener('click', ()=>{
-        if(st){ showStudentReport(safe(st.NO), st.ADSOYAD||''); }
-      });
+      if(UI.parentReportBtn){
+        UI.parentReportBtn.onclick = ()=>{
+          if(st){ showStudentReport(safe(st.NO), st.ADSOYAD||''); }
+        };
+      }
     }
 
     async function findLastAttendanceDateForParent(maxDays = 60){
@@ -5981,6 +6295,9 @@ async function refreshAdminAllData(){
 
   adminFullRefreshInFlight = (async ()=>{
     try{
+      const versionState = await checkAndPublishAppVersion({ reason:'admin-refresh', force:true });
+      if(versionState?.upgradeTriggered) return { ok:false, upgradeTriggered:true };
+
       if(btn){
         btn.disabled = true;
         btn.textContent = 'Yenileniyor…';
@@ -10304,7 +10621,7 @@ function printParentQuizzes(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.7 🔥</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v1.7 🔥</span></p>
   </footer>
  <style>
 .site-footer{
