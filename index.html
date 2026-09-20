@@ -1861,6 +1861,182 @@ div.admin-filters .button-row {
   .teacher-sync-box .sync-item{ flex:1 1 145px; }
 }
 
+/* ===== v1.7 🔥 — Öğretmen haftalık Derslerim görünümü ===== */
+#teacherView .teacher-titlebar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+#teacherView .teacher-titlebar > span{
+  min-width:0;
+}
+#teacherView .teacher-week-btn{
+  flex:0 0 auto;
+  min-height:36px;
+  padding:7px 12px;
+  border-radius:11px;
+  font-size:.84rem;
+  line-height:1;
+  white-space:nowrap;
+  box-shadow:none;
+}
+@media (max-width:420px){
+  #teacherView .teacher-titlebar{ gap:8px; }
+  #teacherView .teacher-week-btn{
+    padding:7px 9px;
+    font-size:.78rem;
+  }
+}
+
+.teacher-week-popup.swal2-popup{
+  width:min(700px, 94vw) !important;
+  max-height:90vh;
+  padding:14px !important;
+  border-radius:18px !important;
+  background:var(--panel) !important;
+  color:var(--ink) !important;
+  border:var(--stroke);
+}
+.teacher-week-popup .swal2-title{
+  margin:2px 0 8px !important;
+  padding:0 34px !important;
+  color:var(--ink) !important;
+  font-size:1.12rem !important;
+  font-weight:900 !important;
+}
+.teacher-week-popup .swal2-close{
+  color:var(--muted) !important;
+}
+.teacher-week-popup .swal2-html-container{
+  margin:0 !important;
+  padding:0 2px !important;
+  color:var(--ink) !important;
+  overflow:auto !important;
+  max-height:68vh !important;
+  text-align:left !important;
+  -webkit-overflow-scrolling:touch;
+}
+.teacher-week-modal{
+  display:grid;
+  gap:10px;
+}
+.teacher-week-range{
+  text-align:center;
+  color:var(--muted);
+  font-size:.88rem;
+  font-weight:800;
+  margin-bottom:2px;
+}
+.teacher-week-days{
+  display:grid;
+  gap:10px;
+}
+.teacher-week-day{
+  border:var(--stroke);
+  border-radius:14px;
+  background:rgba(255,255,255,.025);
+  overflow:hidden;
+}
+.teacher-week-day.is-today{
+  border-color:rgba(249,115,22,.48);
+  box-shadow:0 0 0 2px rgba(249,115,22,.08);
+}
+.teacher-week-day-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 12px;
+  background:linear-gradient(90deg, rgba(249,115,22,.10), transparent 72%);
+  border-bottom:var(--stroke);
+}
+.teacher-week-day-name{
+  font-weight:900;
+}
+.teacher-week-day-date{
+  margin-left:7px;
+  color:var(--muted);
+  font-size:.83rem;
+  font-weight:700;
+}
+.teacher-week-today-badge{
+  flex:0 0 auto;
+  padding:3px 8px;
+  border-radius:999px;
+  background:rgba(249,115,22,.15);
+  border:1px solid rgba(249,115,22,.28);
+  color:var(--brand-2);
+  font-size:.75rem;
+  font-weight:900;
+}
+.teacher-week-lessons{
+  display:grid;
+}
+.teacher-week-lesson{
+  display:grid;
+  grid-template-columns:82px minmax(0,1fr);
+  gap:12px;
+  align-items:center;
+  padding:10px 12px;
+}
+.teacher-week-lesson + .teacher-week-lesson{
+  border-top:1px solid rgba(148,163,184,.15);
+}
+.teacher-week-time{
+  display:grid;
+  gap:1px;
+  align-content:center;
+  font-variant-numeric:tabular-nums;
+}
+.teacher-week-time strong{
+  font-size:.95rem;
+}
+.teacher-week-time span{
+  color:var(--muted);
+  font-size:.78rem;
+  font-weight:700;
+}
+.teacher-week-info{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.teacher-week-info strong{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.94rem;
+}
+.teacher-week-info span{
+  color:var(--muted);
+  font-size:.80rem;
+  font-weight:700;
+}
+.teacher-week-empty{
+  padding:10px 12px;
+  color:var(--muted);
+  font-size:.84rem;
+  font-weight:700;
+}
+.teacher-week-popup .swal2-actions{
+  margin:12px 0 0 !important;
+}
+.teacher-week-popup .swal2-confirm{
+  min-width:120px;
+  border-radius:12px !important;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2)) !important;
+  color:#1b1007 !important;
+  font-weight:900 !important;
+  box-shadow:none !important;
+}
+@media (max-width:520px){
+  .teacher-week-popup.swal2-popup{ width:96vw !important; padding:12px 10px !important; }
+  .teacher-week-popup .swal2-html-container{ max-height:72vh !important; }
+  .teacher-week-lesson{ grid-template-columns:70px minmax(0,1fr); gap:9px; padding:10px; }
+  .teacher-week-day-head{ padding:9px 10px; }
+}
+
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -1917,7 +2093,10 @@ div.admin-filters .button-row {
     <!-- ÖĞRETMEN -->
     <section id="teacherView" class="hidden" aria-labelledby="teacherTitle">
       <div class="card" role="region" aria-label="Bugünkü dersler">
-        <h3 id="teacherTitle">📚 Bugünkü Derslerim</h3>
+        <h3 id="teacherTitle" class="teacher-titlebar">
+          <span>📚 Bugünkü Derslerim</span>
+          <button class="btn ghost teacher-week-btn" id="btnTeacherWeek" type="button" title="Bu haftaki ders programını aç" aria-label="Bu haftaki derslerimi göster">🗓️ Derslerim</button>
+        </h3>
 
         <div class="teacher-kpis" id="teacherKpis">
           <div class="kpi-card kpi-green"><span class="kpi-label">Katılım %</span><span class="kpi-value" id="kpiAttendPct">0%</span></div>
@@ -2363,7 +2542,7 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '1.6 🔥';
+    const APP_VERSION = '1.7 🔥';
     const SHEETS_CACHE_KEY = 'fenomenSheetsCache_v2';
     const LEGACY_SHEETS_CACHE_KEY = 'fenomenSheetsCache_v1';
     const TEACHER_SYNC_STATE_KEY = 'fenomen_teacher_sync_v1';
@@ -2669,6 +2848,7 @@ function openWhatsAppComposer(opts){
       teacherSyncState: document.getElementById('teacherSyncState'),
       btnRefresh: document.getElementById('btnRefresh'),
       btnGoBirebir: document.getElementById('btnGoBirebir'),
+      btnTeacherWeek: document.getElementById('btnTeacherWeek'),
       userChip: document.getElementById('userChip'),
 
       teacherView: document.getElementById('teacherView'),
@@ -3839,6 +4019,154 @@ function parseOnDate(dateStr, hm){ const [h,m]=(hm||'').split(':').map(n=>+n||0)
       return safe(ders) || (tInfo?.branch || 'Ders');
     }
 
+// ===== v1.7 🔥 — Öğretmen günlük/haftalık dersleri için ortak program çözümleyici =====
+let _teacherSlotCacheSource = null;
+let _teacherSlotNoCache = new Map();
+
+function teacherSlotByCodeProgram(code, program){
+  const key = safe(code);
+  const p = safe(program);
+  if(!key) return null;
+  const exact = (slots||[]).find(r =>
+    safe(r.SAAT_KODU ?? r.KOD ?? r.ID) === key && safe(r.PROGRAM) === p
+  );
+  if(exact) return exact;
+  return (slots||[]).find(r => safe(r.SAAT_KODU ?? r.KOD ?? r.ID) === key) || null;
+}
+
+function teacherSlotNoByCodeProgram(code, program){
+  if(_teacherSlotCacheSource !== slots){
+    _teacherSlotCacheSource = slots;
+    _teacherSlotNoCache = new Map();
+  }
+  const p = safe(program) || 'GENEL';
+  if(!_teacherSlotNoCache.has(p)){
+    const arr = (slots||[])
+      .filter(s => (safe(s.PROGRAM) || 'GENEL') === p)
+      .map(s => ({
+        kod: safe(s.SAAT_KODU ?? s.KOD ?? s.ID),
+        bas: safe(s.BASLANGIC) || '23:59'
+      }))
+      .filter(x => x.kod)
+      .sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
+    const map = new Map();
+    arr.forEach((x,i)=> map.set(x.kod, i+1));
+    _teacherSlotNoCache.set(p, map);
+  }
+  return _teacherSlotNoCache.get(p).get(safe(code)) || null;
+}
+
+function teacherLessonFromScheduleRow(r){
+  const prog = safe(r.PROGRAM);
+  const slot = teacherSlotByCodeProgram(r.SAAT_KODU, prog) || {};
+  const tInfo = teacherById(r.OGRETMEN_ID);
+  return decorateLessonScope({
+    gun: safe(r.GUN),
+    saatKodu: safe(r.SAAT_KODU),
+    sinif: safe(r.SINIF),
+    grup: safe(r.GRUP), // yalnızca mevcut kapsam/yoklama mantığı için; haftalık görünümde gösterilmez
+    bas: safe(slot.BASLANGIC),
+    bit: safe(slot.BITIS),
+    dersName: lessonNameFromRow(r, tInfo),
+    ogretmenId: tInfo?.id || safe(r.OGRETMEN_ID),
+    ogretmenAd: tInfo?.name || '',
+    ogretmenBrans: tInfo?.branch || '',
+    program: prog,
+    saatNo: teacherSlotNoByCodeProgram(safe(r.SAAT_KODU), prog)
+  });
+}
+
+function teacherLessonsForDay(dayName){
+  const wanted = normTR(dayName);
+  return (schedule||[])
+    .filter(r => safe(r.OGRETMEN_ID) === safe(session?.ogretmenId))
+    .filter(r => normTR(r.GUN) === wanted)
+    .map(teacherLessonFromScheduleRow)
+    .sort((a,b)=>
+      (a.bas||'23:59').localeCompare(b.bas||'23:59','tr') ||
+      (a.saatNo||999) - (b.saatNo||999) ||
+      (a.classLabel||a.sinif||'').localeCompare((b.classLabel||b.sinif||''),'tr',{numeric:true,sensitivity:'base'})
+    );
+}
+
+function teacherWeekBounds(base=nowTR()){
+  const d = base.startOf('day');
+  const dow = d.day();
+  const monday = d.add(dow===0 ? -6 : 1-dow, 'day');
+  return { monday, sunday:monday.add(6,'day') };
+}
+
+function teacherWeekRangeLabel(monday, sunday){
+  if(monday.year() !== sunday.year()) return `${monday.format('D MMMM YYYY')} – ${sunday.format('D MMMM YYYY')}`;
+  if(monday.month() !== sunday.month()) return `${monday.format('D MMMM')} – ${sunday.format('D MMMM YYYY')}`;
+  return `${monday.format('D')}–${sunday.format('D MMMM YYYY')}`;
+}
+
+async function openTeacherWeekModal(){
+  if(!session || session.role !== 'ogretmen') return;
+
+  const escText = (value)=> String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+  const { monday, sunday } = teacherWeekBounds();
+  const dayDefs = [
+    {name:'Pazartesi', offset:0},
+    {name:'Salı', offset:1},
+    {name:'Çarşamba', offset:2},
+    {name:'Perşembe', offset:3},
+    {name:'Cuma', offset:4},
+    {name:'Cumartesi', offset:5},
+    {name:'Pazar', offset:6}
+  ];
+
+  const teacherRows = (schedule||[]).filter(r => safe(r.OGRETMEN_ID) === safe(session.ogretmenId));
+  const teacherDaySet = new Set(teacherRows.map(r=>normTR(r.GUN)));
+  const visibleDays = dayDefs.filter(d => d.offset < 5 || teacherDaySet.has(normTR(d.name)));
+  const todayStr = toDateStr(nowTR());
+
+  const daysHtml = visibleDays.map(def=>{
+    const date = monday.add(def.offset,'day');
+    const dateStr = toDateStr(date);
+    const lessons = teacherLessonsForDay(def.name);
+    const isToday = dateStr === todayStr;
+    const lessonHtml = lessons.length ? lessons.map(lesson=>{
+      const className = lesson.classLabel || lesson.sinif || 'Sınıf belirtilmemiş';
+      const courseName = lesson.dersName || 'Ders';
+      const start = lesson.bas || '—';
+      const end = lesson.bit || '—';
+      const hourLabel = lesson.saatNo ? `${lesson.saatNo}. Saat` : 'Ders saati';
+      return `<div class="teacher-week-lesson">
+        <div class="teacher-week-time"><strong>${escText(start)}</strong><span>${escText(end)}</span></div>
+        <div class="teacher-week-info">
+          <strong>${escText(className)} • ${escText(courseName)}</strong>
+          <span>${escText(hourLabel)}</span>
+        </div>
+      </div>`;
+    }).join('') : `<div class="teacher-week-empty">Ders yok.</div>`;
+
+    return `<section class="teacher-week-day ${isToday?'is-today':''}">
+      <div class="teacher-week-day-head">
+        <div><span class="teacher-week-day-name">${def.name}</span><span class="teacher-week-day-date">${date.format('D MMMM')}</span></div>
+        ${isToday?'<span class="teacher-week-today-badge">Bugün</span>':''}
+      </div>
+      <div class="teacher-week-lessons">${lessonHtml}</div>
+    </section>`;
+  }).join('');
+
+  await Swal.fire({
+    title:'🗓️ Derslerim',
+    html:`<div class="teacher-week-modal">
+      <div class="teacher-week-range">${escText(teacherWeekRangeLabel(monday, sunday))}</div>
+      <div class="teacher-week-days">${daysHtml}</div>
+    </div>`,
+    showCloseButton:true,
+    showConfirmButton:true,
+    confirmButtonText:'Kapat',
+    focusConfirm:false,
+    customClass:{ popup:'teacher-week-popup' }
+  });
+}
+
     
 // ===== Toast helper (Kaydedildi ✓) =====
 function ensureToastHost(){
@@ -4118,6 +4446,7 @@ await loadSheets(); buildSlotOrder();
         location.reload();
       };
       if(UI.btnGoBirebir) UI.btnGoBirebir.onclick = goToBirebirSystem;
+      if(UI.btnTeacherWeek) UI.btnTeacherWeek.onclick = openTeacherWeekModal;
 
 
       // Öğretmen: v1.2 veri senkronizasyonu — sayfayı yeniden yüklemek yerine kaynağı doğrudan yeniden oku.
@@ -4670,72 +4999,13 @@ async function showTeacherToday(){
   }
   UI.noLesson?.classList.add('hidden');
 
-  // --- yerel yardımcılar (neden: programa göre slot bulma/sıra numarası) ---
-  const slotByCodeProg = (code, program) => {
-    const key = String(code||'').trim();
-    const p   = (program??'').toString().trim();
-    if (!key) return null;
-    // önce code+program tam eşleşme
-    let hit = slots.find(r =>
-      String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key &&
-      (r.PROGRAM??'').toString().trim()===p
-    );
-    if (hit) return hit;
-    // yoksa sadece code ile (geriye uyum)
-    return slots.find(r => String(r.SAAT_KODU??r.KOD??r.ID).toString().trim()===key) || null;
-  };
-  const slotNoProg = (() => {
-    const cache = new Map(); // program -> Map(kod->no)
-    return (code, program) => {
-      const p = (program??'').toString().trim() || 'GENEL';
-      if (!cache.has(p)) {
-        const arr = slots
-          .filter(s => ((s.PROGRAM??'').toString().trim() || 'GENEL') === p)
-          .map(s => ({
-            kod: (s.SAAT_KODU||s.KOD||s.ID||'').toString().trim(),
-            bas: (s.BASLANGIC||'23:59').toString()
-          }))
-          .filter(x => x.kod);
-        arr.sort((a,b)=> a.bas.localeCompare(b.bas,'tr'));
-        const m = new Map();
-        arr.forEach((x,i)=> m.set(x.kod, i+1));
-        cache.set(p, m);
-      }
-      const key = (code??'').toString().trim();
-      return cache.get(p).get(key) || null;
-    };
-  })();
-  // -------------------------------------------------------------------------
 
   const t = nowTR();
   const AY = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
   const baseInfo = `Bugün: ${t.date()} ${AY[t.month()]} ${t.year()} • ${todayNameTR()}`;
   UI.todayInfo.textContent = attendanceEnabled ? baseInfo : (baseInfo + ' • Tatil Modu: Yoklama kapalı');
 
-  const today = todayNameTR().toLocaleLowerCase('tr-TR');
-  const mine = schedule
-    .filter(r => safe(r.OGRETMEN_ID) === safe(session.ogretmenId))
-    .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR') === today)
-    .map(r=>{
-      const prog = safe(r.PROGRAM);
-      const slot = slotByCodeProg(r.SAAT_KODU, prog) || {};
-      const tInfo = teacherById(r.OGRETMEN_ID);
-      return decorateLessonScope({
-        gun: safe(r.GUN),
-        saatKodu: safe(r.SAAT_KODU),
-        sinif: safe(r.SINIF),
-        grup: safe(r.GRUP),
-        bas: safe(slot.BASLANGIC),
-        bit: safe(slot.BITIS),
-        dersName: lessonNameFromRow(r, tInfo),
-        ogretmenId: tInfo?.id || safe(r.OGRETMEN_ID),
-        ogretmenAd: tInfo?.name || '',
-        ogretmenBrans: tInfo?.branch || '',
-        program: prog || '',
-        saatNo: slotNoProg(safe(r.SAAT_KODU), prog)
-      });
-    })
-    .sort((a,b)=> (a.bas||'23:59').localeCompare(b.bas||'23:59','tr'));
+  const mine = teacherLessonsForDay(todayNameTR());
 
   teacherLessonsToday = mine;
 
@@ -10034,7 +10304,7 @@ function printParentQuizzes(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.6 🔥</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge">v1.7 🔥</span></p>
   </footer>
  <style>
 .site-footer{
