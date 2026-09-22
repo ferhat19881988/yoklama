@@ -556,6 +556,7 @@
     .dot{ width:10px; height:10px; border-radius:50% }
     .dot.ok{ background:var(--ok) }
     .dot.bad{ background:var(--bad) }
+    .dot.wait{ background:var(--warn) }
 
     .lesson{ border:var(--stroke); background:var(--glass); border-radius:14px; padding:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer; transition:transform .06s ease, background .25s ease, border-color .2s ease }
     .lesson:hover{ transform:translateY(-1px) }
@@ -3042,6 +3043,10 @@ let lastAppVersionCheckAt = 0;
 // null: henüz .info/connected sonucu gelmedi, true: bağlı, false: Firebase bağlantısı yok.
 let firebaseConnected = null;
 let firebaseConnectionListenerStarted = false;
+let firebaseConnectionRetryTimer = null;
+let firebaseInitialConnectTimer = null;
+const FIREBASE_INITIAL_CONNECT_GRACE_MS = 3500;
+const FIREBASE_MONITOR_RETRY_MS = 5000;
 let attendanceSaveInFlight = false;
 let queueFlushInFlight = null;
 
@@ -3636,7 +3641,7 @@ async function setAttendanceEnabledRemote(enabled){
   updates[ATT_CFG_PATH] = !!enabled;
   updates['config/attendanceUpdatedAt'] = Date.now();
   updates['config/attendanceUpdatedBy'] = safe(session?.role || '');
-  if(navigator.onLine){
+  if(canUseFirebase()){
     await update(ref(db), updates);
   }else{
     queueOfflineWrite('/', updates);
@@ -4495,11 +4500,23 @@ function setStatus(msg, type='info'){
       UI.statusMsg.style.color = (type==='ok')?'#22c55e':(type==='bad')?'#ef4444':'inherit';
     }
 
-    // v1.8 🔥 — navigator.onLine tek başına Firebase erişimini garanti etmez.
-    // Firebase sonucu henüz gelmediyse (null) yazmayı denemeye izin veriyoruz;
-    // update() sunucu onayı vermezse kayıt güvenli kuyruğa alınır.
-    function canAttemptFirebaseWrite(){
-      return !!navigator.onLine && firebaseConnected !== false;
+    function clearStaleNetworkStatus(){
+      const msg=String(UI.statusMsg?.textContent || '').trim();
+      const stale=new Set([
+        'İnternet yok: kayıtlar geçici olarak cihazda saklanacak.',
+        'Firebase bağlantısı yok: kayıtlar güvenli kuyruğa alınacak.'
+      ]);
+      if(!stale.has(msg)) return;
+      UI.statusMsg.textContent='';
+      UI.statusMsg.style.color='inherit';
+      UI.statusBar.classList.add('hidden');
+    }
+
+    // v1.8 🔥 — Yazma/okuma için yalnızca tarayıcı interneti yetmez;
+    // Firebase .info/connected kesin olarak true olmalıdır. Böylece internet açıkken
+    // Firebase kopuksa işlem doğrudan SDK'da beklemek yerine güvenli kuyruğa gider.
+    function canUseFirebase(){
+      return !!navigator.onLine && firebaseConnected === true;
     }
 
     function setNetUI(){
@@ -4507,7 +4524,7 @@ function setStatus(msg, type='info'){
       const firebaseOnline = firebaseConnected === true;
       const firebaseOffline = firebaseConnected === false;
 
-      UI.netDot.className = 'dot '+(browserOnline && firebaseOnline ? 'ok' : 'bad');
+      UI.netDot.className = 'dot '+(!browserOnline || firebaseOffline ? 'bad' : (firebaseOnline ? 'ok' : 'wait'));
       if(!browserOnline){
         UI.netText.textContent = 'Offline — veriler yerelde kuyruğa alınıyor';
         setStatus('İnternet yok: kayıtlar geçici olarak cihazda saklanacak.', 'bad');
@@ -4516,26 +4533,76 @@ function setStatus(msg, type='info'){
         setStatus('Firebase bağlantısı yok: kayıtlar güvenli kuyruğa alınacak.', 'bad');
       }else if(firebaseOnline){
         UI.netText.textContent = 'Firebase bağlı';
+        clearStaleNetworkStatus();
       }else{
         UI.netText.textContent = 'Firebase bağlantısı kontrol ediliyor…';
       }
+    }
+
+    function scheduleFirebaseMonitorRetry(){
+      if(firebaseConnectionRetryTimer || !navigator.onLine) return;
+      firebaseConnectionRetryTimer=setTimeout(()=>{
+        firebaseConnectionRetryTimer=null;
+        firebaseConnectionListenerStarted=false;
+        initFirebaseConnectionMonitor();
+      }, FIREBASE_MONITOR_RETRY_MS);
     }
 
     function initFirebaseConnectionMonitor(){
       if(!db || firebaseConnectionListenerStarted) return;
       firebaseConnectionListenerStarted = true;
       onValue(ref(db, '.info/connected'), snap=>{
+        const connected = snap.val() === true;
         const wasConnected = firebaseConnected === true;
-        firebaseConnected = snap.val() === true;
+
+        if(connected){
+          if(firebaseInitialConnectTimer){
+            clearTimeout(firebaseInitialConnectTimer);
+            firebaseInitialConnectTimer=null;
+          }
+          if(firebaseConnectionRetryTimer){
+            clearTimeout(firebaseConnectionRetryTimer);
+            firebaseConnectionRetryTimer=null;
+          }
+          firebaseConnected = true;
+          setNetUI();
+          // Bağlantı yeniden geldiyse bekleyen kayıtları otomatik aktar.
+          if(!wasConnected){
+            flushQueue(false).catch(err=>console.error('queue reconnect flush error', err));
+          }
+          return;
+        }
+
+        // Tarayıcı da offline ise beklemeye gerek yok. Daha önce bağlı bir oturum
+        // koptuysa da durumu hemen göster. İlk açılıştaki kısa false değeri ise
+        // gerçek kopukluk sayılmadan önce kısa bir tolerans süresinden geçirilir.
+        if(!navigator.onLine || wasConnected){
+          firebaseConnected = false;
+          setNetUI();
+          return;
+        }
+
+        firebaseConnected = null;
         setNetUI();
-        // Bağlantı yeniden geldiyse bekleyen kayıtları otomatik aktar.
-        if(firebaseConnected && !wasConnected){
-          flushQueue(false).catch(err=>console.error('queue reconnect flush error', err));
+        if(!firebaseInitialConnectTimer){
+          firebaseInitialConnectTimer=setTimeout(()=>{
+            firebaseInitialConnectTimer=null;
+            if(firebaseConnected !== true && navigator.onLine){
+              firebaseConnected=false;
+              setNetUI();
+            }
+          }, FIREBASE_INITIAL_CONNECT_GRACE_MS);
         }
       }, err=>{
         console.error('Firebase connection monitor error', err);
+        if(firebaseInitialConnectTimer){
+          clearTimeout(firebaseInitialConnectTimer);
+          firebaseInitialConnectTimer=null;
+        }
         firebaseConnected = false;
+        firebaseConnectionListenerStarted = false;
         setNetUI();
+        scheduleFirebaseMonitorRetry();
       });
     }
 
@@ -4674,7 +4741,7 @@ function setStatus(msg, type='info'){
         let q=[];
         try{ q=JSON.parse(localStorage.getItem(key)||'[]'); }
         catch(_){ q=[]; }
-        if(!Array.isArray(q) || !q.length || !canAttemptFirebaseWrite()) return {ok:false, skipped:true, pending:Array.isArray(q)?q.length:0};
+        if(!Array.isArray(q) || !q.length || !canUseFirebase()) return {ok:false, skipped:true, pending:Array.isArray(q)?q.length:0};
 
         // Eski sürümden kalan kuyruk öğelerine de kimlik ver; aktarım sırasında eklenen yeni öğeler kaybolmasın.
         let queueNormalized=false;
@@ -5204,13 +5271,22 @@ try{
 
       setNetUI();
       window.addEventListener('online', async ()=>{
+        firebaseConnected = null;
         setNetUI();
+        initFirebaseConnectionMonitor();
         const versionState = await checkAndPublishAppVersion({ reason:'online', force:true });
         if(versionState?.upgradeTriggered) return;
         await flushQueue(true);
       });
-      window.addEventListener('offline', ()=> setNetUI());
-      if(canAttemptFirebaseWrite()) await flushQueue(false);
+      window.addEventListener('offline', ()=>{
+        firebaseConnected = false;
+        if(firebaseInitialConnectTimer){
+          clearTimeout(firebaseInitialConnectTimer);
+          firebaseInitialConnectTimer=null;
+        }
+        setNetUI();
+      });
+      if(canUseFirebase()) await flushQueue(false);
     }
 
     async function loadSheets(options={}){
@@ -6255,7 +6331,7 @@ async function saveAttendance(){
     const queueOptions={kind:'attendance', dedupeKey, verifyGroups};
 
     // Tarayıcı interneti veya Firebase bağlantısı yoksa sunucuya kaydedildi demiyoruz.
-    if(!canAttemptFirebaseWrite()){
+    if(!canUseFirebase()){
       queueOfflineWrite('/', updates, queueOptions);
       await Swal.fire({
         icon:'warning',
@@ -6357,7 +6433,7 @@ async function undoAttendance(){
 
   try{
     let entries=currentLessonStoredEntries||[];
-    if(navigator.onLine){
+    if(canUseFirebase()){
       const latest=await readLessonAttendance(tarih, currentLesson);
       entries=latest.entries||[];
     }
@@ -6368,10 +6444,15 @@ async function undoAttendance(){
       updates[`${attPath(tarih, entry.storageClass, currentLesson.saatKodu, currentLesson.ogretmenId)}/${safe(entry.id)}`]=null;
     }
 
-    if(navigator.onLine) await update(ref(db), updates);
+    const queued = !canUseFirebase();
+    if(!queued) await update(ref(db), updates);
     else queueOfflineWrite('/', updates);
 
-    Swal.fire('Geri alındı','Bu ders kapsamına ait kayıtlar silindi.','success');
+    if(queued){
+      await Swal.fire('Kuyruğa Alındı','Geri alma işlemi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
+    }else{
+      await Swal.fire('Geri alındı','Bu ders kapsamına ait kayıtlar Firebase’den silindi.','success');
+    }
     closeAttendance(false);
     await showTeacherToday();
   }catch(e){ console.error(e); Swal.fire('Hata','Geri alırken sorun oluştu.','error'); }
@@ -8267,9 +8348,10 @@ async function showStudentReport(no, name){
       const updates = {};
       rows.forEach(r => updates[attPath(r.date, r.sinif, r.saatKodu, r.ogretmenId)] = null);
       try{
-        if(navigator.onLine){ await update(ref(db), updates); await flushQueue(false); }
+        const queued = !canUseFirebase();
+        if(!queued){ await flushQueue(false); await update(ref(db), updates); }
         else{ Object.entries(updates).forEach(([k,v])=> queueOfflineWrite(k,v)); }
-        setStatus(`${rows.length} kayıt silindi.`,'ok');
+        setStatus(queued ? `${rows.length} silme işlemi güvenli kuyrukta.` : `${rows.length} kayıt Firebase’den silindi.`, queued?'bad':'ok');
         rows.forEach(tr => tbBody.querySelector(`tr[data-date="${tr.date}"][data-sinif="${tr.sinif}"][data-oid="${tr.ogretmenId}"][data-saatk="${tr.saatKodu}"]`)?.remove());
         h.querySelector('#hEmpty').classList.toggle('hidden', tbBody.children.length>0);
       }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
@@ -8280,9 +8362,10 @@ async function showStudentReport(no, name){
       const ok = await Swal.fire({ title:`${formatDateTR(date)} günündeki tüm kayıtlar silinsin mi?`, icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç' });
       if(!ok.isConfirmed) return;
       try{
-        if(navigator.onLine){ await update(ref(db), { [attDayRoot(date)]: null }); await flushQueue(false); }
+        const queued = !canUseFirebase();
+        if(!queued){ await flushQueue(false); await update(ref(db), { [attDayRoot(date)]: null }); }
         else{ queueOfflineWrite(`/${attDayRoot(date)}`, null); }
-        setStatus('Gün silindi.','ok');
+        setStatus(queued ? 'Gün silme işlemi güvenli kuyrukta.' : 'Gün Firebase’den silindi.', queued?'bad':'ok');
         tbBody.innerHTML=''; h.querySelector('#hEmpty').classList.remove('hidden');
       }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
     });
@@ -8291,9 +8374,10 @@ async function showStudentReport(no, name){
       const ok = await Swal.fire({ title:'Tüm zamanlardaki kayıtlar silinsin mi?', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç' });
       if(!ok.isConfirmed) return;
       try{
-        if(navigator.onLine){ await update(ref(db), { [ATT_ROOT]: null }); await flushQueue(false); }
+        const queued = !canUseFirebase();
+        if(!queued){ await flushQueue(false); await update(ref(db), { [ATT_ROOT]: null }); }
         else{ queueOfflineWrite('/', { [ATT_ROOT]: null }); }
-        setStatus('Tüm kayıtlar silindi.','ok');
+        setStatus(queued ? 'Tüm kayıtları silme işlemi güvenli kuyrukta.' : 'Tüm kayıtlar Firebase’den silindi.', queued?'bad':'ok');
         tbBody.innerHTML=''; h.querySelector('#hEmpty').classList.remove('hidden');
       }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
     });
@@ -8322,9 +8406,10 @@ btnResetAll && btnResetAll.addEventListener('click', async ()=>{
 
   const wipe = { [ATT_ROOT]: null, homeworks: null, hwStatus: null, quizzes: null, qzResults: null };
   try{
-    if(navigator.onLine){ await update(ref(db), wipe); await flushQueue(false); }
+    const queued = !canUseFirebase();
+    if(!queued){ await flushQueue(false); await update(ref(db), wipe); }
     else{ queueOfflineWrite('/', wipe); }
-    setStatus('Tüm yoklama/ödev/quiz verileri sıfırlandı.','ok');
+    setStatus(queued ? 'Tüm verileri sıfırlama işlemi güvenli kuyrukta.' : 'Tüm yoklama/ödev/quiz verileri Firebase’de sıfırlandı.', queued?'bad':'ok');
     tbBody.innerHTML='';
     h.querySelector('#hEmpty').classList.remove('hidden');
   }catch(e){ console.error(e); Swal.fire('Hata','Sıfırlama sırasında sorun oluştu.','error'); }
@@ -9133,12 +9218,14 @@ async function createHomework(){
     };
   });
   try{
-    if(navigator.onLine) await update(ref(db), updates);
+    const queued = !canUseFirebase();
+    if(!queued) await update(ref(db), updates);
     else queueOfflineWrite('/', updates);
-    Swal.fire('Kaydedildi','Ödev oluşturuldu.','success');
+    if(queued) await Swal.fire('Kuyruğa Alındı','Ödev Firebase bağlantısı geldiğinde otomatik kaydedilecek.','warning');
+    else await Swal.fire('Kaydedildi','Ödev Firebase’e kaydedildi.','success');
     if(UI.hwTitle) UI.hwTitle.value='';
     if(UI.hwDueDate) UI.hwDueDate.value='';
-    await loadTeacherHomeworks();
+    if(!queued) await loadTeacherHomeworks();
   }catch(e){ console.error(e); Swal.fire('Hata','Ödev kaydedilemedi.','error'); }
 }
 
@@ -9489,21 +9576,26 @@ if(UI.hwSaveBtn){
     });
 
     try{
-      if(navigator.onLine) await update(ref(db), updates2);
+      const queued = !canUseFirebase();
+      if(!queued) await update(ref(db), updates2);
       else queueOfflineWrite('/', updates2);
 
-      // Başarılı => 2 sn içinde kapanan mesaj
-      await Swal.fire({
-        title: 'Kaydedildi',
-        text: 'Ödev durumları kaydedildi.',
-        icon: 'success',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false
-      });
+      if(queued){
+        await Swal.fire('Kuyruğa Alındı','Ödev durumları Firebase bağlantısı geldiğinde otomatik kaydedilecek.','warning');
+      }else{
+        // Başarılı => 2 sn içinde kapanan mesaj
+        await Swal.fire({
+          title: 'Kaydedildi',
+          text: 'Ödev durumları Firebase’e kaydedildi.',
+          icon: 'success',
+          timer: 2000,
+          timerProgressBar: true,
+          showConfirmButton: false
+        });
+      }
 
       UI.hwControlCard?.classList.add('hidden');
-      await loadTeacherHomeworks();
+      if(!queued) await loadTeacherHomeworks();
     }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
   };
 }
@@ -9622,13 +9714,15 @@ async function createQuiz(){
     updates[`quizzes/${cls}/${id}`] = payloadBase;
   });
   try{
-    if(navigator.onLine) await update(ref(db), updates);
+    const queued = !canUseFirebase();
+    if(!queued) await update(ref(db), updates);
     else queueOfflineWrite('/', updates);
-    Swal.fire('Kaydedildi','Quiz oluşturuldu.','success');
+    if(queued) await Swal.fire('Kuyruğa Alındı','Quiz Firebase bağlantısı geldiğinde otomatik kaydedilecek.','warning');
+    else await Swal.fire('Kaydedildi','Quiz Firebase’e kaydedildi.','success');
     if(UI.qzTitle) UI.qzTitle.value='';
     if(UI.qzDate) UI.qzDate.value='';
     if(UI.qzTotal) UI.qzTotal.value='';
-    await loadTeacherQuizzes();
+    if(!queued) await loadTeacherQuizzes();
   }catch(e){ console.error(e); Swal.fire('Hata','Quiz kaydedilemedi.','error'); }
 }
 
@@ -9820,11 +9914,13 @@ async function openQuizControl(cls,id){
           }
         });
         try{
-          if(navigator.onLine) await update(ref(db), updates2);
+          const queued = !canUseFirebase();
+          if(!queued) await update(ref(db), updates2);
           else queueOfflineWrite('/', updates2);
-          Swal.fire('Kaydedildi','Quiz sonuçları kaydedildi.','success');
+          if(queued) await Swal.fire('Kuyruğa Alındı','Quiz sonuçları Firebase bağlantısı geldiğinde otomatik kaydedilecek.','warning');
+          else await Swal.fire('Kaydedildi','Quiz sonuçları Firebase’e kaydedildi.','success');
           UI.qzControlCard?.classList.add('hidden');
-          await loadTeacherQuizzes();
+          if(!queued) await loadTeacherQuizzes();
         }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
       };
     }
@@ -9964,10 +10060,12 @@ async function editHomework(cls, id){
     updates[`homeworks/${cls}/${id}/title`] = formValues.title;
     updates[`homeworks/${cls}/${id}/dueDate`] = formValues.due;
     try{
-      if(navigator.onLine) await update(ref(db), updates);
+      const queued = !canUseFirebase();
+      if(!queued) await update(ref(db), updates);
       else queueOfflineWrite('/', updates);
-      await loadTeacherHomeworks();
-      Swal.fire('Kaydedildi','Ödev güncellendi.','success');
+      if(!queued) await loadTeacherHomeworks();
+      if(queued) await Swal.fire('Kuyruğa Alındı','Ödev güncellemesi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      else await Swal.fire('Kaydedildi','Ödev Firebase’de güncellendi.','success');
     }catch(e){ console.error(e); Swal.fire('Hata','Güncelleme sırasında hata oluştu.','error'); }
   }catch(err){ console.error(err); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
 }
@@ -9993,10 +10091,12 @@ async function deleteHomework(cls,id){
     const updates = {};
     updates[`homeworks/${cls}/${id}`] = null;
     try{
-      if(navigator.onLine) await update(ref(db), updates);
+      const queued = !canUseFirebase();
+      if(!queued) await update(ref(db), updates);
       else queueOfflineWrite('/', updates);
-      await loadTeacherHomeworks();
-      Swal.fire('Silindi','Ödev silindi.','success');
+      if(!queued) await loadTeacherHomeworks();
+      if(queued) await Swal.fire('Kuyruğa Alındı','Ödev silme işlemi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      else await Swal.fire('Silindi','Ödev Firebase’den silindi.','success');
     }catch(e){ console.error(e); Swal.fire('Hata','Ödev silinemedi.','error'); }
   }
 }
@@ -10036,10 +10136,12 @@ async function editQuiz(cls,id){
     updates[`quizzes/${cls}/${id}/date`]  = formValues.date;
     updates[`quizzes/${cls}/${id}/totalQuestions`] = formValues.total;
     try{
-      if(navigator.onLine) await update(ref(db), updates);
+      const queued = !canUseFirebase();
+      if(!queued) await update(ref(db), updates);
       else queueOfflineWrite('/', updates);
-      await loadTeacherQuizzes();
-      Swal.fire('Kaydedildi','Quiz güncellendi.','success');
+      if(!queued) await loadTeacherQuizzes();
+      if(queued) await Swal.fire('Kuyruğa Alındı','Quiz güncellemesi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      else await Swal.fire('Kaydedildi','Quiz Firebase’de güncellendi.','success');
     }catch(e){ console.error(e); Swal.fire('Hata','Güncelleme sırasında hata oluştu.','error'); }
   }catch(err){ console.error(err); Swal.fire('Hata','Quiz yüklenemedi.','error'); }
 }
@@ -10064,10 +10166,12 @@ async function deleteQuiz(cls,id){
     const updates = {};
     updates[`quizzes/${cls}/${id}`] = null;
     try{
-      if(navigator.onLine) await update(ref(db), updates);
+      const queued = !canUseFirebase();
+      if(!queued) await update(ref(db), updates);
       else queueOfflineWrite('/', updates);
-      await loadTeacherQuizzes();
-      Swal.fire('Silindi','Quiz silindi.','success');
+      if(!queued) await loadTeacherQuizzes();
+      if(queued) await Swal.fire('Kuyruğa Alındı','Quiz silme işlemi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      else await Swal.fire('Silindi','Quiz Firebase’den silindi.','success');
     }catch(e){ console.error(e); Swal.fire('Hata','Quiz silinemedi.','error'); }
   }
 }
