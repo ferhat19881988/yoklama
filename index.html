@@ -2122,7 +2122,7 @@ div.admin-filters .button-row {
               <button class="btn ghost danger" id="cancelBtn" type="button">İptal</button>
               <button class="btn" id="saveBtn" type="button">Kaydet</button>
               <label class="muted row" for="cfgDefaultVarChk" style="margin-left:10px;">
-                <input type="checkbox" id="cfgDefaultVarChk" /> Açılışta herkes VAR
+                <input type="checkbox" id="cfgDefaultVarChk" /> Açılışta herkes VAR (kapalıysa YOK)
               </label>
             </div>
             <div class="row sum-group" id="sumBar" aria-live="polite">
@@ -2540,9 +2540,9 @@ div.admin-filters .button-row {
     dayjs.locale('tr');
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, get, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, get, set, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '1.7 🔥';
+    const APP_VERSION = '1.8 🔥';
     const APP_RELEASE_PATH = 'config/appRelease';
     const APP_VERSION_CHECK_INTERVAL_MS = 60 * 1000;
     const APP_VERSION_RELOAD_GUARD_KEY = 'fenomen_version_reload_guard_v1';
@@ -3037,6 +3037,13 @@ let appLastResumeCheckAt = 0;
 let appVersionCheckInFlight = null;
 let appVersionCheckTimer = null;
 let lastAppVersionCheckAt = 0;
+
+// v1.8 🔥 — Firebase bağlantısı ve yoklama kayıt kilidi.
+// null: henüz .info/connected sonucu gelmedi, true: bağlı, false: Firebase bağlantısı yok.
+let firebaseConnected = null;
+let firebaseConnectionListenerStarted = false;
+let attendanceSaveInFlight = false;
+let queueFlushInFlight = null;
 
 function normalizeAppVersion(value=''){
   const match = String(value ?? '').match(/\d+(?:\.\d+)*/);
@@ -4487,31 +4494,241 @@ function setStatus(msg, type='info'){
       UI.statusMsg.textContent = msg;
       UI.statusMsg.style.color = (type==='ok')?'#22c55e':(type==='bad')?'#ef4444':'inherit';
     }
-    function setNetUI(){
-      const online = navigator.onLine;
-      UI.netDot.className = 'dot '+(online?'ok':'bad');
-      UI.netText.textContent = online ? 'Online' : 'Offline — veriler yerelde kuyruğa alınıyor';
-      if(!online) setStatus('İnternet yok: kayıtlar geçici olarak cihazda saklanacak.', 'bad');
+
+    // v1.8 🔥 — navigator.onLine tek başına Firebase erişimini garanti etmez.
+    // Firebase sonucu henüz gelmediyse (null) yazmayı denemeye izin veriyoruz;
+    // update() sunucu onayı vermezse kayıt güvenli kuyruğa alınır.
+    function canAttemptFirebaseWrite(){
+      return !!navigator.onLine && firebaseConnected !== false;
     }
 
-function queueOfflineWrite(path, payload){
+    function setNetUI(){
+      const browserOnline = !!navigator.onLine;
+      const firebaseOnline = firebaseConnected === true;
+      const firebaseOffline = firebaseConnected === false;
+
+      UI.netDot.className = 'dot '+(browserOnline && firebaseOnline ? 'ok' : 'bad');
+      if(!browserOnline){
+        UI.netText.textContent = 'Offline — veriler yerelde kuyruğa alınıyor';
+        setStatus('İnternet yok: kayıtlar geçici olarak cihazda saklanacak.', 'bad');
+      }else if(firebaseOffline){
+        UI.netText.textContent = 'İnternet var • Firebase bağlantısı yok';
+        setStatus('Firebase bağlantısı yok: kayıtlar güvenli kuyruğa alınacak.', 'bad');
+      }else if(firebaseOnline){
+        UI.netText.textContent = 'Firebase bağlı';
+      }else{
+        UI.netText.textContent = 'Firebase bağlantısı kontrol ediliyor…';
+      }
+    }
+
+    function initFirebaseConnectionMonitor(){
+      if(!db || firebaseConnectionListenerStarted) return;
+      firebaseConnectionListenerStarted = true;
+      onValue(ref(db, '.info/connected'), snap=>{
+        const wasConnected = firebaseConnected === true;
+        firebaseConnected = snap.val() === true;
+        setNetUI();
+        // Bağlantı yeniden geldiyse bekleyen kayıtları otomatik aktar.
+        if(firebaseConnected && !wasConnected){
+          flushQueue(false).catch(err=>console.error('queue reconnect flush error', err));
+        }
+      }, err=>{
+        console.error('Firebase connection monitor error', err);
+        firebaseConnected = false;
+        setNetUI();
+      });
+    }
+
+    function normalizeQueueOptions(options={}){
+      return (options && typeof options === 'object') ? options : {};
+    }
+
+    function makeQueueId(){
+      try{ return `q_${Date.now()}_${crypto.randomUUID()}`; }
+      catch(_){ return `q_${Date.now()}_${Math.random().toString(36).slice(2)}`; }
+    }
+
+    function queueOfflineWrite(path, payload, options={}){
       const key='offlineQueue';
-      const q = JSON.parse(localStorage.getItem(key)||'[]');
-      q.push({path, payload});
+      const opts=normalizeQueueOptions(options);
+      let q=[];
+      try{ q=JSON.parse(localStorage.getItem(key)||'[]'); }
+      catch(_){ q=[]; }
+      if(!Array.isArray(q)) q=[];
+
+      const item={
+        queueId: makeQueueId(),
+        path,
+        payload,
+        kind: opts.kind || 'generic',
+        dedupeKey: opts.dedupeKey || '',
+        verifyGroups: Array.isArray(opts.verifyGroups) ? opts.verifyGroups : [],
+        queuedAt: Date.now(),
+        appVersion: APP_VERSION
+      };
+
+      // Aynı ders/yoklama tekrar kaydedildiyse eski kuyruk kaydını yenisiyle değiştir.
+      if(item.dedupeKey){
+        const idx=q.findIndex(x=>x?.dedupeKey===item.dedupeKey);
+        if(idx>=0) q[idx]=item;
+        else q.push(item);
+      }else q.push(item);
+
       localStorage.setItem(key, JSON.stringify(q));
-      setStatus(`Offline: ${q.length} işlem kuyrukta.`, 'bad');
+      setStatus(`Güvenli kuyruk: ${q.length} işlem bekliyor.`, 'bad');
+      return q.length;
     }
-    async function flushQueue(showToast){
+
+    async function verifyAttendanceGroups(groups, options={}){
+      const list=Array.isArray(groups) ? groups : [];
+      if(!list.length) return {ok:false, reason:'Doğrulanacak yoklama kaydı yok.', mismatches:['empty-verification']};
+
+      const attempts=Math.max(1, Number(options.attempts)||2);
+      const waitMs=Math.max(0, Number(options.waitMs)||250);
+      let lastMismatches=[];
+
+      for(let attempt=1; attempt<=attempts; attempt++){
+        const mismatches=[];
+        try{
+          for(const group of list){
+            if(!group?.pathBase || !group?.students) {
+              mismatches.push('Geçersiz doğrulama grubu');
+              continue;
+            }
+            const snap=await get(ref(db, group.pathBase));
+            const node=snap.exists() ? (snap.val()||{}) : {};
+            for(const [id, expected] of Object.entries(group.students||{})){
+              const actual=node?.[id];
+              const sameStatus=actual?.durum===expected?.durum;
+              const sameLate=!!actual?.late===!!expected?.late;
+              if(!actual || !sameStatus || !sameLate){
+                mismatches.push(`${group.pathBase}/${id}`);
+              }
+            }
+          }
+        }catch(err){
+          console.error('attendance verification read error', err);
+          mismatches.push(`read-error:${err?.code || err?.message || 'unknown'}`);
+        }
+
+        if(!mismatches.length) return {ok:true, mismatches:[]};
+        lastMismatches=mismatches;
+        if(attempt<attempts && waitMs) await new Promise(r=>setTimeout(r, waitMs));
+      }
+      return {ok:false, reason:'Firebase geri okuma doğrulaması eşleşmedi.', mismatches:lastMismatches};
+    }
+
+    async function applyQueuedFirebaseWrite(item){
+      const targetRef=ref(db, item?.path || '/');
+      const payload=item?.payload;
+      // update() yalnızca nesne güncellemeleri içindir; eski kuyrukta null/sabit değer varsa set() kullan.
+      if(payload === null || typeof payload !== 'object' || Array.isArray(payload)){
+        await set(targetRef, payload);
+      }else{
+        await update(targetRef, payload);
+      }
+    }
+
+    function removeSupersededAttendanceQueue(dedupeKey, verifyGroups){
       const key='offlineQueue';
-      const q = JSON.parse(localStorage.getItem(key)||'[]');
-      if(!q.length || !navigator.onLine) return;
-      try{
-        for(const item of q){ await update(ref(db, item.path), item.payload); }
-        localStorage.removeItem(key);
-        setStatus(`Online: ${q.length} bekleyen işlem aktarıldı.`, 'ok');
-        if(showToast) Swal.fire('Senkron', `${q.length} işlem veritabanına aktarıldı.`, 'success');
-      }catch(e){ console.error(e); setStatus('Senkron sırasında hata.', 'bad'); }
+      let q=[];
+      try{ q=JSON.parse(localStorage.getItem(key)||'[]'); }catch(_){ q=[]; }
+      if(!Array.isArray(q) || !q.length) return 0;
+
+      const bases=(Array.isArray(verifyGroups)?verifyGroups:[])
+        .map(g=>safe(g?.pathBase))
+        .filter(Boolean);
+      let removed=0;
+      const next=q.filter(item=>{
+        let match=!!dedupeKey && item?.dedupeKey===dedupeKey;
+
+        // v1.7 ve öncesinden kalan dedupeKey'siz yoklama kayıtlarını da yakala.
+        if(!match && bases.length && item?.payload && typeof item.payload==='object' && !Array.isArray(item.payload)){
+          const itemBase=safe(item?.path || '/').replace(/^\/+|\/+$/g,'');
+          for(const relKey of Object.keys(item.payload)){
+            const cleanKey=safe(relKey).replace(/^\/+|\/+$/g,'');
+            const full=itemBase ? `${itemBase}/${cleanKey}` : cleanKey;
+            if(bases.some(base=>full===base || full.startsWith(`${base}/`))){
+              match=true;
+              break;
+            }
+          }
+        }
+
+        if(match) removed++;
+        return !match;
+      });
+
+      if(removed){
+        if(next.length) localStorage.setItem(key, JSON.stringify(next));
+        else localStorage.removeItem(key);
+      }
+      return removed;
     }
+
+    async function flushQueue(showSyncToast){
+      if(queueFlushInFlight) return queueFlushInFlight;
+
+      queueFlushInFlight=(async()=>{
+        const key='offlineQueue';
+        let q=[];
+        try{ q=JSON.parse(localStorage.getItem(key)||'[]'); }
+        catch(_){ q=[]; }
+        if(!Array.isArray(q) || !q.length || !canAttemptFirebaseWrite()) return {ok:false, skipped:true, pending:Array.isArray(q)?q.length:0};
+
+        // Eski sürümden kalan kuyruk öğelerine de kimlik ver; aktarım sırasında eklenen yeni öğeler kaybolmasın.
+        let queueNormalized=false;
+        q=q.map(item=>{
+          if(item?.queueId) return item;
+          queueNormalized=true;
+          return {...(item||{}), queueId:makeQueueId()};
+        });
+        if(queueNormalized) localStorage.setItem(key, JSON.stringify(q));
+
+        const snapshotIds=new Set(q.map(item=>item.queueId));
+        const remaining=[];
+        let synced=0;
+        for(const item of q){
+          try{
+            await applyQueuedFirebaseWrite(item);
+            if(item?.kind==='attendance' && Array.isArray(item.verifyGroups) && item.verifyGroups.length){
+              const verified=await verifyAttendanceGroups(item.verifyGroups, {attempts:2, waitMs:300});
+              if(!verified.ok) throw new Error(`Yoklama doğrulanamadı: ${verified.mismatches.slice(0,3).join(', ')}`);
+            }
+            synced++;
+          }catch(e){
+            console.error('queued write sync error', e);
+            remaining.push(item);
+          }
+        }
+
+        // İşlem sürerken başka bir kayıt kuyruğa eklenmiş/değiştirilmiş olabilir.
+        // Snapshot'ta olmayan yeni öğeleri aynen koru.
+        let latest=[];
+        try{ latest=JSON.parse(localStorage.getItem(key)||'[]'); }catch(_){ latest=[]; }
+        if(!Array.isArray(latest)) latest=[];
+        const addedDuringFlush=latest.filter(item=>!snapshotIds.has(item?.queueId));
+        const finalQueue=[...remaining, ...addedDuringFlush];
+
+        if(finalQueue.length) localStorage.setItem(key, JSON.stringify(finalQueue));
+        else localStorage.removeItem(key);
+
+        if(synced){
+          setStatus(`Online: ${synced} bekleyen işlem Firebase'e aktarıldı${finalQueue.length ? `, ${finalQueue.length} işlem bekliyor` : ''}.`, finalQueue.length?'bad':'ok');
+          if(showSyncToast && !finalQueue.length) Swal.fire('Senkron', `${synced} işlem Firebase'e aktarıldı ve onaylandı.`, 'success');
+        }else if(finalQueue.length){
+          setStatus(`Senkron tamamlanamadı: ${finalQueue.length} işlem kuyrukta.`, 'bad');
+        }
+        return {ok:finalQueue.length===0, synced, pending:finalQueue.length};
+      })();
+
+      try{
+        return await queueFlushInFlight;
+      }finally{
+        queueFlushInFlight=null;
+      }
+    }
+
 async function refreshVisibleView(reason='resume'){
     // Ekran geri geldiğinde yalnızca görünür durumda çalış.
     if(!session) return;
@@ -4685,6 +4902,7 @@ async function refreshVisibleView(reason='resume'){
       const versionBadge = document.getElementById('appVersionBadge');
       if(versionBadge) versionBadge.textContent = `v${APP_VERSION}`;
       const app = initializeApp(firebaseConfig); appFB=app; db=getDatabase(appFB);
+      initFirebaseConnectionMonitor();
 
       // Uygulama sürümünü RTDB ile karşılaştır; daha yeni açık sayfa eski sürüm tarafından geri alınamaz.
       const initialVersionState = await checkAndPublishAppVersion({ reason:'init', force:true });
@@ -4992,7 +5210,7 @@ try{
         await flushQueue(true);
       });
       window.addEventListener('offline', ()=> setNetUI());
-      if(navigator.onLine) await flushQueue(false);
+      if(canAttemptFirebaseWrite()) await flushQueue(false);
     }
 
     async function loadSheets(options={}){
@@ -5594,7 +5812,7 @@ async function openLesson(lesson){
   const _defaultVar = (cfg.defaultVar ?? true);
 
   list.forEach(o=>{
-    let status='', late=false;
+    let status='yok', late=false;
     if (prefillMode==='existing' && existing[o.id]) {
       const prev = existing[o.id];
       status = (prev.durum==='var') ? 'var' : 'yok';
@@ -5604,8 +5822,8 @@ async function openLesson(lesson){
       if (src) {
         if (src.durum === 'yok') { status='yok'; late=false; }
         else { status='var'; late=false; }
-      } else status = _defaultVar ? 'var' : '';
-    } else status = _defaultVar ? 'var' : '';
+      } else status = _defaultVar ? 'var' : 'yok';
+    } else status = _defaultVar ? 'var' : 'yok';
     tempAtt[o.id] = { status, late };
   });
 
@@ -5936,73 +6154,192 @@ async function handleAttendanceSaveClick(){
 
 async function saveAttendance(){
   if(!currentLesson) return false;
+  if(attendanceSaveInFlight){
+    showToast('Yoklama kaydı zaten işleniyor…','warn');
+    return false;
+  }
   if(attendanceConfigReady && !attendanceEnabled){
     Swal.fire('Tatil Modu','Yoklama şu anda pasif. Yönetici panelinden aktif edildiğinde kayıt alabilirsiniz.','info');
     showHolidayMode(currentLesson);
     return false;
   }
 
+  attendanceSaveInFlight=true;
+  if(UI.saveBtn) UI.saveBtn.disabled=true;
+
   const tarih = toDateStr(nowTR());
-  const scope = lessonScopeFrom(currentLesson);
-  const rosterByNo = new Map((currentRoster||[]).map(st=>[safe(st.id),st]));
-  if(!rosterByNo.size){
-    await Swal.fire('Öğrenci Yok','Bu dersin sınıf/grup kapsamına uyan öğrenci bulunamadığı için yoklama kaydedilmedi.','info');
-    return false;
-  }
+  const lessonSnapshot = currentLesson;
+  const scope = lessonScopeFrom(lessonSnapshot);
+  const roster = Array.isArray(currentRoster) ? currentRoster : [];
+  const rosterByNo = new Map(roster.map(st=>[safe(st.id),st]));
 
-  const updates = {};
-  for(const entry of currentLessonStoredEntries||[]){
-    const st=rosterByNo.get(safe(entry?.id)) || entry?.student;
-    if(!st?.sinif) continue;
-    const oldPath=`${attPath(tarih, entry.storageClass, currentLesson.saatKodu, currentLesson.ogretmenId)}/${safe(entry.id)}`;
-    const newPath=`${attPath(tarih, st.sinif, currentLesson.saatKodu, currentLesson.ogretmenId)}/${safe(entry.id)}`;
-    if(oldPath !== newPath) updates[oldPath]=null;
-  }
+  try{
+    if(!rosterByNo.size){
+      await Swal.fire('Öğrenci Yok','Bu dersin sınıf/grup kapsamına uyan öğrenci bulunamadığı için yoklama kaydedilmedi.','info');
+      return false;
+    }
 
-  Object.entries(tempAtt).forEach(([id, d])=>{
-    const st=rosterByNo.get(safe(id));
-    if(!st?.sinif) return;
-    const pathBase = attPath(tarih, st.sinif, currentLesson.saatKodu, currentLesson.ogretmenId);
-    if(d.status){
+    // v1.8 🔥 — Her öğrenci mutlaka VAR veya YOK olmalı; gizli/boş üçüncü durum yok.
+    const invalid=[];
+    for(const st of roster){
+      const id=safe(st?.id);
+      const status=tempAtt?.[id]?.status;
+      if(!id || !st?.sinif || (status!=='var' && status!=='yok')){
+        invalid.push(st?.ad || id || 'Bilinmeyen öğrenci');
+      }
+    }
+    if(invalid.length){
+      await Swal.fire({
+        icon:'warning',
+        title:'Yoklama Tamamlanmadı',
+        html:`<b>${invalid.length}</b> öğrencinin VAR/YOK durumu veya sınıf bilgisi eksik.<br><small>${invalid.slice(0,5).join(', ')}${invalid.length>5?'…':''}</small>`,
+        confirmButtonText:'Tamam'
+      });
+      return false;
+    }
+
+    const updates = {};
+    const verifyMap = new Map();
+
+    // Eski/legacy sınıf yolunda kalmış kayıt varsa yeni gerçek sınıf yoluna taşınırken temizle.
+    for(const entry of currentLessonStoredEntries||[]){
+      const st=rosterByNo.get(safe(entry?.id)) || entry?.student;
+      if(!st?.sinif) continue;
+      const oldPath=`${attPath(tarih, entry.storageClass, lessonSnapshot.saatKodu, lessonSnapshot.ogretmenId)}/${safe(entry.id)}`;
+      const newPath=`${attPath(tarih, st.sinif, lessonSnapshot.saatKodu, lessonSnapshot.ogretmenId)}/${safe(entry.id)}`;
+      if(oldPath !== newPath) updates[oldPath]=null;
+    }
+
+    // Roster üzerinden dön: tempAtt içinde kayıp öğrenci varsa sessizce atlanmasına izin verme.
+    for(const st of roster){
+      const id=safe(st.id);
+      const d=tempAtt[id];
+      const status=d.status; // yukarıda yalnızca var/yok olduğu doğrulandı
+      const late=status==='var' ? !!d.late : false;
+      const pathBase = attPath(tarih, st.sinif, lessonSnapshot.saatKodu, lessonSnapshot.ogretmenId);
+
       updates[`${pathBase}/${id}`] = {
-        durum:d.status, late:!!d.late, ts:Date.now(),
-        ogretmenId: currentLesson.ogretmenId,
-        ogretmenAd: currentLesson.ogretmenAd,
-        ogretmenBrans: currentLesson.ogretmenBrans,
-        ders: currentLesson.dersName,
-        saatKodu: currentLesson.saatKodu,
-        saatNo: currentLesson.saatNo || null,
-        saatBas: currentLesson.bas || '',
-        saatBit: currentLesson.bit || '',
-        gun: currentLesson.gun,
-        program: currentLesson.program || '',
+        durum:status,
+        late,
+        ts:Date.now(),
+        ogretmenId: lessonSnapshot.ogretmenId,
+        ogretmenAd: lessonSnapshot.ogretmenAd,
+        ogretmenBrans: lessonSnapshot.ogretmenBrans,
+        ders: lessonSnapshot.dersName,
+        saatKodu: lessonSnapshot.saatKodu,
+        saatNo: lessonSnapshot.saatNo || null,
+        saatBas: lessonSnapshot.bas || '',
+        saatBit: lessonSnapshot.bit || '',
+        gun: lessonSnapshot.gun,
+        program: lessonSnapshot.program || '',
         sinif: st.sinif,
         scopeKey: scope.scopeKey,
         dersSiniflari: scope.classLabel || '',
         dersGruplari: scope.groupLabel || '',
         appVersion: APP_VERSION
       };
-    }else updates[`${pathBase}/${id}`] = null;
-  });
 
-  try{
-    if(navigator.onLine){
-      await update(ref(db), updates);
-      await flushQueue(false);
-      setStatus('Kaydedildi.', 'ok');
-      showToast('Kaydedildi ✓','ok');
-      Swal.fire('Kaydedildi','Yoklama gerçek sınıflara ayrı ayrı kaydedildi.','success');
-    }else{
-      queueOfflineWrite('/', updates);
-      Swal.fire('Offline','Kayıt gerçek sınıf yollarına göre kuyruğa alındı.','info');
+      if(!verifyMap.has(pathBase)) verifyMap.set(pathBase, {});
+      verifyMap.get(pathBase)[id]={durum:status, late};
     }
+
+    if(!Object.keys(updates).length){
+      await Swal.fire('Kayıt Oluşturulamadı','Firebase’e gönderilecek yoklama verisi oluşmadı. Kayıt yapılmadı.','error');
+      return false;
+    }
+
+    const verifyGroups=Array.from(verifyMap, ([pathBase, students])=>({pathBase, students}));
+    const dedupeKey=[
+      'attendance', tarih, safe(lessonSnapshot.saatKodu), safe(lessonSnapshot.ogretmenId), safe(scope.scopeKey)
+    ].join(':');
+    const queueOptions={kind:'attendance', dedupeKey, verifyGroups};
+
+    // Tarayıcı interneti veya Firebase bağlantısı yoksa sunucuya kaydedildi demiyoruz.
+    if(!canAttemptFirebaseWrite()){
+      queueOfflineWrite('/', updates, queueOptions);
+      await Swal.fire({
+        icon:'warning',
+        title:'Firebase Bağlantısı Yok',
+        html:'Yoklama <b>cihazda güvenli kuyruğa alındı</b>.<br>Firebase bağlantısı geldiğinde otomatik gönderilecek ve doğrulanacak.<br><br><b>Bu kayıt için veli SMS’i henüz gönderilmeyecek.</b>',
+        confirmButtonText:'Tamam'
+      });
+      closeAttendance(false);
+      await showTeacherToday();
+      return false;
+    }
+
+    // Önceden başlamış kuyruk aktarımı varsa bitmesini bekle; eski kayıt yeni kaydın üstüne yazmasın.
+    await flushQueue(false);
+    removeSupersededAttendanceQueue(dedupeKey, verifyGroups);
+
+    setStatus('Yoklama Firebase’e gönderiliyor…','info');
+
+    try{
+      // update() Promise'i ancak RTDB sunucu yazmayı kabul ettiğinde tamamlanır.
+      await update(ref(db), updates);
+    }catch(writeErr){
+      console.error('attendance firebase write error', writeErr);
+      const code=String(writeErr?.code || '').toLowerCase();
+      const msg=String(writeErr?.message || '').toLowerCase();
+      const permanent = code.includes('permission') || code.includes('auth') || msg.includes('permission denied');
+
+      if(permanent){
+        setStatus('Firebase kayıt yetkisi reddedildi. Yoklama kaydedilmedi.','bad');
+        await Swal.fire('Firebase Kayıt Hatası','Firebase bu yazma işlemini reddetti. Kayıt kuyruğa alınmadı; yetki/veritabanı kuralları kontrol edilmeli.','error');
+        return false;
+      }
+
+      // Ağ/bağlantı kaynaklı hata: veriyi kaybetme, güvenli kuyruğa al.
+      queueOfflineWrite('/', updates, queueOptions);
+      setStatus('Firebase onayı alınamadı; yoklama güvenli kuyrukta.','bad');
+      await Swal.fire({
+        icon:'warning',
+        title:'Firebase Onayı Alınamadı',
+        html:'Yoklama cihazda <b>güvenli kuyruğa alındı</b>. Bağlantı düzeldiğinde otomatik yeniden gönderilecek ve doğrulanacak.<br><br><b>Veli SMS’i gönderilmedi.</b>',
+        confirmButtonText:'Tamam'
+      });
+      closeAttendance(false);
+      await showTeacherToday();
+      return false;
+    }
+
+    // Sunucu yazma onayından sonra aynı kayıtları geri oku ve öğrenci bazında karşılaştır.
+    setStatus('Firebase kaydı doğrulanıyor…','info');
+    const verified=await verifyAttendanceGroups(verifyGroups, {attempts:3, waitMs:350});
+    if(!verified.ok){
+      // Yazma ACK almış olsa bile geri okuma doğrulaması başarısızsa başarı mesajı gösterme.
+      // Aynı veri kuyruğa alınır; tekrar gönderim idempotenttir ve bağlantı gelince yeniden doğrulanır.
+      queueOfflineWrite('/', updates, queueOptions);
+      console.error('attendance verification mismatch', verified.mismatches);
+      setStatus('Firebase kaydı doğrulanamadı; yoklama güvenli kuyrukta.','bad');
+      await Swal.fire({
+        icon:'warning',
+        title:'Kayıt Doğrulanamadı',
+        html:'Firebase yazma isteğini aldı ancak geri okuma kontrolü tamamlanamadı.<br>Yoklama <b>güvenli kuyruğa alındı</b> ve otomatik tekrar doğrulanacak.<br><br><b>Veli SMS’i gönderilmedi.</b>',
+        confirmButtonText:'Tamam'
+      });
+      closeAttendance(false);
+      await showTeacherToday();
+      return false;
+    }
+
+    // Yalnızca sunucu ACK + geri okuma birebir eşleşirse "Kaydedildi" denir.
+    setStatus('Firebase’e kaydedildi ve doğrulandı.','ok');
+    showToast('Firebase’e kaydedildi ✓','ok');
+    await Swal.fire('Kaydedildi','Yoklama Firebase’e kaydedildi ve öğrenci bazında doğrulandı.','success');
+
     closeAttendance(false);
     await showTeacherToday();
+
     return true;
   }catch(e){
-    console.error(e); setStatus('Hata: kayıt sırasında sorun.', 'bad');
-    Swal.fire('Hata','Kayıt sırasında bir sorun oluştu.','error');
+    console.error('saveAttendance unexpected error', e);
+    setStatus('Hata: yoklama kayıt işlemi tamamlanamadı.','bad');
+    await Swal.fire('Hata','Yoklama kayıt işlemi tamamlanamadı. Veri doğrulanmadan başarı mesajı verilmedi.','error');
     return false;
+  }finally{
+    attendanceSaveInFlight=false;
+    if(UI.saveBtn) UI.saveBtn.disabled=false;
   }
 }
 
