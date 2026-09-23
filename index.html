@@ -4504,7 +4504,7 @@ function setStatus(msg, type='info'){
       const msg=String(UI.statusMsg?.textContent || '').trim();
       const stale=new Set([
         'İnternet yok: kayıtlar geçici olarak cihazda saklanacak.',
-        'Firebase bağlantısı yok: kayıtlar güvenli kuyruğa alınacak.'
+        'Server bağlantısı yok: kayıtlar güvenli kuyruğa alınacak.'
       ]);
       if(!stale.has(msg)) return;
       UI.statusMsg.textContent='';
@@ -4529,13 +4529,13 @@ function setStatus(msg, type='info'){
         UI.netText.textContent = 'Offline — veriler yerelde kuyruğa alınıyor';
         setStatus('İnternet yok: kayıtlar geçici olarak cihazda saklanacak.', 'bad');
       }else if(firebaseOffline){
-        UI.netText.textContent = 'İnternet var • Firebase bağlantısı yok';
-        setStatus('Firebase bağlantısı yok: kayıtlar güvenli kuyruğa alınacak.', 'bad');
+        UI.netText.textContent = 'İnternet var • Server bağlantısı yok';
+        setStatus('Server bağlantısı yok: kayıtlar güvenli kuyruğa alınacak.', 'bad');
       }else if(firebaseOnline){
-        UI.netText.textContent = 'Firebase bağlı';
+        UI.netText.textContent = 'Server bağlı';
         clearStaleNetworkStatus();
       }else{
-        UI.netText.textContent = 'Firebase bağlantısı kontrol ediliyor…';
+        UI.netText.textContent = 'Server bağlantısı kontrol ediliyor…';
       }
     }
 
@@ -4781,8 +4781,8 @@ function setStatus(msg, type='info'){
         else localStorage.removeItem(key);
 
         if(synced){
-          setStatus(`Online: ${synced} bekleyen işlem Firebase'e aktarıldı${finalQueue.length ? `, ${finalQueue.length} işlem bekliyor` : ''}.`, finalQueue.length?'bad':'ok');
-          if(showSyncToast && !finalQueue.length) Swal.fire('Senkron', `${synced} işlem Firebase'e aktarıldı ve onaylandı.`, 'success');
+          setStatus(`Online: ${synced} bekleyen işlem veritabanına aktarıldı${finalQueue.length ? `, ${finalQueue.length} işlem bekliyor` : ''}.`, finalQueue.length?'bad':'ok');
+          if(showSyncToast && !finalQueue.length) Swal.fire('Senkron', `${synced} işlem veritabanına aktarıldı ve onaylandı.`, 'success');
         }else if(finalQueue.length){
           setStatus(`Senkron tamamlanamadı: ${finalQueue.length} işlem kuyrukta.`, 'bad');
         }
@@ -6320,7 +6320,7 @@ async function saveAttendance(){
     }
 
     if(!Object.keys(updates).length){
-      await Swal.fire('Kayıt Oluşturulamadı','Firebase’e gönderilecek yoklama verisi oluşmadı. Kayıt yapılmadı.','error');
+      await Swal.fire('Kayıt Oluşturulamadı','Veritabanına gönderilecek yoklama verisi oluşmadı. Kayıt yapılmadı.','error');
       return false;
     }
 
@@ -6335,8 +6335,8 @@ async function saveAttendance(){
       queueOfflineWrite('/', updates, queueOptions);
       await Swal.fire({
         icon:'warning',
-        title:'Firebase Bağlantısı Yok',
-        html:'Yoklama <b>cihazda güvenli kuyruğa alındı</b>.<br>Firebase bağlantısı geldiğinde otomatik gönderilecek ve doğrulanacak.<br><br><b>Bu kayıt için veli SMS’i henüz gönderilmeyecek.</b>',
+        title:'Server Bağlantısı Yok',
+        html:'Yoklama <b>cihazda güvenli kuyruğa alındı</b>.<br>Server bağlantısı geldiğinde otomatik gönderilecek ve doğrulanacak.<br><br><b>Bu kayıt için veli SMS’i henüz gönderilmeyecek.</b>',
         confirmButtonText:'Tamam'
       });
       closeAttendance(false);
@@ -6348,7 +6348,7 @@ async function saveAttendance(){
     await flushQueue(false);
     removeSupersededAttendanceQueue(dedupeKey, verifyGroups);
 
-    setStatus('Yoklama Firebase’e gönderiliyor…','info');
+    setStatus('Yoklama veritabanına gönderiliyor…','info');
 
     try{
       // update() Promise'i ancak RTDB sunucu yazmayı kabul ettiğinde tamamlanır.
@@ -6360,17 +6360,17 @@ async function saveAttendance(){
       const permanent = code.includes('permission') || code.includes('auth') || msg.includes('permission denied');
 
       if(permanent){
-        setStatus('Firebase kayıt yetkisi reddedildi. Yoklama kaydedilmedi.','bad');
-        await Swal.fire('Firebase Kayıt Hatası','Firebase bu yazma işlemini reddetti. Kayıt kuyruğa alınmadı; yetki/veritabanı kuralları kontrol edilmeli.','error');
+        setStatus('Veritabanı kayıt yetkisi reddedildi. Yoklama kaydedilmedi.','bad');
+        await Swal.fire('Veritabanı Kayıt Hatası','Veritabanı bu yazma işlemini reddetti. Kayıt kuyruğa alınmadı; yetki/veritabanı kuralları kontrol edilmeli.','error');
         return false;
       }
 
       // Ağ/bağlantı kaynaklı hata: veriyi kaybetme, güvenli kuyruğa al.
       queueOfflineWrite('/', updates, queueOptions);
-      setStatus('Firebase onayı alınamadı; yoklama güvenli kuyrukta.','bad');
+      setStatus('Veritabanı onayı alınamadı; yoklama güvenli kuyrukta.','bad');
       await Swal.fire({
         icon:'warning',
-        title:'Firebase Onayı Alınamadı',
+        title:'Veritabanı Onayı Alınamadı',
         html:'Yoklama cihazda <b>güvenli kuyruğa alındı</b>. Bağlantı düzeldiğinde otomatik yeniden gönderilecek ve doğrulanacak.<br><br><b>Veli SMS’i gönderilmedi.</b>',
         confirmButtonText:'Tamam'
       });
@@ -6380,18 +6380,18 @@ async function saveAttendance(){
     }
 
     // Sunucu yazma onayından sonra aynı kayıtları geri oku ve öğrenci bazında karşılaştır.
-    setStatus('Firebase kaydı doğrulanıyor…','info');
+    setStatus('Veritabanı kaydı doğrulanıyor…','info');
     const verified=await verifyAttendanceGroups(verifyGroups, {attempts:3, waitMs:350});
     if(!verified.ok){
       // Yazma ACK almış olsa bile geri okuma doğrulaması başarısızsa başarı mesajı gösterme.
       // Aynı veri kuyruğa alınır; tekrar gönderim idempotenttir ve bağlantı gelince yeniden doğrulanır.
       queueOfflineWrite('/', updates, queueOptions);
       console.error('attendance verification mismatch', verified.mismatches);
-      setStatus('Firebase kaydı doğrulanamadı; yoklama güvenli kuyrukta.','bad');
+      setStatus('Veritabanı kaydı doğrulanamadı; yoklama güvenli kuyrukta.','bad');
       await Swal.fire({
         icon:'warning',
         title:'Kayıt Doğrulanamadı',
-        html:'Firebase yazma isteğini aldı ancak geri okuma kontrolü tamamlanamadı.<br>Yoklama <b>güvenli kuyruğa alındı</b> ve otomatik tekrar doğrulanacak.<br><br><b>Veli SMS’i gönderilmedi.</b>',
+        html:'Veritabanı yazma isteğini aldı ancak geri okuma kontrolü tamamlanamadı.<br>Yoklama <b>güvenli kuyruğa alındı</b> ve otomatik tekrar doğrulanacak.<br><br><b>Veli SMS’i gönderilmedi.</b>',
         confirmButtonText:'Tamam'
       });
       closeAttendance(false);
@@ -6400,9 +6400,9 @@ async function saveAttendance(){
     }
 
     // Yalnızca sunucu ACK + geri okuma birebir eşleşirse "Kaydedildi" denir.
-    setStatus('Firebase’e kaydedildi ve doğrulandı.','ok');
-    showToast('Firebase’e kaydedildi ✓','ok');
-    await Swal.fire('Kaydedildi','Yoklama Firebase’e kaydedildi ve öğrenci bazında doğrulandı.','success');
+    setStatus('Veritabanına kaydedildi ve doğrulandı.','ok');
+    showToast('Veritabanına kaydedildi ✓','ok');
+    await Swal.fire('Kaydedildi','Yoklama veritabanına kaydedildi ve öğrenci bazında doğrulandı.','success');
 
     closeAttendance(false);
     await showTeacherToday();
@@ -6449,9 +6449,9 @@ async function undoAttendance(){
     else queueOfflineWrite('/', updates);
 
     if(queued){
-      await Swal.fire('Kuyruğa Alındı','Geri alma işlemi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      await Swal.fire('Kuyruğa Alındı','Geri alma işlemi server bağlantısı geldiğinde otomatik uygulanacak.','warning');
     }else{
-      await Swal.fire('Geri alındı','Bu ders kapsamına ait kayıtlar Firebase’den silindi.','success');
+      await Swal.fire('Geri alındı','Bu ders kapsamına ait kayıtlar veritabanından silindi.','success');
     }
     closeAttendance(false);
     await showTeacherToday();
@@ -8351,7 +8351,7 @@ async function showStudentReport(no, name){
         const queued = !canUseFirebase();
         if(!queued){ await flushQueue(false); await update(ref(db), updates); }
         else{ Object.entries(updates).forEach(([k,v])=> queueOfflineWrite(k,v)); }
-        setStatus(queued ? `${rows.length} silme işlemi güvenli kuyrukta.` : `${rows.length} kayıt Firebase’den silindi.`, queued?'bad':'ok');
+        setStatus(queued ? `${rows.length} silme işlemi güvenli kuyrukta.` : `${rows.length} kayıt veritabanından silindi.`, queued?'bad':'ok');
         rows.forEach(tr => tbBody.querySelector(`tr[data-date="${tr.date}"][data-sinif="${tr.sinif}"][data-oid="${tr.ogretmenId}"][data-saatk="${tr.saatKodu}"]`)?.remove());
         h.querySelector('#hEmpty').classList.toggle('hidden', tbBody.children.length>0);
       }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
@@ -8365,7 +8365,7 @@ async function showStudentReport(no, name){
         const queued = !canUseFirebase();
         if(!queued){ await flushQueue(false); await update(ref(db), { [attDayRoot(date)]: null }); }
         else{ queueOfflineWrite(`/${attDayRoot(date)}`, null); }
-        setStatus(queued ? 'Gün silme işlemi güvenli kuyrukta.' : 'Gün Firebase’den silindi.', queued?'bad':'ok');
+        setStatus(queued ? 'Gün silme işlemi güvenli kuyrukta.' : 'Gün veritabanından silindi.', queued?'bad':'ok');
         tbBody.innerHTML=''; h.querySelector('#hEmpty').classList.remove('hidden');
       }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
     });
@@ -8377,7 +8377,7 @@ async function showStudentReport(no, name){
         const queued = !canUseFirebase();
         if(!queued){ await flushQueue(false); await update(ref(db), { [ATT_ROOT]: null }); }
         else{ queueOfflineWrite('/', { [ATT_ROOT]: null }); }
-        setStatus(queued ? 'Tüm kayıtları silme işlemi güvenli kuyrukta.' : 'Tüm kayıtlar Firebase’den silindi.', queued?'bad':'ok');
+        setStatus(queued ? 'Tüm kayıtları silme işlemi güvenli kuyrukta.' : 'Tüm kayıtlar veritabanından silindi.', queued?'bad':'ok');
         tbBody.innerHTML=''; h.querySelector('#hEmpty').classList.remove('hidden');
       }catch(e){ console.error(e); Swal.fire('Hata','Silme sırasında sorun oluştu.','error'); }
     });
@@ -8386,7 +8386,7 @@ async function showStudentReport(no, name){
 btnResetAll && btnResetAll.addEventListener('click', async ()=>{
   const warn1 = await Swal.fire({
     title:'Her Şeyi Sil',
-    html:'<div style="text-align:left;line-height:1.5">Bu işlem <b>geri alınamaz</b>.<br><br><b>Yoklama</b>, <b>Ödev</b> ve <b>Quiz</b> verilerinin tamamı Firebase üzerinde silinecek.</div>',
+    html:'<div style="text-align:left;line-height:1.5">Bu işlem <b>geri alınamaz</b>.<br><br><b>Yoklama</b>, <b>Ödev</b> ve <b>Quiz</b> verilerinin tamamı veritabanından silinecek.</div>',
     icon:'warning',
     showCancelButton:true,
     confirmButtonText:'Evet, sil',
@@ -8409,7 +8409,7 @@ btnResetAll && btnResetAll.addEventListener('click', async ()=>{
     const queued = !canUseFirebase();
     if(!queued){ await flushQueue(false); await update(ref(db), wipe); }
     else{ queueOfflineWrite('/', wipe); }
-    setStatus(queued ? 'Tüm verileri sıfırlama işlemi güvenli kuyrukta.' : 'Tüm yoklama/ödev/quiz verileri Firebase’de sıfırlandı.', queued?'bad':'ok');
+    setStatus(queued ? 'Tüm verileri sıfırlama işlemi güvenli kuyrukta.' : 'Tüm yoklama/ödev/quiz verileri veritabanında sıfırlandı.', queued?'bad':'ok');
     tbBody.innerHTML='';
     h.querySelector('#hEmpty').classList.remove('hidden');
   }catch(e){ console.error(e); Swal.fire('Hata','Sıfırlama sırasında sorun oluştu.','error'); }
@@ -9221,8 +9221,8 @@ async function createHomework(){
     const queued = !canUseFirebase();
     if(!queued) await update(ref(db), updates);
     else queueOfflineWrite('/', updates);
-    if(queued) await Swal.fire('Kuyruğa Alındı','Ödev Firebase bağlantısı geldiğinde otomatik kaydedilecek.','warning');
-    else await Swal.fire('Kaydedildi','Ödev Firebase’e kaydedildi.','success');
+    if(queued) await Swal.fire('Kuyruğa Alındı','Ödev server bağlantısı geldiğinde otomatik kaydedilecek.','warning');
+    else await Swal.fire('Kaydedildi','Ödev veritabanına kaydedildi.','success');
     if(UI.hwTitle) UI.hwTitle.value='';
     if(UI.hwDueDate) UI.hwDueDate.value='';
     if(!queued) await loadTeacherHomeworks();
@@ -9581,12 +9581,12 @@ if(UI.hwSaveBtn){
       else queueOfflineWrite('/', updates2);
 
       if(queued){
-        await Swal.fire('Kuyruğa Alındı','Ödev durumları Firebase bağlantısı geldiğinde otomatik kaydedilecek.','warning');
+        await Swal.fire('Kuyruğa Alındı','Ödev durumları server bağlantısı geldiğinde otomatik kaydedilecek.','warning');
       }else{
         // Başarılı => 2 sn içinde kapanan mesaj
         await Swal.fire({
           title: 'Kaydedildi',
-          text: 'Ödev durumları Firebase’e kaydedildi.',
+          text: 'Ödev durumları veritabanına kaydedildi.',
           icon: 'success',
           timer: 2000,
           timerProgressBar: true,
@@ -9717,8 +9717,8 @@ async function createQuiz(){
     const queued = !canUseFirebase();
     if(!queued) await update(ref(db), updates);
     else queueOfflineWrite('/', updates);
-    if(queued) await Swal.fire('Kuyruğa Alındı','Quiz Firebase bağlantısı geldiğinde otomatik kaydedilecek.','warning');
-    else await Swal.fire('Kaydedildi','Quiz Firebase’e kaydedildi.','success');
+    if(queued) await Swal.fire('Kuyruğa Alındı','Quiz server bağlantısı geldiğinde otomatik kaydedilecek.','warning');
+    else await Swal.fire('Kaydedildi','Quiz veritabanına kaydedildi.','success');
     if(UI.qzTitle) UI.qzTitle.value='';
     if(UI.qzDate) UI.qzDate.value='';
     if(UI.qzTotal) UI.qzTotal.value='';
@@ -9917,8 +9917,8 @@ async function openQuizControl(cls,id){
           const queued = !canUseFirebase();
           if(!queued) await update(ref(db), updates2);
           else queueOfflineWrite('/', updates2);
-          if(queued) await Swal.fire('Kuyruğa Alındı','Quiz sonuçları Firebase bağlantısı geldiğinde otomatik kaydedilecek.','warning');
-          else await Swal.fire('Kaydedildi','Quiz sonuçları Firebase’e kaydedildi.','success');
+          if(queued) await Swal.fire('Kuyruğa Alındı','Quiz sonuçları server bağlantısı geldiğinde otomatik kaydedilecek.','warning');
+          else await Swal.fire('Kaydedildi','Quiz sonuçları veritabanına kaydedildi.','success');
           UI.qzControlCard?.classList.add('hidden');
           if(!queued) await loadTeacherQuizzes();
         }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
@@ -10064,8 +10064,8 @@ async function editHomework(cls, id){
       if(!queued) await update(ref(db), updates);
       else queueOfflineWrite('/', updates);
       if(!queued) await loadTeacherHomeworks();
-      if(queued) await Swal.fire('Kuyruğa Alındı','Ödev güncellemesi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
-      else await Swal.fire('Kaydedildi','Ödev Firebase’de güncellendi.','success');
+      if(queued) await Swal.fire('Kuyruğa Alındı','Ödev güncellemesi server bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      else await Swal.fire('Kaydedildi','Ödev veritabanında güncellendi.','success');
     }catch(e){ console.error(e); Swal.fire('Hata','Güncelleme sırasında hata oluştu.','error'); }
   }catch(err){ console.error(err); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
 }
@@ -10095,8 +10095,8 @@ async function deleteHomework(cls,id){
       if(!queued) await update(ref(db), updates);
       else queueOfflineWrite('/', updates);
       if(!queued) await loadTeacherHomeworks();
-      if(queued) await Swal.fire('Kuyruğa Alındı','Ödev silme işlemi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
-      else await Swal.fire('Silindi','Ödev Firebase’den silindi.','success');
+      if(queued) await Swal.fire('Kuyruğa Alındı','Ödev silme işlemi server bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      else await Swal.fire('Silindi','Ödev veritabanından silindi.','success');
     }catch(e){ console.error(e); Swal.fire('Hata','Ödev silinemedi.','error'); }
   }
 }
@@ -10140,8 +10140,8 @@ async function editQuiz(cls,id){
       if(!queued) await update(ref(db), updates);
       else queueOfflineWrite('/', updates);
       if(!queued) await loadTeacherQuizzes();
-      if(queued) await Swal.fire('Kuyruğa Alındı','Quiz güncellemesi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
-      else await Swal.fire('Kaydedildi','Quiz Firebase’de güncellendi.','success');
+      if(queued) await Swal.fire('Kuyruğa Alındı','Quiz güncellemesi server bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      else await Swal.fire('Kaydedildi','Quiz veritabanında güncellendi.','success');
     }catch(e){ console.error(e); Swal.fire('Hata','Güncelleme sırasında hata oluştu.','error'); }
   }catch(err){ console.error(err); Swal.fire('Hata','Quiz yüklenemedi.','error'); }
 }
@@ -10170,8 +10170,8 @@ async function deleteQuiz(cls,id){
       if(!queued) await update(ref(db), updates);
       else queueOfflineWrite('/', updates);
       if(!queued) await loadTeacherQuizzes();
-      if(queued) await Swal.fire('Kuyruğa Alındı','Quiz silme işlemi Firebase bağlantısı geldiğinde otomatik uygulanacak.','warning');
-      else await Swal.fire('Silindi','Quiz Firebase’den silindi.','success');
+      if(queued) await Swal.fire('Kuyruğa Alındı','Quiz silme işlemi server bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      else await Swal.fire('Silindi','Quiz veritabanından silindi.','success');
     }catch(e){ console.error(e); Swal.fire('Hata','Quiz silinemedi.','error'); }
   }
 }
