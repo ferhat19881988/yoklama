@@ -2831,12 +2831,45 @@ function openWhatsAppComposer(opts){
     const getSheetId = () => atob(SHEET_TOKEN).split('').reverse().join('');
     const sheetUrl   = (tab) => `https://opensheet.elk.sh/${getSheetId()}/${tab}`;
     const ATT_ROOT = 'yoklama_v2';
+    const ATT_SLOT_PROGRAM_SEP = '~p~';
     const TEACHER_BRIDGE_KEY = 'fenomen_teacher_bridge_v1';
     const TEACHER_BRIDGE_MAX_AGE_MS = 10 * 60 * 1000;
     const YOKLAMA_SYSTEM_URL = 'https://ferhat19881988.github.io/yoklama/';
     const BIREBIR_SYSTEM_URL = 'https://ferhat19881988.github.io/birebiranaliz/';
-    const attPath = (tarih, sinif, saatKodu, ogretmenId) =>
-    `${ATT_ROOT}/${tarih}/${sinif}/${saatKodu}/${ogretmenId}`;
+
+    // Aynı saat kodu farklı programlarda (örn. P1 / P4) tekrar kullanılabildiği için
+    // yoklama depolama anahtarına programı da katıyoruz. Böylece aynı sınıf + öğretmen +
+    // saatKodu kombinasyonunda programlar birbirinin kaydını ezmez.
+    const encodeAttendanceKeyPart = (value='') =>
+      encodeURIComponent(String(value ?? '').trim()).replace(/\./g, '%2E');
+
+    const decodeAttendanceKeyPart = (value='') => {
+      try{ return decodeURIComponent(String(value ?? '').replace(/%2E/gi, '.')); }
+      catch(_){ return String(value ?? ''); }
+    };
+
+    const attendanceSlotStorageKey = (saatKodu, program='') => {
+      const code = String(saatKodu ?? '').trim();
+      const prog = String(program ?? '').trim();
+      return prog ? `${code}${ATT_SLOT_PROGRAM_SEP}${encodeAttendanceKeyPart(prog)}` : code;
+    };
+
+    const attendanceSlotCodeFromStorageKey = (storageKey='') => {
+      const key = String(storageKey ?? '').trim();
+      const i = key.indexOf(ATT_SLOT_PROGRAM_SEP);
+      return i >= 0 ? key.slice(0, i) : key;
+    };
+
+    const attendanceProgramFromStorageKey = (storageKey='') => {
+      const key = String(storageKey ?? '').trim();
+      const i = key.indexOf(ATT_SLOT_PROGRAM_SEP);
+      return i >= 0 ? decodeAttendanceKeyPart(key.slice(i + ATT_SLOT_PROGRAM_SEP.length)) : '';
+    };
+
+    // program verilirse yeni program-ayrımlı yol; verilmezse verilen saat anahtarı aynen kullanılır.
+    // Bu davranış admin silme/legacy kayıt okuma işlemlerinin eski verilerle uyumlu kalmasını sağlar.
+    const attPath = (tarih, sinif, saatKodu, ogretmenId, program='') =>
+    `${ATT_ROOT}/${tarih}/${sinif}/${attendanceSlotStorageKey(saatKodu, program)}/${ogretmenId}`;
     const attDayRoot = (tarih, sinif) =>
     sinif && sinif !== 'hepsi' ? `${ATT_ROOT}/${tarih}/${sinif}` : `${ATT_ROOT}/${tarih}`;
     // UI
@@ -3815,6 +3848,17 @@ function lessonAttendanceKey(lesson){
   return `${safe(lesson?.saatKodu ?? lesson?.SAAT_KODU)}|${safe(lesson?.program ?? lesson?.PROGRAM ?? lesson?.prog)}|${scope.scopeKey}`;
 }
 
+function lessonStorageSlotKeys(lesson){
+  const code=safe(lesson?.saatKodu ?? lesson?.SAAT_KODU);
+  const program=safe(lesson?.program ?? lesson?.PROGRAM ?? lesson?.prog);
+  if(!code) return [];
+  const current=attendanceSlotStorageKey(code, program);
+  // Legacy ham saat kodu önce, yeni program-ayrımlı anahtar sonra.
+  // Aynı öğrencinin iki kaydı varsa byStudent tarafında yeni kayıt kazanır;
+  // entries ise ikisini de tutar ki save/undo eski yolu temizleyebilsin.
+  return current === code ? [code] : uniqueTokens([code, current]);
+}
+
 function lessonStorageClassKeys(lesson){
   const scope=lessonScopeFrom(lesson);
   const actual=[...scope.classes];
@@ -3829,11 +3873,12 @@ function lessonStorageClassKeys(lesson){
   return uniqueTokens([...legacy, ...actual]);
 }
 
-function recordMatchesLessonScope(rec, lesson){
+function recordMatchesLessonScope(rec, lesson, storageSlotKey=''){
   const recKey=safe(rec?.scopeKey);
-  const recProgram=safe(rec?.program);
+  const recProgram=safe(rec?.program) || attendanceProgramFromStorageKey(storageSlotKey);
   const lessonProgram=safe(lesson?.program ?? lesson?.PROGRAM ?? lesson?.prog);
-  // v1.2 kayıtlarında scopeKey yoktur ama program bilgisi varsa başka programa taşınmasına izin verme.
+  // Program bilgisi bulunan kaydı yalnızca kendi programında kabul et.
+  // Program alanı olmayan çok eski legacy kayıtlar geriye uyumluluk için kapsam eşleşmesine bırakılır.
   if(recProgram && lessonProgram && recProgram!==lessonProgram) return false;
   if(!recKey) return true;
   return recKey === lessonScopeFrom(lesson).scopeKey;
@@ -3869,18 +3914,22 @@ function collectLessonRecordsFromNodes(classNodes, lesson){
   const entries=[];
   const byStudent={};
   const actualNorm=new Set(scope.classes.map(normTR));
+  const teacherId=safe(lesson?.ogretmenId ?? lesson?.OGRETMEN_ID ?? lesson?.teacherId);
 
-  // legacy önce, gerçek sınıf sonra: aynı öğrenci iki yerdeyse gerçek sınıf kaydı kazanır.
+  // Legacy sınıf/saat yolu önce, gerçek sınıf + program-ayrımlı saat yolu sonra:
+  // aynı öğrenci iki yerdeyse yeni ve daha özgül kayıt byStudent içinde kazanır.
   for(const storageClass of lessonStorageClassKeys(lesson)){
-    const byStudentNode=classNodes?.[storageClass]?.[safe(lesson?.saatKodu ?? lesson?.SAAT_KODU)]?.[safe(lesson?.ogretmenId ?? lesson?.OGRETMEN_ID ?? lesson?.teacherId)];
-    if(!byStudentNode || typeof byStudentNode!=='object') continue;
-    for(const [ogrNo,rec] of Object.entries(byStudentNode)){
-      const id=safe(ogrNo);
-      const st=rosterByNo.get(id);
-      if(!st || !recordMatchesLessonScope(rec, lesson)) continue;
-      if(actualNorm.has(normTR(storageClass)) && normTR(st.sinif)!==normTR(storageClass)) continue;
-      entries.push({ id, rec:rec||{}, storageClass, student:st });
-      byStudent[id]=rec||{};
+    for(const storageSlotKey of lessonStorageSlotKeys(lesson)){
+      const byStudentNode=classNodes?.[storageClass]?.[storageSlotKey]?.[teacherId];
+      if(!byStudentNode || typeof byStudentNode!=='object') continue;
+      for(const [ogrNo,rec] of Object.entries(byStudentNode)){
+        const id=safe(ogrNo);
+        const st=rosterByNo.get(id);
+        if(!st || !recordMatchesLessonScope(rec, lesson, storageSlotKey)) continue;
+        if(actualNorm.has(normTR(storageClass)) && normTR(st.sinif)!==normTR(storageClass)) continue;
+        entries.push({ id, rec:rec||{}, storageClass, storageSlotKey, student:st });
+        byStudent[id]=rec||{};
+      }
     }
   }
   return { entries, byStudent, any:entries.length>0 };
@@ -4069,8 +4118,12 @@ function adminProgramText(prog){
 }
 
 function getAdminSlotMeta(rec={}, saatKodu=''){
-  const code = safe(saatKodu || rec?.saatKodu || rec?.SAAT_KODU).trim();
-  const recProgram = safe(rec?.program ?? rec?.PROGRAM).trim();
+  const storageCode = attendanceSlotCodeFromStorageKey(saatKodu);
+  const storageProgram = attendanceProgramFromStorageKey(saatKodu);
+  // Yeni şemada saatKodu parametresi depolama anahtarı olabilir (örn. S2~p~P4).
+  // Gerçek ders kodu/programı varsa her zaman kayıt metadata'sını tercih et.
+  const code = safe(rec?.saatKodu || rec?.SAAT_KODU || storageCode || saatKodu).trim();
+  const recProgram = safe(rec?.program ?? rec?.PROGRAM ?? storageProgram).trim();
   const slot = getSlotByCode(code, recProgram) || {};
   const program = recProgram || safe(slot.PROGRAM).trim();
   const mapProgram = program || 'GENEL';
@@ -5792,21 +5845,18 @@ async function refreshTeacherDailyKpis(dateStr, classNodesOverride=null){
   for(const lesson of todayRows){
     const scope=lessonScopeFrom(lesson);
     const rosterByNo=new Map(buildLessonRoster(lesson).map(st=>[safe(st.id),st]));
-    const actualNorm=new Set(scope.classes.map(normTR));
-    for(const storageClass of lessonStorageClassKeys(lesson)){
-      const byStudent=classNodes?.[storageClass]?.[lesson.saatKodu]?.[lesson.ogretmenId];
-      if(!byStudent || typeof byStudent!=='object') continue;
-      for(const [ogrNo,rec] of Object.entries(byStudent)){
-        const id=safe(ogrNo);
-        const st=rosterByNo.get(id);
-        if(!st || !recordMatchesLessonScope(rec, lesson)) continue;
-        if(actualNorm.has(normTR(storageClass)) && normTR(st.sinif)!==normTR(storageClass)) continue;
-        const logicalKey=`${normTR(st.sinif)}|${lesson.saatKodu}|${lesson.ogretmenId}|${id}|${scope.scopeKey}|${safe(lesson.program)}`;
-        if(seen.has(logicalKey)) continue;
-        seen.add(logicalKey);
-        if(rec?.durum==='var') v++; else if(rec?.durum==='yok') y++;
-        if(rec?.durum==='var' && rec?.late) g++;
-      }
+    const lessonRecords=collectLessonRecordsFromNodes(classNodes, lesson);
+
+    // byStudent legacy + yeni program-ayrımlı kayıtları tekilleştirir; yeni kayıt varsa onu tercih eder.
+    for(const [ogrNo,rec] of Object.entries(lessonRecords.byStudent||{})){
+      const id=safe(ogrNo);
+      const st=rosterByNo.get(id);
+      if(!st) continue;
+      const logicalKey=`${normTR(st.sinif)}|${lesson.saatKodu}|${lesson.ogretmenId}|${id}|${scope.scopeKey}|${safe(lesson.program)}`;
+      if(seen.has(logicalKey)) continue;
+      seen.add(logicalKey);
+      if(rec?.durum==='var') v++; else if(rec?.durum==='yok') y++;
+      if(rec?.durum==='var' && rec?.late) g++;
     }
   }
   updateTeacherKpis(v+y, v, y, g);
@@ -6277,12 +6327,14 @@ async function saveAttendance(){
     const updates = {};
     const verifyMap = new Map();
 
-    // Eski/legacy sınıf yolunda kalmış kayıt varsa yeni gerçek sınıf yoluna taşınırken temizle.
+    // Eski/legacy sınıf veya programsız saat yolunda kalmış kayıt varsa
+    // yeni gerçek sınıf + program-ayrımlı saat yoluna taşınırken yalnızca bu derse ait olanı temizle.
     for(const entry of currentLessonStoredEntries||[]){
       const st=rosterByNo.get(safe(entry?.id)) || entry?.student;
       if(!st?.sinif) continue;
-      const oldPath=`${attPath(tarih, entry.storageClass, lessonSnapshot.saatKodu, lessonSnapshot.ogretmenId)}/${safe(entry.id)}`;
-      const newPath=`${attPath(tarih, st.sinif, lessonSnapshot.saatKodu, lessonSnapshot.ogretmenId)}/${safe(entry.id)}`;
+      const oldStorageSlotKey=safe(entry?.storageSlotKey) || safe(lessonSnapshot.saatKodu);
+      const oldPath=`${attPath(tarih, entry.storageClass, oldStorageSlotKey, lessonSnapshot.ogretmenId)}/${safe(entry.id)}`;
+      const newPath=`${attPath(tarih, st.sinif, lessonSnapshot.saatKodu, lessonSnapshot.ogretmenId, lessonSnapshot.program)}/${safe(entry.id)}`;
       if(oldPath !== newPath) updates[oldPath]=null;
     }
 
@@ -6292,7 +6344,7 @@ async function saveAttendance(){
       const d=tempAtt[id];
       const status=d.status; // yukarıda yalnızca var/yok olduğu doğrulandı
       const late=status==='var' ? !!d.late : false;
-      const pathBase = attPath(tarih, st.sinif, lessonSnapshot.saatKodu, lessonSnapshot.ogretmenId);
+      const pathBase = attPath(tarih, st.sinif, lessonSnapshot.saatKodu, lessonSnapshot.ogretmenId, lessonSnapshot.program);
 
       updates[`${pathBase}/${id}`] = {
         durum:status,
@@ -6326,7 +6378,8 @@ async function saveAttendance(){
 
     const verifyGroups=Array.from(verifyMap, ([pathBase, students])=>({pathBase, students}));
     const dedupeKey=[
-      'attendance', tarih, safe(lessonSnapshot.saatKodu), safe(lessonSnapshot.ogretmenId), safe(scope.scopeKey)
+      'attendance', tarih, safe(lessonSnapshot.program), safe(lessonSnapshot.saatKodu),
+      safe(lessonSnapshot.ogretmenId), safe(scope.scopeKey)
     ].join(':');
     const queueOptions={kind:'attendance', dedupeKey, verifyGroups};
 
@@ -6441,7 +6494,8 @@ async function undoAttendance(){
 
     const updates={};
     for(const entry of entries){
-      updates[`${attPath(tarih, entry.storageClass, currentLesson.saatKodu, currentLesson.ogretmenId)}/${safe(entry.id)}`]=null;
+      const storageSlotKey=safe(entry?.storageSlotKey) || attendanceSlotStorageKey(currentLesson.saatKodu, currentLesson.program);
+      updates[`${attPath(tarih, entry.storageClass, storageSlotKey, currentLesson.ogretmenId)}/${safe(entry.id)}`]=null;
     }
 
     const queued = !canUseFirebase();
@@ -6533,7 +6587,7 @@ async function undoAttendance(){
               continue;
             }
 
-            // Yeni şema: saatKodu -> ogretmenId -> ogrNo -> rec
+            // Yeni şema: slotStorageKey(program+saatKodu) -> ogretmenId -> ogrNo -> rec
             for(const [, byTeacher] of Object.entries(node || {})){
               for(const [, byStudent] of Object.entries(byTeacher || {})){
                 if(byStudent?.[no]) return t;
@@ -6615,7 +6669,7 @@ async function loadParentRange(kind){
           continue;
         }
 
-        // Yeni şema: saatKodu -> ogretmenId -> ogrNo -> rec
+        // Yeni şema: slotStorageKey(program+saatKodu) -> ogretmenId -> ogrNo -> rec
         for (const [saatKodu, byTeacher] of Object.entries(node || {})) {
           for (const [, byStudent] of Object.entries(byTeacher || {})) {
             const rec = byStudent?.[no];
@@ -7925,7 +7979,7 @@ async function openWeeklyAbsenceModal(){
 /* ---------- ADMIN: ÖĞRENCİ RAPORU (Detay + Yazdır) ---------- */
 async function showStudentReport(no, name){
   // --- Fetch attendance data for the student ---
-  // Attendance records are stored under ATT_ROOT by date/class/slot/teacher/student
+  // Attendance records are stored under ATT_ROOT by date/class/program-aware-slot/teacher/student
   const snap = await get(ref(db, ATT_ROOT));
   const root = snap.exists() ? snap.val() : {};
   const attRows = [];
@@ -8256,23 +8310,19 @@ async function showStudentReport(no, name){
         return progLbl ? `${base} • ${progLbl}` : base;
       }
 
-      // Fallback: slot tablosundan bulmayı dene (getSlotByCode/slotOrderMap yoksa güvenli davran)
+      // Fallback: depolama anahtarı program-ayrımlı olsa bile gerçek saat kodu/programı çöz.
       let saatTxt = '';
-      try {
-        const slot = typeof getSlotByCode === 'function' ? (getSlotByCode(kodu) || {}) : {};
-        const bas  = (slot.BASLANGIC || '').toString().trim();
-        const bit  = (slot.BITIS || '').toString().trim();
-        if (bas || bit) saatTxt = ` (${bas} - ${bit})`;
-      } catch(_){ /* intentionally empty */ }
-
       let noTxt = 'Saat';
+      let fallbackProg = progLbl;
       try {
-        const no = (typeof slotOrderMap !== 'undefined') ? slotOrderMap.get((kodu||'').toString().trim()) : null;
-        if (no) noTxt = ordinal(no);
+        const meta = getAdminSlotMeta(sampleRec||{}, kodu);
+        if(meta.bas || meta.bit) saatTxt = ` (${meta.bas || '?'} - ${meta.bit || '?'})`;
+        if(meta.hourNo) noTxt = ordinal(meta.hourNo);
+        if(!fallbackProg && meta.program) fallbackProg = labelProgram(meta.program);
       } catch(_){ /* intentionally empty */ }
 
       const base = `${noTxt}${saatTxt}`;
-      return progLbl ? `${base} • ${progLbl}` : base;
+      return fallbackProg ? `${base} • ${fallbackProg}` : base;
     };
 
     const loadList = async ()=>{
