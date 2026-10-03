@@ -2543,7 +2543,7 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, set, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '1.8 🔥';
+    const APP_VERSION = '1.9 🔥';
     const APP_RELEASE_PATH = 'config/appRelease';
     const APP_VERSION_CHECK_INTERVAL_MS = 60 * 1000;
     const APP_VERSION_RELOAD_GUARD_KEY = 'fenomen_version_reload_guard_v1';
@@ -3843,6 +3843,15 @@ function buildLessonRoster(lesson){
   return list;
 }
 
+// v1.9 🔥 — Yalnızca gruplu derslerde boş grup kontrolü.
+// Grup tanımı olmayan normal sınıf dersleri, sınıfta öğrenci olmasa bile mevcut davranışını korur.
+// Grup tanımlıysa en az bir öğrenci sınıf + grup kapsamına gerçekten eşleşmelidir.
+function lessonHasStudentsIfGrouped(lessonOrRow){
+  const scope = lessonScopeFrom(lessonOrRow);
+  if(!scope.hasGroupFilter) return true;
+  return buildLessonRoster(scope).length > 0;
+}
+
 function lessonAttendanceKey(lesson){
   const scope=lessonScopeFrom(lesson);
   return `${safe(lesson?.saatKodu ?? lesson?.SAAT_KODU)}|${safe(lesson?.program ?? lesson?.PROGRAM ?? lesson?.prog)}|${scope.scopeKey}`;
@@ -4208,6 +4217,9 @@ function adminScheduleRows(dateStr, cls='hepsi', program='hepsi'){
     }
 
     if(wantedProgram && wantedProgram !== 'hepsi' && safe(row?.PROGRAM) !== wantedProgram) return false;
+
+    // v1.9 🔥 — Admin tarafında boş gruplu dersleri program/saat seçeneklerine hiç alma.
+    if(!lessonHasStudentsIfGrouped(row)) return false;
     return true;
   });
 }
@@ -4429,6 +4441,7 @@ function teacherLessonsForDay(dayName){
     .filter(r => safe(r.OGRETMEN_ID) === safe(session?.ogretmenId))
     .filter(r => normTR(r.GUN) === wanted)
     .map(teacherLessonFromScheduleRow)
+    .filter(lessonHasStudentsIfGrouped)
     .sort((a,b)=>
       (a.bas||'23:59').localeCompare(b.bas||'23:59','tr') ||
       (a.saatNo||999) - (b.saatNo||999) ||
@@ -4466,7 +4479,9 @@ async function openTeacherWeekModal(){
     {name:'Pazar', offset:6}
   ];
 
-  const teacherRows = (schedule||[]).filter(r => safe(r.OGRETMEN_ID) === safe(session.ogretmenId));
+  const teacherRows = (schedule||[])
+    .filter(r => safe(r.OGRETMEN_ID) === safe(session.ogretmenId))
+    .filter(lessonHasStudentsIfGrouped);
   const teacherDaySet = new Set(teacherRows.map(r=>normTR(r.GUN)));
   const visibleDays = dayDefs.filter(d => d.offset < 5 || teacherDaySet.has(normTR(d.name)));
   const todayStr = toDateStr(nowTR());
@@ -7247,6 +7262,8 @@ return;
     .forEach(r=>{
       const prog = safe(r.PROGRAM) || '';
       if(program && program !== 'hepsi' && prog !== program) return;
+      // v1.9 🔥 — Öğrencisi olmayan gruplu ders admin eksik-yoklama kartında görünmesin.
+      if(!lessonHasStudentsIfGrouped(r)) return;
 
       const tInfo = teacherById(r.OGRETMEN_ID) || { id: safe(r.OGRETMEN_ID), name:'—', branch:'' };
       const slot = slotByCodeProg(r.SAAT_KODU, prog) || {};
@@ -7616,7 +7633,9 @@ async function openTeacherReportModal(){
       const date = inpDate.value || toDateStr(nowTR());
       const dayName = turkishDays[dayjs(date).day()].toLocaleLowerCase('tr-TR');
 
-      const rowsToday = schedule.filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR') === dayName);
+      const rowsToday = schedule
+        .filter(r => safe(r.GUN).toLocaleLowerCase('tr-TR') === dayName)
+        .filter(lessonHasStudentsIfGrouped);
 
       const lessons = rowsToday.map(r=>{
         const tInfo = teacherById(r.OGRETMEN_ID);
