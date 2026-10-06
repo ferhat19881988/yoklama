@@ -1024,24 +1024,14 @@ div.admin-filters .button-row {
   .lesson:hover { transform:none; box-shadow:none; }
 }
 
-/* ----- Ödev/Quiz yönetimi düzenlemeleri ----- */
-/* Ödev kontrolündeki statü seçimlerini daralt */
-#hwStudentList select.statusSelect{
-  width: 100px;
-  max-width: 100px;
-}
-/* Quiz kontrolünde yanlış sayı girişi daralt */
-#qzStudentList input.wrongInput{
-  width: 60px;
-  max-width: 60px;
-}
+/* ----- Ödev yönetimi düzenlemeleri ----- */
 /* Başlıklar ve listeler arası boşluklar */
-#homeworkCard h4, #quizCard h4{
+#homeworkCard h4{
   margin-top: 0.5rem;
   margin-bottom: 0.3rem;
 }
 /* Veli panelinde yazdırma düğmeleri sağa hizalı olsun */
-#parentHomeworkCard .row button, #parentQuizCard .row button{
+#parentHomeworkCard .row button{
   margin-left:auto;
 }
 
@@ -1059,29 +1049,7 @@ div.admin-filters .button-row {
   #hwStudentList li .statusSelect{ width: 140px; }
 }
 
-#qzStudentList li .wrongInput{
-  width: 120px;        /* neden: değerler rahat sığsın */
-  max-width: none;     /* neden: genişlik kısıtını kaldır */
-  font-size: 1rem;     /* neden: okunabilirlik */
-  padding: 10px 14px;  /* neden: dokunmatik hedefi büyüt */
-  min-height: 40px;    /* neden: erişilebilir minimum yükseklik */
-  text-align: center;  /* neden: sayıların hizası */
-}
-
-/* Çok dar ekranlarda biraz küçült */
-@media (max-width: 420px){
-  #qzStudentList li .wrongInput{ width: 100px; }
-
-}
   
-
-/* Öğretmen Ödev & Quiz kartları için açılır/kapanır tasarım */
-.collapsible-card h3{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:0.75rem;
-}
 
 /* Ödev listesi: filtre + sekmeler hizalama */
 .hw-filter-bar{
@@ -1246,7 +1214,7 @@ div.admin-filters .button-row {
 }
 .btn.hw-control-btn.is-loading .hw-progress{
   opacity:1;
-  animation: hwFill5 2s linear forwards;
+  animation: hwFill5 1s linear forwards;
 }
 .btn.hw-mini{
   width:40px; height:40px;
@@ -1462,23 +1430,6 @@ div.admin-filters .button-row {
   }
 }
 
-
-.collapsible-card .card-toggle{
-  display:inline-flex;
-  align-items:center;
-  gap:0.35rem;
-}
-.collapsible-card .card-toggle-icon{
-  font-size:0.8rem;
-  transition: transform .18s ease;
-}
-.collapsible-card.is-collapsed .card-toggle-icon{
-  transform: rotate(-90deg);
-}
-/* Güvenli olması için hidden gövdeyi tamamen gizle */
-.collapsible-body[hidden]{
-  display:none;
-}
 
 /* ===========================
    MOBILE-FIRST ADMIN REDESIGN
@@ -2038,6 +1989,105 @@ div.admin-filters .button-row {
   .teacher-week-day-head{ padding:9px 10px; }
 }
 
+
+
+/* ===== v2.0 — Öğretmen, Ödev ve Yoklama Arayüzü ===== */
+.teacher-main-tabs{
+  display:flex; gap:8px; padding:8px; margin-bottom:12px;
+  border:var(--stroke); border-radius:16px; background:rgba(148,163,184,.07);
+  position:sticky; top:82px; z-index:8; backdrop-filter:blur(10px);
+}
+.teacher-main-tab{ flex:1 1 0; min-height:44px; }
+.teacher-main-panel{ display:grid; gap:12px; }
+.teacher-focus-lesson{
+  border:1px solid rgba(59,130,246,.22); border-radius:14px; padding:12px 14px;
+  background:rgba(59,130,246,.07);
+}
+.teacher-focus-lesson .focus-kicker{ color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; letter-spacing:.45px; }
+.teacher-focus-lesson .focus-title{ font-weight:900; margin-top:3px; }
+.teacher-focus-lesson .focus-sub{ color:var(--muted); margin-top:2px; font-size:.9rem; }
+.teacher-kpis-daily,.teacher-kpis-rates{ margin:0; }
+
+.field-label{ display:block; color:var(--muted); font-size:.8rem; font-weight:800; margin:0 0 2px 2px; }
+.compact-field{ flex:1 1 240px; }
+.hw-create-box{ border:var(--stroke); border-radius:16px; padding:14px; background:rgba(148,163,184,.045); }
+.hw-form-grid{ display:grid; grid-template-columns:2fr 1fr 2fr auto; gap:10px; align-items:end; }
+.hw-class-field{ min-width:0; }
+.hw-create-btn{ min-height:42px; white-space:nowrap; }
+.hw-search-field{ flex:1 1 260px; }
+.hw-class-filter-field{ flex:0 1 190px; }
+#hwSearch,#hwStudentSearch,#attSearchInput{ min-height:42px; }
+
+.hw-card-progress{ margin-top:2px; }
+.hw-progress-line{ display:flex; justify-content:space-between; gap:8px; font-size:.82rem; font-weight:800; color:var(--muted); margin-bottom:6px; }
+.hw-progress-track{ height:8px; border-radius:999px; overflow:hidden; background:rgba(148,163,184,.18); }
+.hw-progress-fill{ height:100%; border-radius:999px; background:var(--ok); transition:width .2s ease; }
+.btn.hw-copy{ flex:0 0 40px; width:40px; height:40px; padding:0; }
+
+.hw-control-topbar,.hw-control-filters,.att-filter-bar,.attendance-state-row{
+  display:flex; gap:10px; align-items:end; flex-wrap:wrap;
+}
+.hw-control-topbar{ align-items:center; }
+.hw-control-topbar .btn{ flex:0 1 auto; }
+.hw-control-filters > .field{ flex:1 1 240px; }
+.attendance-state-row{ justify-content:space-between; align-items:center; }
+.att-save-state{ display:inline-flex; align-items:center; min-height:30px; padding:5px 10px; border-radius:999px; font-size:.84rem; font-weight:900; border:var(--stroke); }
+.att-save-state.clean{ color:var(--ok); background:rgba(34,197,94,.10); }
+.att-save-state.dirty{ color:var(--warn); background:rgba(245,158,11,.12); }
+.att-save-state.pending{ color:var(--warn); background:rgba(245,158,11,.12); }
+.att-save-state.saving{ color:var(--brand-2); background:rgba(249,115,22,.10); }
+.att-save-state.error{ color:var(--bad); background:rgba(239,68,68,.10); }
+.attendance-default-row{ padding:0 2px; }
+
+.attendance-save-dock,.hw-save-dock{
+  position:sticky; bottom:8px; z-index:7; display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding:10px 12px; border:1px solid rgba(148,163,184,.25); border-radius:14px;
+  background:color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter:blur(12px); box-shadow:0 10px 28px rgba(0,0,0,.22);
+}
+.attendance-save-dock .btn,.hw-save-dock .btn{ min-width:130px; }
+#studentList .student.is-filtered-out,#hwStudentList .student.is-filtered-out{ display:none !important; }
+#studentList .student,#hwStudentList .student{ border:1px solid rgba(148,163,184,.14); border-radius:12px; padding:10px 12px; margin-bottom:7px; background:rgba(148,163,184,.035); }
+#hwStudentList .statusSelect{ width:170px; max-width:100%; }
+.hw-unchecked-badge{ color:var(--muted); font-weight:800; }
+
+/* Genel aksiyonlar sakin; durum renkleri yeşil/turuncu/kırmızı ile sınırlı kalır. */
+.btn{ background:linear-gradient(135deg,#64748b,#475569); color:#fff; box-shadow:0 8px 22px rgba(15,23,42,.20); }
+.btn:hover{ box-shadow:0 12px 30px rgba(15,23,42,.24); }
+.btn.ghost{ background:rgba(148,163,184,.08); color:var(--ink); }
+.btn.hw-control-btn{ background:linear-gradient(135deg,rgba(34,197,94,.92),rgba(16,185,129,.92)); color:#06130c; }
+.btn.danger,.btn.ghost.danger{ color:var(--bad); }
+.hw-tabs .btn:not(.ghost),.teacher-main-tab:not(.ghost){ background:linear-gradient(135deg,#475569,#334155); color:#fff; }
+
+@media (max-width:760px){
+  .teacher-main-tabs{ top:72px; }
+  .hw-form-grid{ grid-template-columns:1fr; }
+  .hw-create-btn{ width:100%; }
+  .hw-filter-bar{ display:grid; grid-template-columns:1fr; }
+  .hw-search-field,.hw-class-filter-field{ width:100%; }
+  .hw-control-topbar{ display:grid; grid-template-columns:1fr 1fr; }
+  .hw-control-topbar #hwCancelBtn{ grid-column:1 / -1; }
+  .hw-control-topbar #hwBulkWhatsBtn{ grid-column:1 / -1; }
+  .attendance-save-dock,.hw-save-dock{ bottom:6px; }
+  .att-toolbar .btn-group{ display:grid; grid-template-columns:1fr 1fr; width:100%; }
+  .att-toolbar .btn-group .btn{ width:100%; }
+  .teacher-week-lesson{ border:1px solid rgba(148,163,184,.18); border-radius:12px; background:rgba(148,163,184,.04); }
+  .teacher-week-time{ border-right:1px solid rgba(148,163,184,.16); padding-right:8px; }
+  .teacher-week-info{ min-width:0; }
+  .teacher-week-info strong{ white-space:normal; }
+}
+@media (max-width:480px){
+  .teacher-main-tabs{ top:66px; padding:6px; }
+  .teacher-main-tab{ min-height:42px; padding:9px 8px; }
+  .teacher-kpis{ display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+  .kpi-card{ min-width:0; padding:9px 8px; display:grid; gap:4px; }
+  .kpi-label{ font-size:.72rem; white-space:normal; line-height:1.15; }
+  .kpi-value{ font-size:1rem; }
+  .attendance-save-dock,.hw-save-dock{ margin-left:-4px; margin-right:-4px; }
+  .attendance-save-dock .btn,.hw-save-dock .btn{ min-width:110px; }
+  #hwStudentList .student{ align-items:flex-start; flex-wrap:wrap; }
+  #hwStudentList .statusSelect{ width:100%; }
+}
+
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -2093,161 +2143,185 @@ div.admin-filters .button-row {
   <main id="app" class="container hidden">
     <!-- ÖĞRETMEN -->
     <section id="teacherView" class="hidden" aria-labelledby="teacherTitle">
-      <div class="card" role="region" aria-label="Bugünkü dersler">
-        <h3 id="teacherTitle" class="teacher-titlebar">
-          <span>📚 Bugünkü Derslerim</span>
-          <button class="btn ghost teacher-week-btn" id="btnTeacherWeek" type="button" title="Bu haftaki ders programını aç" aria-label="Bu haftaki derslerimi göster">🗓️ Derslerim</button>
-        </h3>
-
-        <div class="teacher-kpis" id="teacherKpis">
-          <div class="kpi-card kpi-green"><span class="kpi-label">Katılım %</span><span class="kpi-value" id="kpiAttendPct">0%</span></div>
-          <div class="kpi-card kpi-red"><span class="kpi-label">Yoklama %</span><span class="kpi-value" id="kpiAbsentPct">0%</span></div>
-          <div class="kpi-card kpi-orange"><span class="kpi-label">Geç %</span><span class="kpi-value" id="kpiLatePct">0%</span></div>
-        </div>
-
-        <div class="body stack">
-          <div id="todayInfo" class="muted"></div>
-          <div id="lessonsGrid" class="grid cols-2" role="list"></div>
-          <div id="noLesson" class="muted hidden" role="note">Bugün için dersiniz görünmüyor.</div>
-        </div>
+      <div class="teacher-main-tabs no-print" role="tablist" aria-label="Öğretmen ana bölümleri">
+        <button class="btn teacher-main-tab" id="teacherTabLessons" type="button" role="tab" aria-selected="true" aria-controls="teacherLessonsPanel">📚 Derslerim</button>
+        <button class="btn ghost teacher-main-tab" id="teacherTabHomeworks" type="button" role="tab" aria-selected="false" aria-controls="teacherHomeworkPanel">📘 Ödevler</button>
       </div>
 
-      <div id="attCard" class="card hidden" role="region" aria-labelledby="attTitle">
-        <h3 id="attTitle">📝 Yoklama</h3>
-        <div class="body stack">
-          <div class="att-toolbar">
-            <div class="row btn-group" role="group" aria-label="Toplu işlemler">
-              <button class="btn ghost" id="allVar" type="button">Hepsi VAR</button>
-              <button class="btn ghost" id="allYok" type="button">Hepsi YOK</button>
-              <button class="btn ghost" id="undoBtn" type="button">Geri Al</button>
-              <button class="btn ghost danger" id="cancelBtn" type="button">İptal</button>
-              <button class="btn" id="saveBtn" type="button">Kaydet</button>
-              <label class="muted row" for="cfgDefaultVarChk" style="margin-left:10px;">
-                <input type="checkbox" id="cfgDefaultVarChk" /> Açılışta herkes VAR (kapalıysa YOK)
+      <div id="teacherLessonsPanel" class="teacher-main-panel" role="tabpanel" aria-labelledby="teacherTabLessons">
+        <div class="card" role="region" aria-label="Bugünkü dersler">
+          <h3 id="teacherTitle" class="teacher-titlebar">
+            <span>📚 Derslerim</span>
+            <button class="btn ghost teacher-week-btn" id="btnTeacherWeek" type="button" title="Bu haftaki ders programını aç" aria-label="Bu haftaki derslerimi göster">🗓️ Haftalık Program</button>
+          </h3>
+
+          <div class="body stack">
+            <div id="teacherFocusLesson" class="teacher-focus-lesson" aria-live="polite">
+              <div class="muted">Şimdiki / sıradaki ders hazırlanıyor…</div>
+            </div>
+
+            <div class="teacher-kpis teacher-kpis-daily" id="teacherDailyKpis">
+              <div class="kpi-card"><span class="kpi-label">Günlük Ders</span><span class="kpi-value" id="kpiDailyLessons">0</span></div>
+              <div class="kpi-card kpi-green"><span class="kpi-label">Tamamlanan Yoklama</span><span class="kpi-value" id="kpiAttendanceDone">0</span></div>
+              <div class="kpi-card kpi-orange"><span class="kpi-label">Bekleyen Yoklama</span><span class="kpi-value" id="kpiAttendancePending">0</span></div>
+            </div>
+
+            <div class="teacher-kpis teacher-kpis-rates" id="teacherKpis">
+              <div class="kpi-card"><span class="kpi-label">Katılım %</span><span class="kpi-value" id="kpiAttendPct">0%</span></div>
+              <div class="kpi-card kpi-red"><span class="kpi-label">Devamsızlık %</span><span class="kpi-value" id="kpiAbsentPct">0%</span></div>
+              <div class="kpi-card kpi-orange"><span class="kpi-label">Geç %</span><span class="kpi-value" id="kpiLatePct">0%</span></div>
+            </div>
+
+            <div id="todayInfo" class="muted"></div>
+            <div id="lessonsGrid" class="grid cols-2" role="list"></div>
+            <div id="noLesson" class="muted hidden" role="note">Bugün için dersiniz görünmüyor.</div>
+          </div>
+        </div>
+
+        <div id="attCard" class="card hidden" role="region" aria-labelledby="attTitle">
+          <h3 id="attTitle">📝 Yoklama</h3>
+          <div class="body stack">
+            <div class="attendance-state-row" aria-live="polite">
+              <span class="att-save-state clean" id="attSaveState">Kaydedildi</span>
+              <span class="muted" id="attChangeCount">Değişiklik yok</span>
+            </div>
+
+            <div class="att-filter-bar">
+              <label class="field compact-field">
+                <span class="field-label">Öğrenci ara</span>
+                <input id="attSearchInput" class="input" type="search" placeholder="Ad, soyad veya numara" autocomplete="off" />
+              </label>
+              <label class="field compact-field">
+                <span class="field-label">Durum filtresi</span>
+                <select id="attFilter" class="input">
+                  <option value="all" selected>Tümü</option>
+                  <option value="absent">Yok</option>
+                  <option value="late">Geç</option>
+                </select>
               </label>
             </div>
-            <div class="row sum-group" id="sumBar" aria-live="polite">
-              <span class="pill" aria-label="Toplam">Toplam: 0</span>
-              <span class="pill" aria-label="Var">Var: 0</span>
-              <span class="pill" aria-label="Yok">Yok: 0</span>
-              <span class="pill" aria-label="Geç">Geç: 0</span>
+
+            <div class="att-toolbar">
+              <div class="row btn-group" role="group" aria-label="Yoklama işlemleri">
+                <button class="btn ghost" id="allVar" type="button">Tümü VAR</button>
+                <button class="btn ghost" id="allYok" type="button">Tümü YOK</button>
+                <button class="btn ghost" id="undoChangeBtn" type="button" disabled>↶ Son Değişikliği Geri Al</button>
+                <button class="btn ghost danger" id="removeAttendanceBtn" type="button" disabled>🗑️ Kayıtlı Yoklamayı Kaldır</button>
+                <button class="btn ghost danger" id="cancelBtn" type="button">Listeye Dön</button>
+              </div>
+              <div class="row sum-group" id="sumBar" aria-live="polite">
+                <span class="pill" aria-label="Toplam">Toplam: 0</span>
+                <span class="pill" aria-label="Var">Var: 0</span>
+                <span class="pill" aria-label="Yok">Yok: 0</span>
+                <span class="pill" aria-label="Geç">Geç: 0</span>
+              </div>
+            </div>
+
+            <label class="muted row attendance-default-row" for="cfgDefaultVarChk">
+              <input type="checkbox" id="cfgDefaultVarChk" /> Açılışta herkes VAR (kapalıysa YOK)
+            </label>
+
+            <ul id="studentList" class="list" aria-label="Öğrenciler"></ul>
+
+            <div class="attendance-save-dock no-print">
+              <div>
+                <strong id="attDockState">Kaydedildi</strong>
+                <div class="muted" id="attDockHint">Değişiklik yok.</div>
+              </div>
+              <button class="btn" id="saveBtn" type="button">Kaydet</button>
             </div>
           </div>
-          <ul id="studentList" class="list" aria-label="Öğrenciler"></ul>
         </div>
       </div>
 
-      <!-- ÖDEV YÖNETİMİ -->
-      <div id="homeworkCard" class="card collapsible-card is-collapsed hidden" role="region" aria-label="Ödev Yönetimi">
-        <h3>
-          <span>📘 Ödev Yönetimi</span>
-          <button type="button"
-                  class="btn ghost small card-toggle"
-                  id="hwToggle"
-                  aria-expanded="false"
-                  aria-controls="hwBody">
-            <span class="toggle-label">Aç</span>
-            <span class="card-toggle-icon">▾</span>
-          </button>
-        </h3>
-        <div class="body stack collapsible-body" id="hwBody" hidden>
-          <div id="hwForm" class="stack">
-            <h4>Yeni Ödev</h4>
-            <div class="row" style="flex-wrap:wrap;gap:10px;">
-              <input id="hwTitle" class="input" placeholder="Ödev konusu" />
-              <input id="hwDueDate" class="input" type="date" />
-              <!-- Çoklu sınıf seçimi için checkbox grubu -->
-              <div id="hwClassSelect" class="checkbox-group"></div>
-              <button class="btn" id="hwCreateBtn" type="button">Oluştur</button>
+      <div id="teacherHomeworkPanel" class="teacher-main-panel hidden" role="tabpanel" aria-labelledby="teacherTabHomeworks">
+        <div id="homeworkCard" class="card" role="region" aria-label="Ödev Yönetimi">
+          <h3><span>📘 Ödevler</span></h3>
+          <div class="body stack">
+            <div id="hwForm" class="stack hw-create-box">
+              <h4>Yeni Ödev</h4>
+              <div class="hw-form-grid">
+                <label class="field">
+                  <span class="field-label">Ödev konusu</span>
+                  <input id="hwTitle" class="input" placeholder="Örn. Hücre bölünmeleri çalışma sayfası" />
+                </label>
+                <label class="field">
+                  <span class="field-label">Teslim tarihi</span>
+                  <input id="hwDueDate" class="input" type="date" />
+                </label>
+                <div class="field hw-class-field">
+                  <span class="field-label">Sınıf seçimi</span>
+                  <div id="hwClassSelect" class="checkbox-group"></div>
+                </div>
+                <button class="btn hw-create-btn" id="hwCreateBtn" type="button">Ödev Oluştur</button>
+              </div>
             </div>
-          </div>
 
-          <!-- Ödev Liste Filtreleri -->
-          <div id="hwFilterBar" class="hw-filter-bar" aria-label="Ödev filtreleri">
-            <div class="hw-filter-left">
-              <span class="muted">Sınıf:</span>
-              <select id="hwFilterClass" class="input" aria-label="Ödev sınıf filtresi">
-                <option value="hepsi" selected>Hepsi</option>
-              </select>
+            <div class="hw-filter-bar" id="hwFilterBar" aria-label="Ödev filtreleri">
+              <label class="field hw-search-field">
+                <span class="field-label">Ödev / ders ara</span>
+                <input id="hwSearch" class="input" type="search" placeholder="Konu veya ders adı" autocomplete="off" />
+              </label>
+              <label class="field hw-class-filter-field">
+                <span class="field-label">Sınıf</span>
+                <select id="hwFilterClass" class="input" aria-label="Ödev sınıf filtresi">
+                  <option value="hepsi" selected>Hepsi</option>
+                </select>
+              </label>
+              <div class="hw-tabs" role="tablist" aria-label="Ödev tarih filtreleri">
+                <button class="btn" id="hwTabCurrent" type="button" role="tab" aria-selected="true">Bugün</button>
+                <button class="btn ghost" id="hwTabUpcoming" type="button" role="tab" aria-selected="false">Yakında</button>
+                <button class="btn ghost" id="hwTabPast" type="button" role="tab" aria-selected="false">Geçmiş</button>
+              </div>
+              <div id="hwPastSort" class="hw-sort hidden" aria-label="Geçmiş ödevler tarih sıralama">
+                <span class="muted">Tarih:</span>
+                <button class="btn small ghost" id="hwSortDesc" type="button" title="Yeni → Eski" aria-label="Yeni → Eski">↓</button>
+                <button class="btn small ghost" id="hwSortAsc" type="button" title="Eski → Yeni" aria-label="Eski → Yeni">↑</button>
+              </div>
             </div>
-            <div class="hw-tabs" role="tablist" aria-label="Ödev sekmeleri">
-              <button class="btn" id="hwTabCurrent" type="button" role="tab" aria-selected="true">Güncel (Bugün)</button>
-              <button class="btn ghost" id="hwTabUpcoming" type="button" role="tab" aria-selected="false">Yakında</button>
-              <button class="btn ghost" id="hwTabPast" type="button" role="tab" aria-selected="false">Geçmiş</button>
-            </div>
-            <!-- Sadece 'Geçmiş' sekmesinde: tarih sıralama (↑↓) -->
-            <div id="hwPastSort" class="hw-sort hidden" aria-label="Geçmiş ödevler tarih sıralama">
-              <span class="muted">Tarih:</span>
-              <button class="btn small ghost" id="hwSortDesc" type="button" title="Yeni → Eski" aria-label="Yeni → Eski">↓</button>
-              <button class="btn small ghost" id="hwSortAsc" type="button" title="Eski → Yeni" aria-label="Eski → Yeni">↑</button>
-            </div>
-          </div>
 
-          <div id="hwList" class="stack" aria-label="Ödevler"></div>
+            <div id="hwList" class="stack" aria-label="Ödevler"></div>
+          </div>
         </div>
-      </div>
 
-      <!-- Ödev Kontrol Paneli -->
-      <div id="hwControlCard" class="card hidden" role="region" aria-label="Ödev Kontrol">
-        <h3 id="hwControlTitle">📘 Ödev Kontrol</h3>
-        <div class="body stack">
-          <div class="row" style="gap:10px;">
-            <!-- Kaydet düğmesi: ödev durumlarını kaydeder -->
-            <button class="btn" id="hwSaveBtn" type="button">Kaydet</button>
-            <!-- İptal düğmesi: paneli kapatır -->
-            <button class="btn danger" id="hwCancelBtn" type="button">İptal</button>
-          </div>
-          <div class="hw-status-filter" aria-label="Ödev durum filtresi">
-  <span class="muted">Filtre:</span>
-  <select id="hwStatusFilter" class="input" aria-label="Ödev durum filtresi seçimi">
-    <option value="all" selected>Hepsi</option>
-    <option value="done">Yapanlar</option>
-    <option value="notdone">Yapmayanlar</option>
-    <option value="other">Diğerleri</option>
-  </select>
-</div>
-          <ul id="hwStudentList" class="list" aria-label="Ödev Öğrenci Listesi"></ul>
-        </div>
-      </div>
+        <div id="hwControlCard" class="card hidden" role="region" aria-label="Ödev Kontrol">
+          <h3 id="hwControlTitle">📘 Ödev Kontrol</h3>
+          <div class="body stack">
+            <div class="hw-control-topbar">
+              <button class="btn ghost" id="hwCancelBtn" type="button">← Ödev Listesine Dön</button>
+              <button class="btn ghost" id="hwMarkVisibleDone" type="button">Görünenleri “Yaptı” İşaretle</button>
+              <button class="btn hw-bulk-msg-btn" id="hwBulkWhatsBtn" type="button">WhatsApp Mesajı Hazırla</button>
+            </div>
 
-      <!-- QUIZ YÖNETİMİ -->
-      <div id="quizCard" class="card collapsible-card is-collapsed hidden" role="region" aria-label="Quiz Yönetimi">
-        <h3>
-          <span>📝 Quiz Yönetimi</span>
-          <button type="button"
-                  class="btn ghost small card-toggle"
-                  id="qzToggle"
-                  aria-expanded="false"
-                  aria-controls="qzBody">
-            <span class="toggle-label">Aç</span>
-            <span class="card-toggle-icon">▾</span>
-          </button>
-        </h3>
-        <div class="body stack collapsible-body" id="qzBody" hidden>
-          <div id="qzForm" class="stack">
-            <h4>Yeni Quiz</h4>
-            <div class="row" style="flex-wrap:wrap;gap:10px;">
-              <input id="qzTitle" class="input" placeholder="Quiz adı" />
-              <input id="qzDate" class="input" type="date" />
-              <input id="qzTotal" class="input" type="number" min="1" placeholder="Soru sayısı" />
-              <!-- Çoklu sınıf seçimi için checkbox grubu -->
-              <div id="qzClassSelect" class="checkbox-group"></div>
-              <button class="btn" id="qzCreateBtn" type="button">Oluştur</button>
+            <div class="hw-control-filters">
+              <label class="field">
+                <span class="field-label">Öğrenci ara</span>
+                <input id="hwStudentSearch" class="input" type="search" placeholder="Ad, soyad veya numara" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="field-label">Durum</span>
+                <select id="hwStatusFilter" class="input" aria-label="Ödev durum filtresi seçimi">
+                  <option value="all" selected>Tümü</option>
+                  <option value="unchecked">Kontrol edilmedi</option>
+                  <option value="done">Yaptı</option>
+                  <option value="notdone">Yapmadı</option>
+                  <option value="incomplete">Eksik</option>
+                  <option value="book">Kitap Yok</option>
+                  <option value="absent">Gelmedi</option>
+                </select>
+              </label>
+            </div>
+
+            <ul id="hwStudentList" class="list" aria-label="Ödev Öğrenci Listesi"></ul>
+
+            <div class="hw-save-dock no-print">
+              <div>
+                <strong id="hwChangeState">Değişiklik yok</strong>
+                <div class="muted">Yalnızca değiştirdiğiniz durumlar kaydedilir.</div>
+              </div>
+              <button class="btn" id="hwSaveBtn" type="button">Kaydet (0)</button>
             </div>
           </div>
-          <div id="qzList" class="stack" aria-label="Quizler"></div>
-        </div>
-      </div>
-
-      <!-- Quiz Kontrol Paneli -->
-      <div id="qzControlCard" class="card hidden" role="region" aria-label="Quiz Kontrol">
-        <h3 id="qzControlTitle">📝 Quiz Kontrol</h3>
-        <div class="body stack">
-          <div class="row" style="gap:10px;">
-            <button class="btn" id="qzSaveBtn" type="button">Kaydet</button>
-            <button class="btn danger" id="qzCancelBtn" type="button">İptal</button>
-          </div>
-          <ul id="qzStudentList" class="list" aria-label="Quiz Öğrenci Listesi"></ul>
         </div>
       </div>
     </section>
@@ -2295,23 +2369,6 @@ div.admin-filters .button-row {
           </div>
           <ul id="parentHomeworkList" class="list"></ul>
           <div id="noParentHomework" class="muted hidden">Ödev bulunmuyor.</div>
-        </div>
-      </div>
-
-      <!-- Veli: Quizler Listesi ve Yazdırma -->
-      <div class="card" role="region" aria-label="Quizler" id="parentQuizCard">
-        <h3>📝 Quizler</h3>
-        <div class="body stack">
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <!-- Quiz filter buttons: default to Güncel (current) -->
-            <div class="row" style="gap:6px;">
-              <button class="btn" id="qzFilterCurrent" type="button">Güncel</button>
-              <button class="btn ghost" id="qzFilterPast" type="button">Geçmiş</button>
-            </div>
-            <button class="btn ghost" id="parentQzPrintBtn" type="button">🖨️ Yazdır</button>
-          </div>
-          <ul id="parentQuizList" class="list"></ul>
-          <div id="noParentQuiz" class="muted hidden">Quiz bulunmuyor.</div>
         </div>
       </div>
     </section>
@@ -2408,12 +2465,11 @@ div.admin-filters .button-row {
             </div>
           </div>
 
-          <!-- Ödev / Quiz -->
-          <div class="action-group" role="group" aria-label="Ödev ve Quiz">
-            <div class="group-title">Ödev / Quiz</div>
+          <!-- Ödevler -->
+          <div class="action-group" role="group" aria-label="Ödevler">
+            <div class="group-title">Ödevler</div>
             <div class="group-buttons">
-              <button class="btn tool-btn" id="admHomeworksBtn" type="button" title="Ödev raporları">Ödevler</button>
-              <button class="btn tool-btn" id="admQuizzesBtn" type="button" title="Quiz raporları">Quizler</button>
+              <button class="btn tool-btn" id="admHomeworksBtn" type="button" title="Ödev raporları">Ödev Raporları</button>
             </div>
           </div>
 
@@ -2543,10 +2599,10 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, set, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '1.9 🔥';
+    const APP_VERSION = '2.0';
     const APP_RELEASE_PATH = 'config/appRelease';
     const APP_VERSION_CHECK_INTERVAL_MS = 60 * 1000;
-    const APP_VERSION_RELOAD_GUARD_KEY = 'fenomen_version_reload_guard_v1';
+    const APP_VERSION_RELOAD_GUARD_KEY = 'fenomen_version_reload_guard_v2';
     const SHEETS_CACHE_KEY = 'fenomenSheetsCache_v2';
     const LEGACY_SHEETS_CACHE_KEY = 'fenomenSheetsCache_v1';
     const TEACHER_SYNC_STATE_KEY = 'fenomen_teacher_sync_v1';
@@ -2747,19 +2803,9 @@ function openWhatsAppComposer(opts){
 
         const persistTeacherPanels = ()=>{
           try{
-            const hwCard = document.getElementById('homeworkCard');
-            const qzCard = document.getElementById('quizCard');
-            if(hwCard){
-              const expanded = !hwCard.classList.contains('is-collapsed');
-              localStorage.setItem('hwCardExpanded', expanded ? '1' : '0');
-            }
-            if(qzCard){
-              const expanded = !qzCard.classList.contains('is-collapsed');
-              localStorage.setItem('qzCardExpanded', expanded ? '1' : '0');
-            }
             const hwCtrl = document.getElementById('hwControlCard');
             if(hwCtrl && !hwCtrl.classList.contains('hidden')){
-              localStorage.setItem('hwCardExpanded','1');
+              localStorage.setItem('teacherMainTab','homeworks');
             }
           }catch(_){ }
         };
@@ -2890,6 +2936,14 @@ function openWhatsAppComposer(opts){
       userChip: document.getElementById('userChip'),
 
       teacherView: document.getElementById('teacherView'),
+      teacherTabLessons: document.getElementById('teacherTabLessons'),
+      teacherTabHomeworks: document.getElementById('teacherTabHomeworks'),
+      teacherLessonsPanel: document.getElementById('teacherLessonsPanel'),
+      teacherHomeworkPanel: document.getElementById('teacherHomeworkPanel'),
+      teacherFocusLesson: document.getElementById('teacherFocusLesson'),
+      kpiDailyLessons: document.getElementById('kpiDailyLessons'),
+      kpiAttendanceDone: document.getElementById('kpiAttendanceDone'),
+      kpiAttendancePending: document.getElementById('kpiAttendancePending'),
       kpiAttendPct: document.getElementById('kpiAttendPct'),
       kpiAbsentPct: document.getElementById('kpiAbsentPct'),
       kpiLatePct: document.getElementById('kpiLatePct'),
@@ -2903,7 +2957,14 @@ function openWhatsAppComposer(opts){
       allVar: document.getElementById('allVar'),
       allYok: document.getElementById('allYok'),
       saveBtn: document.getElementById('saveBtn'),
-      undoBtn: document.getElementById('undoBtn'),
+      undoChangeBtn: document.getElementById('undoChangeBtn'),
+      removeAttendanceBtn: document.getElementById('removeAttendanceBtn'),
+      attSearchInput: document.getElementById('attSearchInput'),
+      attFilter: document.getElementById('attFilter'),
+      attSaveState: document.getElementById('attSaveState'),
+      attChangeCount: document.getElementById('attChangeCount'),
+      attDockState: document.getElementById('attDockState'),
+      attDockHint: document.getElementById('attDockHint'),
 
       parentView: document.getElementById('parentView'),
       pTitle: document.getElementById('pTitle'),
@@ -2965,61 +3026,42 @@ function openWhatsAppComposer(opts){
       admAttendanceEnabled: document.getElementById('admAttendanceEnabled'),
       admAttendanceState: document.getElementById('admAttendanceState'),
 
-      // Homework & Quiz UI (teacher)
+      // Homework UI (teacher)
       homeworkCard: document.getElementById('homeworkCard'),
       hwTitle: document.getElementById('hwTitle'),
       hwDueDate: document.getElementById('hwDueDate'),
       hwClassSelect: document.getElementById('hwClassSelect'),
       hwCreateBtn: document.getElementById('hwCreateBtn'),
       hwList: document.getElementById('hwList'),
-      // Öğretmen ödev liste filtreleri
       hwFilterBar: document.getElementById('hwFilterBar'),
       hwFilterClass: document.getElementById('hwFilterClass'),
+      hwSearch: document.getElementById('hwSearch'),
       hwTabCurrent: document.getElementById('hwTabCurrent'),
       hwTabUpcoming: document.getElementById('hwTabUpcoming'),
       hwTabPast: document.getElementById('hwTabPast'),
-      // Geçmiş sekmesi: tarih sıralama kontrolleri
       hwPastSort: document.getElementById('hwPastSort'),
       hwSortAsc: document.getElementById('hwSortAsc'),
       hwSortDesc: document.getElementById('hwSortDesc'),
       hwControlCard: document.getElementById('hwControlCard'),
       hwControlTitle: document.getElementById('hwControlTitle'),
       hwStudentList: document.getElementById('hwStudentList'),
+      hwStudentSearch: document.getElementById('hwStudentSearch'),
       hwStatusFilter: document.getElementById('hwStatusFilter'),
+      hwMarkVisibleDone: document.getElementById('hwMarkVisibleDone'),
       hwSaveBtn: document.getElementById('hwSaveBtn'),
       hwCancelBtn: document.getElementById('hwCancelBtn'),
-      // Yeni: toplu WhatsApp mesajı butonu
       hwBulkWhatsBtn: document.getElementById('hwBulkWhatsBtn'),
+      hwChangeState: document.getElementById('hwChangeState'),
 
-      quizCard: document.getElementById('quizCard'),
-      qzTitle: document.getElementById('qzTitle'),
-      qzDate: document.getElementById('qzDate'),
-      qzTotal: document.getElementById('qzTotal'),
-      qzClassSelect: document.getElementById('qzClassSelect'),
-      qzCreateBtn: document.getElementById('qzCreateBtn'),
-      qzList: document.getElementById('qzList'),
-      qzControlCard: document.getElementById('qzControlCard'),
-      qzControlTitle: document.getElementById('qzControlTitle'),
-      qzStudentList: document.getElementById('qzStudentList'),
-      qzSaveBtn: document.getElementById('qzSaveBtn'),
-      qzCancelBtn: document.getElementById('qzCancelBtn'),
-
-      // Parent: Homework & Quiz lists and print buttons
+      // Parent: Homework list and print button
       parentHomeworkList: document.getElementById('parentHomeworkList'),
       noParentHomework: document.getElementById('noParentHomework'),
-      parentQuizList: document.getElementById('parentQuizList'),
-      noParentQuiz: document.getElementById('noParentQuiz'),
       parentHwPrintBtn: document.getElementById('parentHwPrintBtn'),
-      parentQzPrintBtn: document.getElementById('parentQzPrintBtn'),
-      // Parent homework & quiz filters
       hwFilterCurrent: document.getElementById('hwFilterCurrent'),
       hwFilterPast: document.getElementById('hwFilterPast'),
-      qzFilterCurrent: document.getElementById('qzFilterCurrent'),
-      qzFilterPast: document.getElementById('qzFilterPast'),
 
-      // Admin: Homework & Quiz buttons
+      // Admin: Homework button
       admHomeworksBtn: document.getElementById('admHomeworksBtn'),
-      admQuizzesBtn: document.getElementById('admQuizzesBtn'),
     };
 
     // Admin görünüm modu: 'detail' | 'summary'
@@ -3055,7 +3097,12 @@ let session=null;
 let currentLesson=null;
 let tempAtt={};
 let currentRoster=[]; // yoklama panelindeki mevcut sınıf/grup listesi (SMS için)
-let currentLessonStoredEntries=[]; // v1.3 🔥: açık derse ait mevcut kayıt yolları (geri al/migrasyon için)
+let currentLessonStoredEntries=[]; // mevcut kayıt yolları (kayıt kaldırma/migrasyon için)
+let attendanceDirty=false;
+let attendanceChangeStack=[];
+let attendanceInitialSnapshot={};
+let attendanceQueued=false;
+let teacherMainTab=(localStorage.getItem('teacherMainTab') || 'lessons');
 
 let teacherUiRefreshTimer=null;        // 3 sn: ders/yoklama durum çipleri
 let teacherSourceSyncTimer=null;       // ~65 sn: ana veri kaynağı kontrolü
@@ -3512,9 +3559,12 @@ const ATT_CFG_PATH = 'config/attendanceEnabled';
 function setAttendancePanelControlsVisible(visible){
   const show = !!visible;
   const elLabel = document.getElementById('cfgDefaultVarChk')?.closest('label');
-  [UI.allVar, UI.allYok, UI.undoBtn, UI.saveBtn, elLabel].forEach(el=>{
+  [UI.allVar, UI.allYok, UI.undoChangeBtn, UI.removeAttendanceBtn, UI.saveBtn, elLabel].forEach(el=>{
     if(!el) return;
     el.style.display = show ? '' : 'none';
+  });
+  [document.querySelector('.att-filter-bar'), document.querySelector('.attendance-state-row'), document.querySelector('.attendance-save-dock')].forEach(el=>{
+    if(el) el.style.display = show ? '' : 'none';
   });
   if(UI.sumBar) UI.sumBar.style.display = show ? '' : 'none';
 }
@@ -3682,14 +3732,9 @@ async function setAttendanceEnabledRemote(enabled){
 }
 
 
-    // Parent filters and displayed lists (for homework & quizzes)
-    // parentHwFilter and parentQzFilter control which items are shown in the parent view.
-    // Possible values: 'current' (upcoming/current items) or 'past' (already due or older than a month).
+    // Parent homework filter and currently displayed list
     let parentHwFilter = 'current';
-    let parentQzFilter = 'current';
-    // Arrays holding the currently displayed homework and quiz entries for printing
     let parentHwDisplayed = [];
-    let parentQzDisplayed = [];
 
     // Helpers
     
@@ -4994,40 +5039,19 @@ async function refreshVisibleView(reason='resume'){
     });
 
     window.addEventListener('pagehide', ()=> saveScrollState(true));
-    window.addEventListener('beforeunload', ()=> saveScrollState(true));
+    window.addEventListener('beforeunload', (e)=>{
+      saveScrollState(true);
+      if(attendanceDirty){
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
 
     // bfcache'den dönüş (özellikle iOS/Safari)
     window.addEventListener('pageshow', (e)=>{
       if(e.persisted) scheduleRestoreScroll();
-      // WhatsApp / mobil dönüşlerinde: Ödev Yönetimi & Quiz durumunu geri yükle
-      try{
-        const hwCard = document.getElementById('homeworkCard');
-        const hwBody = document.getElementById('hwBody');
-        const hwToggle = document.getElementById('hwToggle');
-        if(hwCard){
-          const wantExpanded = (localStorage.getItem('hwCardExpanded')==='1');
-          hwCard.classList.toggle('is-collapsed', !wantExpanded);
-          if(hwBody) hwBody.hidden = !wantExpanded;
-          if(hwToggle){
-            hwToggle.setAttribute('aria-expanded', wantExpanded ? 'true' : 'false');
-            const lbl = hwToggle.querySelector('.toggle-label');
-            if(lbl) lbl.textContent = wantExpanded ? 'Kapat' : 'Aç';
-          }
-        }
-        const qzCard = document.getElementById('quizCard');
-        const qzBody = document.getElementById('qzBody');
-        const qzToggle = document.getElementById('qzToggle');
-        if(qzCard){
-          const wantExpanded = (localStorage.getItem('qzCardExpanded')==='1');
-          qzCard.classList.toggle('is-collapsed', !wantExpanded);
-          if(qzBody) qzBody.hidden = !wantExpanded;
-          if(qzToggle){
-            qzToggle.setAttribute('aria-expanded', wantExpanded ? 'true' : 'false');
-            const lbl2 = qzToggle.querySelector('.toggle-label');
-            if(lbl2) lbl2.textContent = wantExpanded ? 'Kapat' : 'Aç';
-          }
-        }
-      }catch(_){ }
+      // WhatsApp / mobil dönüşlerinde öğretmenin ana sekmesini koru.
+      try{ setTeacherMainTab(localStorage.getItem('teacherMainTab') || teacherMainTab || 'lessons', {silent:true}); }catch(_){ }
     });
   }
 
@@ -5120,7 +5144,7 @@ await loadSheets(); buildSlotOrder();
       const cancelEl = document.getElementById('cancelBtn');
       if(cancelEl && !cancelEl.dataset.bound){
         cancelEl.dataset.bound = '1';
-        cancelEl.addEventListener('click', ()=> closeAttendance());
+        cancelEl.addEventListener('click', ()=> requestCloseAttendance());
       }
       document.querySelectorAll('[data-range]').forEach(b=>{
         b.addEventListener('click', ()=> loadParentRange(b.getAttribute('data-range')));
@@ -5196,13 +5220,17 @@ try{
         refreshAdmin();
       });
 
-      // Homework & Quiz event listeners
+      // v2.0 — Öğretmen ana sekmeleri + ödev işlemleri
       UI.hwCreateBtn?.addEventListener('click', createHomework);
-      UI.qzCreateBtn?.addEventListener('click', createQuiz);
+      UI.teacherTabLessons?.addEventListener('click', async ()=>{ await setTeacherMainTab('lessons'); });
+      UI.teacherTabHomeworks?.addEventListener('click', async ()=>{ await setTeacherMainTab('homeworks'); });
 
-      // Öğretmen: Ödev filtreleri (sınıf + sekmeler)
       UI.hwFilterClass?.addEventListener('change', ()=>{
         teacherHwClass = UI.hwFilterClass.value || 'hepsi';
+        applyTeacherHwFiltersAndRender();
+      });
+      UI.hwSearch?.addEventListener('input', ()=>{
+        teacherHwSearch = safe(UI.hwSearch.value).toLocaleLowerCase('tr-TR');
         applyTeacherHwFiltersAndRender();
       });
       UI.hwTabCurrent?.addEventListener('click', ()=>{
@@ -5217,12 +5245,9 @@ try{
         teacherHwTab = 'past';
         applyTeacherHwFiltersAndRender();
       });
-
-      // Sadece Geçmiş sekmesi: tarih sıralama (↑↓)
       UI.hwSortDesc?.addEventListener('click', ()=>{
         teacherHwPastSort = 'desc';
         localStorage.setItem('teacherHwPastSort', teacherHwPastSort);
-        // 'Geçmiş' aktif değilse sadece UI güncellensin
         if(teacherHwTab === 'past') applyTeacherHwFiltersAndRender();
         else syncTeacherHwTabButtons();
       });
@@ -5234,54 +5259,7 @@ try{
       });
 
       UI.admHomeworksBtn?.addEventListener('click', openAdminHomeworks);
-      UI.admQuizzesBtn?.addEventListener('click', openAdminQuizzes);
       UI.parentHwPrintBtn?.addEventListener('click', printParentHomeworks);
-      UI.parentQzPrintBtn?.addEventListener('click', printParentQuizzes);
-
-      // Homework & Quiz collapsible toggles (teacher view)
-      const hwToggle = document.getElementById('hwToggle');
-      const hwBody   = document.getElementById('hwBody');
-      if (hwToggle && hwBody && UI.homeworkCard) {
-        hwToggle.addEventListener('click', () => {
-          const collapsed = UI.homeworkCard.classList.toggle('is-collapsed');
-          const expanded  = !collapsed;
-          hwBody.hidden   = collapsed;
-          hwToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-          const lbl = hwToggle.querySelector('.toggle-label');
-          if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
-          // Durumu kalıcılaştır (yalnızca Ödev kartı)
-          try{ localStorage.setItem('hwCardExpanded', expanded ? '1' : '0'); }catch(_){ }
-
-          // Kart kapanırken alt detay kartını da kapat
-          if (collapsed && UI.hwControlCard) {
-            UI.hwControlCard.classList.add('hidden');
-          }
-          openHwCtx = null;
-
-        });
-      }
-
-      const qzToggle = document.getElementById('qzToggle');
-      const qzBody   = document.getElementById('qzBody');
-      if (qzToggle && qzBody && UI.quizCard) {
-        qzToggle.addEventListener('click', () => {
-          const collapsed = UI.quizCard.classList.toggle('is-collapsed');
-          const expanded  = !collapsed;
-          qzBody.hidden   = collapsed;
-          qzToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-          const lbl = qzToggle.querySelector('.toggle-label');
-          if (lbl) lbl.textContent = expanded ? 'Kapat' : 'Aç';
-
-          // Durumu kalıcılaştır (yalnızca Quiz kartı)
-          try{ localStorage.setItem('qzCardExpanded', expanded ? '1' : '0'); }catch(_){ }
-
-          // Kart kapanırken quiz kontrol kartını da kapat
-          if (collapsed && UI.qzControlCard) {
-            UI.qzControlCard.classList.add('hidden');
-          }
-            openQzCtx = null;
-        });
-      }
 
       // Parent filter buttons event binding
       if(UI.hwFilterCurrent && UI.hwFilterPast){
@@ -5310,33 +5288,6 @@ try{
         });
         updateHwFilterBtns();
       }
-      if(UI.qzFilterCurrent && UI.qzFilterPast){
-        const updateQzFilterBtns = ()=>{
-          if(parentQzFilter === 'current'){
-            UI.qzFilterCurrent.classList.remove('ghost');
-            UI.qzFilterPast.classList.add('ghost');
-          }else{
-            UI.qzFilterCurrent.classList.add('ghost');
-            UI.qzFilterPast.classList.remove('ghost');
-          }
-        };
-        UI.qzFilterCurrent.addEventListener('click', ()=>{
-          if(parentQzFilter !== 'current'){
-            parentQzFilter = 'current';
-            updateQzFilterBtns();
-            loadParentQuizzes();
-          }
-        });
-        UI.qzFilterPast.addEventListener('click', ()=>{
-          if(parentQzFilter !== 'past'){
-            parentQzFilter = 'past';
-            updateQzFilterBtns();
-            loadParentQuizzes();
-          }
-        });
-        updateQzFilterBtns();
-      }
-
       setNetUI();
       window.addEventListener('online', async ()=>{
         firebaseConnected = null;
@@ -5660,17 +5611,73 @@ async function getTakenSetTodayForTeacher(classNodesOverride=null){
   return taken;
 }
 
+
+async function setTeacherMainTab(tab, options={}){
+  const next = tab === 'homeworks' ? 'homeworks' : 'lessons';
+  if(next === 'homeworks' && attendanceDirty && !options.force){
+    if(options.silent) return false;
+    const ask = await Swal.fire({
+      icon:'warning',
+      title:'Kaydedilmemiş yoklama var',
+      text:'Ödevlere geçerseniz yoklamadaki kaydedilmemiş değişiklikler silinecek.',
+      showCancelButton:true,
+      confirmButtonText:'Değişiklikleri Sil ve Geç',
+      cancelButtonText:'Yoklamada Kal',
+      reverseButtons:true
+    });
+    if(!ask.isConfirmed) return false;
+    closeAttendance(false);
+  }
+  teacherMainTab = next;
+  try{ localStorage.setItem('teacherMainTab', next); }catch(_){ }
+  UI.teacherLessonsPanel?.classList.toggle('hidden', next !== 'lessons');
+  UI.teacherHomeworkPanel?.classList.toggle('hidden', next !== 'homeworks');
+  UI.teacherTabLessons?.classList.toggle('ghost', next !== 'lessons');
+  UI.teacherTabHomeworks?.classList.toggle('ghost', next !== 'homeworks');
+  UI.teacherTabLessons?.setAttribute('aria-selected', next === 'lessons' ? 'true' : 'false');
+  UI.teacherTabHomeworks?.setAttribute('aria-selected', next === 'homeworks' ? 'true' : 'false');
+  if(next === 'homeworks' && session?.role === 'ogretmen' && !options.skipLoad){
+    try{ await loadTeacherClasses(); await loadTeacherHomeworks(); }catch(e){ console.error(e); }
+  }
+  return true;
+}
+
+function renderTeacherFocusLesson(mine){
+  if(!UI.teacherFocusLesson) return;
+  if(!Array.isArray(mine) || !mine.length){
+    UI.teacherFocusLesson.innerHTML = '<div class="muted">Bugün için ders görünmüyor.</div>';
+    return;
+  }
+  const now = nowTR();
+  const dateStr = toDateStr(now);
+  const rows = mine.map(m=>({
+    lesson:m,
+    start: parseOnDate(dateStr, m.bas || '00:00'),
+    end: parseOnDate(dateStr, m.bit || '00:00')
+  }));
+  let chosen = rows.find(x=> !now.isBefore(x.start) && !now.isAfter(x.end));
+  let kicker = 'Şimdiki Ders';
+  if(!chosen){
+    chosen = rows.find(x=> now.isBefore(x.start));
+    kicker = chosen ? 'Sıradaki Ders' : 'Bugünkü Dersler Tamamlandı';
+  }
+  if(!chosen) chosen = rows[rows.length-1];
+  const m=chosen.lesson;
+  const cls=m.classLabel || m.sinif || '—';
+  const time=`${m.bas||'—'}-${m.bit||'—'}`;
+  UI.teacherFocusLesson.innerHTML = `
+    <div class="focus-kicker">${kicker}</div>
+    <div class="focus-title">${cls} • ${m.dersName||'Ders'}</div>
+    <div class="focus-sub">${m.saatNo ? `${m.saatNo}. Saat • ` : ''}${time}${labelProgram(m.program)?` • ${labelProgram(m.program)}`:''}</div>`;
+}
+
 async function showTeacherToday(){
   UI.teacherView.classList.remove('hidden');
   UI.parentView.classList.add('hidden');
   UI.adminView.classList.add('hidden');
 
-  // Skeleton: ders kartları yükleniyor hissi (özellikle çevrimdışı/ağ gecikmesinde)
-  if(UI.lessonsGrid){
-    UI.lessonsGrid.innerHTML = lessonCardSkeleton(4);
-  }
+  if(UI.lessonsGrid) UI.lessonsGrid.innerHTML = lessonCardSkeleton(4);
   UI.noLesson?.classList.add('hidden');
-
 
   const t = nowTR();
   const AY = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
@@ -5678,8 +5685,8 @@ async function showTeacherToday(){
   UI.todayInfo.textContent = attendanceEnabled ? baseInfo : (baseInfo + ' • Tatil Modu: Yoklama kapalı');
 
   const mine = teacherLessonsForDay(todayNameTR());
-
   teacherLessonsToday = mine;
+  renderTeacherFocusLesson(mine);
 
   if (mine.length === 0){
     UI.lessonsGrid.innerHTML = '';
@@ -5692,22 +5699,20 @@ async function showTeacherToday(){
     ? await loadAttendanceClassNodes(toDateStr(nowTR()), getLessonStorageKeysForMany(mine))
     : {};
   const takenSet = attendanceEnabled ? await getTakenSetTodayForTeacher(teacherAttendanceNodes) : new Set();
-  const gecikenYoklamalar = [];
+  const doneCount = attendanceEnabled ? mine.filter(m=>takenSet.has(lessonAttendanceKey(m))).length : 0;
+  if(UI.kpiDailyLessons) UI.kpiDailyLessons.textContent = String(mine.length);
+  if(UI.kpiAttendanceDone) UI.kpiAttendanceDone.textContent = String(doneCount);
+  if(UI.kpiAttendancePending) UI.kpiAttendancePending.textContent = String(attendanceEnabled ? Math.max(0,mine.length-doneCount) : 0);
 
   UI.lessonsGrid.innerHTML = mine.map((m,i)=>{
     const hasTaken = takenSet.has(lessonAttendanceKey(m));
-        const st = attendanceEnabled ? lessonStatusInfo(m, hasTaken) : { chip:'future', text:'Tatil Modu' };
-
+    const st = attendanceEnabled ? lessonStatusInfo(m, hasTaken) : { chip:'future', text:'Tatil Modu' };
     const now = nowTR();
     const basSaati = parseOnDate(toDateStr(now), m.bas);
     const bitSaati = parseOnDate(toDateStr(now), m.bit);
-
-    let canTake = true;                         // neden: zaman penceresi kısıtı
+    let canTake = true;
     if (now.isBefore(basSaati.subtract(10, 'minute'))) canTake = false;
-    if (now.isAfter(bitSaati.add(5, 'hour')))         canTake = false;
-    if (attendanceEnabled && !hasTaken && now.isAfter(basSaati.add(5, 'minute')) && now.isBefore(bitSaati.add(5, 'hour'))) {
-      gecikenYoklamalar.push(`${m.classLabel || m.sinif} • ${m.dersName} (${m.bas}-${m.bit})`);
-    }
+    if (now.isAfter(bitSaati.add(5, 'hour'))) canTake = false;
 
     return `
       <div class="lesson ${st.chip}" role="button" tabindex="0"
@@ -5715,9 +5720,7 @@ async function showTeacherToday(){
            data-bas="${m.bas||''}" data-bit="${m.bit||''}" data-sinif="${m.classLabel||m.sinif||''}" data-saatkodu="${m.saatKodu||''}" data-ders="${m.dersName||''}">
         <div>
           <div class="title">${m.classLabel || m.sinif} • ${m.dersName}</div>
-          <div class="sub">
-            ${m.gun} • ${m.saatNo?`${m.saatNo}. Saat`:'Saat'} • ${m.bas||''}-${m.bit||''}${labelProgram(m.program)?` • ${labelProgram(m.program)}`:''}
-          </div>
+          <div class="sub">${m.gun} • ${m.saatNo?`${m.saatNo}. Saat`:'Saat'} • ${m.bas||''}-${m.bit||''}${labelProgram(m.program)?` • ${labelProgram(m.program)}`:''}</div>
         </div>
         <div class="chip ${st.chip}">${st.text}</div>
       </div>`;
@@ -5727,10 +5730,6 @@ async function showTeacherToday(){
     const activate = async ()=>{
       const idx = +el.dataset.idx;
       const m = mine[idx];
-
-      // Tatil Modu kontrolü, zaman penceresi kontrolünden ÖNCE yapılmalı.
-      // Neden: Yoklama pasifken öğretmene "Yoklama Alınamaz" saat uyarısı değil,
-      // doğrudan "Tatil Modu — Yoklama Kapalı" ekranı gösterilmeli.
       if(!attendanceConfigReady){
         try{
           const snapCfg = await get(ref(db, ATT_CFG_PATH));
@@ -5740,24 +5739,13 @@ async function showTeacherToday(){
           applyAttendanceConfigToUI();
         }catch(e){
           console.error(e);
-          await Swal.fire({
-            icon:'error',
-            title:'Ayar Okunamadı',
-            text:'Yoklama durumu kontrol edilemedi. Lütfen bağlantıyı kontrol edip tekrar deneyiniz.',
-            confirmButtonText:'Tamam'
-          });
+          await Swal.fire({icon:'error',title:'Ayar Okunamadı',text:'Yoklama durumu kontrol edilemedi. Lütfen bağlantıyı kontrol edip tekrar deneyiniz.',confirmButtonText:'Tamam'});
           return;
         }
       }
-
-      if(!attendanceEnabled){
-        await openLesson(m); // openLesson Tatil Modu ekranını açar; yoklama listesi/kayıt açılmaz.
-        return;
-      }
-
+      if(!attendanceEnabled){ await openLesson(m); return; }
       const now = nowTR();
-      const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(10,'minute')) ||
-                        now.isAfter(parseOnDate(toDateStr(now), m.bit).add(5,'hour')));
+      const canTake = !(now.isBefore(parseOnDate(toDateStr(now), m.bas).subtract(10,'minute')) || now.isAfter(parseOnDate(toDateStr(now), m.bit).add(5,'hour')));
       if (!canTake){
         await Swal.fire({icon:'error',title:'Yoklama Alınamaz',text:'Yoklama ders başlamadan 10 dakika önce veya ders bitiminden 5 saat sonra alınamaz.',confirmButtonText:'Tamam'});
         return;
@@ -5771,47 +5759,12 @@ async function showTeacherToday(){
   restartTeacherAutoRefresh?.();
   await refreshTeacherDailyKpis?.(undefined, teacherAttendanceNodes);
 
-  try {
+  try{
     await loadTeacherClasses?.();
     await loadTeacherHomeworks?.();
-    await loadTeacherQuizzes?.();
+  }catch(e){ console.error(e); }
 
-    // Öğretmenin ödev & quiz kartlarını aktif et, ancak varsayılan olarak kapalı getir
-    if (UI.homeworkCard) {
-      UI.homeworkCard.classList.remove('hidden');
-
-      const hwBody   = document.getElementById('hwBody');
-      const hwToggle = document.getElementById('hwToggle');
-
-      // Dönüşte (WhatsApp/app) kart durumunu koru
-      const wantExpanded = (localStorage.getItem('hwCardExpanded') === '1');
-      UI.homeworkCard.classList.toggle('is-collapsed', !wantExpanded);
-      if (hwBody) hwBody.hidden = !wantExpanded;
-
-      if (hwToggle) {
-        hwToggle.setAttribute('aria-expanded', wantExpanded ? 'true' : 'false');
-        const lbl = hwToggle.querySelector('.toggle-label');
-        if (lbl) lbl.textContent = wantExpanded ? 'Kapat' : 'Aç';
-      }
-    }
-
-    if (UI.quizCard) {
-      UI.quizCard.classList.remove('hidden');
-
-      const qzBody   = document.getElementById('qzBody');
-      const qzToggle = document.getElementById('qzToggle');
-
-      const wantExpanded = (localStorage.getItem('qzCardExpanded') === '1');
-      UI.quizCard.classList.toggle('is-collapsed', !wantExpanded);
-      if (qzBody) qzBody.hidden = !wantExpanded;
-
-      if (qzToggle) {
-        qzToggle.setAttribute('aria-expanded', wantExpanded ? 'true' : 'false');
-        const lbl2 = qzToggle.querySelector('.toggle-label');
-        if (lbl2) lbl2.textContent = wantExpanded ? 'Kapat' : 'Aç';
-      }
-    }
-  } catch(e) { console.error(e); }
+  await setTeacherMainTab(teacherMainTab, {silent:true, skipLoad:true});
 }
 
     function restartTeacherAutoRefresh(){
@@ -5877,108 +5830,199 @@ async function refreshTeacherDailyKpis(dateStr, classNodesOverride=null){
   updateTeacherKpis(v+y, v, y, g);
 }
 
-    /* ---------- ATTENDANCE PANEL ---------- */
-// 2) Güncellenmiş TAM fonksiyon: openLesson(lesson) — KLONLAMA DÂHİL
+/* ---------- ATTENDANCE PANEL v2.0 ---------- */
+function cloneAttendanceState(src=tempAtt){
+  const out={};
+  Object.entries(src||{}).forEach(([id,rec])=>{ out[id]={status:rec?.status||'yok', late:!!rec?.late}; });
+  return out;
+}
+
+function attendanceChangeCount(){
+  const ids=new Set([...Object.keys(attendanceInitialSnapshot||{}), ...Object.keys(tempAtt||{})]);
+  let n=0;
+  ids.forEach(id=>{
+    const a=attendanceInitialSnapshot?.[id]||{};
+    const b=tempAtt?.[id]||{};
+    if((a.status||'')!==(b.status||'') || !!a.late!==!!b.late) n++;
+  });
+  return n;
+}
+
+function setAttendanceSaveState(kind, text, hint=''){
+  const labels={clean:'Kaydedildi', dirty:'Kaydedilmedi', pending:'Gönderilmeyi bekliyor', saving:'Kaydediliyor…', error:'Kaydedilemedi'};
+  const label=text || labels[kind] || labels.dirty;
+  if(UI.attSaveState){
+    UI.attSaveState.className=`att-save-state ${kind}`;
+    UI.attSaveState.textContent=label;
+  }
+  if(UI.attDockState) UI.attDockState.textContent=label;
+  if(UI.attDockHint) UI.attDockHint.textContent=hint || '';
+}
+
+function updateAttendanceDirtyState(){
+  const count=attendanceChangeCount();
+  attendanceDirty=count>0;
+  if(UI.attChangeCount) UI.attChangeCount.textContent = count ? `${count} değişiklik` : 'Değişiklik yok';
+  if(UI.saveBtn) UI.saveBtn.textContent = count ? `Kaydet (${count})` : 'Kaydet';
+  if(attendanceDirty) setAttendanceSaveState('dirty','Kaydedilmedi',`${count} değişiklik kaydedilmedi.`);
+  else if(attendanceQueued) setAttendanceSaveState('pending','Gönderilmeyi bekliyor','Kayıt cihazda güvenli kuyrukta; bağlantı geldiğinde gönderilecek.');
+  if(UI.undoChangeBtn) UI.undoChangeBtn.disabled = attendanceChangeStack.length===0;
+}
+
+function pushAttendanceUndo(){
+  attendanceChangeStack.push(cloneAttendanceState());
+  if(attendanceChangeStack.length>50) attendanceChangeStack.shift();
+  if(UI.undoChangeBtn) UI.undoChangeBtn.disabled=false;
+}
+
+function syncAttendanceRows(){
+  Array.from(UI.studentList?.querySelectorAll('.student')||[]).forEach(li=>{
+    const id=li.getAttribute('data-id');
+    const rec=tempAtt?.[id];
+    if(!rec) return;
+    const sw=li.querySelector('[data-role="switch"]');
+    const late=li.querySelector('[data-role="late"]');
+    const isVar=rec.status==='var';
+    sw?.classList.toggle('on',isVar);
+    sw?.setAttribute('aria-pressed',String(isVar));
+    if(sw) sw.title=isVar?'Var':'Yok';
+    late?.classList.toggle('on',isVar && !!rec.late);
+  });
+}
+
+function applyAttendanceFilters(){
+  const query=safe(UI.attSearchInput?.value).toLocaleLowerCase('tr-TR');
+  const filter=UI.attFilter?.value || 'all';
+  Array.from(UI.studentList?.querySelectorAll('.student')||[]).forEach(li=>{
+    const id=li.getAttribute('data-id');
+    const rec=tempAtt?.[id]||{};
+    const hay=safe(li.getAttribute('data-search')).toLocaleLowerCase('tr-TR');
+    const qOk=!query || hay.includes(query);
+    const fOk=filter==='all' || (filter==='absent' && rec.status==='yok') || (filter==='late' && rec.status==='var' && !!rec.late);
+    li.classList.toggle('is-filtered-out',!(qOk&&fOk));
+  });
+}
+
+function renderSummary(){
+  const ids=Array.from(UI.studentList?.querySelectorAll('.student')||[]).map(li=>li.getAttribute('data-id'));
+  const toplam=ids.length; let v=0,y=0,g=0;
+  ids.forEach(id=>{ const d=tempAtt[id]; if(d?.status==='var') v++; else if(d?.status==='yok') y++; if(d?.status==='var'&&d?.late) g++; });
+  if(UI.sumBar) UI.sumBar.innerHTML=`<span class="pill">Toplam: ${toplam}</span><span class="pill">Var: ${v}</span><span class="pill">Yok: ${y}</span><span class="pill">Geç: ${g}</span>`;
+  updateTeacherKpis(toplam,v,y,g);
+  applyAttendanceFilters();
+  updateAttendanceDirtyState();
+}
+
+async function confirmDiscardAttendanceChanges(){
+  if(!attendanceDirty) return true;
+  const ask=await Swal.fire({
+    icon:'warning',
+    title:'Kaydedilmemiş değişiklikler var',
+    text:'Bu ekrandan ayrılırsanız yoklamadaki kaydedilmemiş değişiklikler silinecek.',
+    showCancelButton:true,
+    confirmButtonText:'Değişiklikleri Sil',
+    cancelButtonText:'Yoklamada Kal',
+    reverseButtons:true
+  });
+  return !!ask.isConfirmed;
+}
+
+async function requestCloseAttendance(){
+  if(!(await confirmDiscardAttendanceChanges())) return false;
+  closeAttendance();
+  return true;
+}
+
 async function openLesson(lesson){
-  currentLesson = decorateLessonScope(lesson);
-  lesson = currentLesson;
+  if(attendanceDirty && currentLesson){
+    if(!(await confirmDiscardAttendanceChanges())) return;
+    closeAttendance(false);
+  }
+  currentLesson=decorateLessonScope(lesson);
+  lesson=currentLesson;
   UI.attCard.classList.remove('hidden');
+  await setTeacherMainTab('lessons',{force:true,skipLoad:true});
+
   if(!attendanceConfigReady){
     try{
-      const snapCfg = await get(ref(db, ATT_CFG_PATH));
-      const vCfg = snapCfg.val();
-      attendanceEnabled = (vCfg === null || vCfg === undefined) ? true : !!vCfg;
-      attendanceConfigReady = true;
+      const snapCfg=await get(ref(db,ATT_CFG_PATH));
+      const vCfg=snapCfg.val();
+      attendanceEnabled=(vCfg===null||vCfg===undefined)?true:!!vCfg;
+      attendanceConfigReady=true;
       applyAttendanceConfigToUI();
     }catch(e){ console.error(e); }
   }
-
-  if(attendanceConfigReady && !attendanceEnabled){
-    showHolidayMode(lesson);
-    focusAndScroll(UI.attCard, UI.studentList);
-    return;
-  }
   if(!attendanceEnabled){
     showHolidayMode(lesson);
-    focusAndScroll(UI.attCard, UI.studentList);
+    focusAndScroll(UI.attCard,UI.studentList);
     return;
   }
 
   restoreNormalAttendanceUI();
+  const scope=lessonScopeFrom(lesson);
+  const groupTitle=scope.hasGroupFilter?` • Grup: ${scope.groupLabel||'eşleşen grup yok'}`:'';
+  UI.attTitle.textContent=`📝 Yoklama — ${scope.classLabel}${groupTitle} • ${lesson.dersName} • ${lesson.saatNo?ordinal(lesson.saatNo):('Saat '+lesson.saatKodu)} (${lesson.bas||''}-${lesson.bit||''}) • ${lesson.ogretmenAd}`;
 
-  const scope = lessonScopeFrom(lesson);
-  const groupTitle = scope.hasGroupFilter ? ` • Grup: ${scope.groupLabel || 'eşleşen grup yok'}` : '';
-  UI.attTitle.textContent = `📝 Yoklama — ${scope.classLabel}${groupTitle} • ${lesson.dersName} • ${lesson.saatNo?ordinal(lesson.saatNo):('Saat '+lesson.saatKodu)} (${lesson.bas||''}-${lesson.bit||''}) • ${lesson.ogretmenAd}`;
+  const list=buildLessonRoster(lesson);
+  currentRoster=list;
+  const tarih=toDateStr(nowTR());
+  const existingResult=await readLessonAttendance(tarih,lesson);
+  const existing=existingResult.byStudent||{};
+  currentLessonStoredEntries=existingResult.entries||[];
+  const anyThisLesson=!!existingResult.any;
+  if(UI.removeAttendanceBtn) UI.removeAttendanceBtn.disabled=!anyThisLesson;
 
-  const list = buildLessonRoster(lesson);
-  currentRoster = list;
-
-  const tarih = toDateStr(nowTR());
-  const existingResult = await readLessonAttendance(tarih, lesson);
-  const existing = existingResult.byStudent || {};
-  currentLessonStoredEntries = existingResult.entries || [];
-
-  const anyThisLesson = !!existingResult.any;
-  UI.undoBtn.disabled = !anyThisLesson;
-
-  let prefillMode = 'existing';
-  let cloneData = null;
-
-  if (!anyThisLesson) {
-    const prev = findPrevConsecutiveSlot(lesson);
-    if (prev) {
-      const prevResult = await readLessonAttendance(tarih, prev);
-      if (prevResult.any) {
-        const prevScope = lessonScopeFrom(prev);
-        const ask = await Swal.fire({
-          icon:'question',
-          title:'Önceki yoklamayı klonla?',
-          html:`${prevScope.classLabel} sınıf/grup kapsamının <b>${(prev.saatNo||lesson.saatNo-1)}. Saat</b> yoklaması bulundu.<br>
-                Bu derse uygulansın mı?<br><br>
-                <small>Kurallar: VAR→VAR, GEÇ→VAR, YOK→YOK</small>`,
-          showCancelButton:true,
-          confirmButtonText:'Evet, klonla',
-          cancelButtonText:'Hayır'
+  let prefillMode='existing',cloneData=null;
+  if(!anyThisLesson){
+    const prev=findPrevConsecutiveSlot(lesson);
+    if(prev){
+      const prevResult=await readLessonAttendance(tarih,prev);
+      if(prevResult.any){
+        const prevScope=lessonScopeFrom(prev);
+        const ask=await Swal.fire({
+          icon:'question', title:'Önceki yoklamayı klonla?',
+          html:`${prevScope.classLabel} sınıf/grup kapsamının <b>${(prev.saatNo||lesson.saatNo-1)}. Saat</b> yoklaması bulundu.<br>Bu derse uygulansın mı?<br><br><small>VAR→VAR, GEÇ→VAR, YOK→YOK</small>`,
+          showCancelButton:true, confirmButtonText:'Evet, klonla', cancelButtonText:'Hayır'
         });
-        if (ask.isConfirmed) {
-          prefillMode = 'clone';
-          cloneData = prevResult.byStudent || {};
-        } else prefillMode = 'default';
-      } else prefillMode = 'default';
-    } else prefillMode = 'default';
+        if(ask.isConfirmed){ prefillMode='clone'; cloneData=prevResult.byStudent||{}; }
+        else prefillMode='default';
+      }else prefillMode='default';
+    }else prefillMode='default';
   }
 
-  tempAtt = {};
-  const cfg = JSON.parse(localStorage.getItem("cfg")||"{}");
-  const _defaultVar = (cfg.defaultVar ?? true);
-
+  tempAtt={};
+  const cfg=JSON.parse(localStorage.getItem('cfg')||'{}');
+  const defaultVar=(cfg.defaultVar??true);
   list.forEach(o=>{
-    let status='yok', late=false;
-    if (prefillMode==='existing' && existing[o.id]) {
-      const prev = existing[o.id];
-      status = (prev.durum==='var') ? 'var' : 'yok';
-      late   = !!prev.late;
-    } else if (prefillMode==='clone') {
-      const src = cloneData?.[o.id] || null;
-      if (src) {
-        if (src.durum === 'yok') { status='yok'; late=false; }
-        else { status='var'; late=false; }
-      } else status = _defaultVar ? 'var' : 'yok';
-    } else status = _defaultVar ? 'var' : 'yok';
-    tempAtt[o.id] = { status, late };
+    let status='yok',late=false;
+    if(prefillMode==='existing'&&existing[o.id]){ status=existing[o.id].durum==='var'?'var':'yok'; late=!!existing[o.id].late; }
+    else if(prefillMode==='clone'){
+      const src=cloneData?.[o.id]||null;
+      if(src){ status=src.durum==='yok'?'yok':'var'; late=false; }
+      else status=defaultVar?'var':'yok';
+    }else status=defaultVar?'var':'yok';
+    tempAtt[o.id]={status,late};
   });
 
+  attendanceInitialSnapshot=cloneAttendanceState();
+  attendanceChangeStack=[];
+  attendanceDirty=false;
+  attendanceQueued=false;
+  if(UI.undoChangeBtn) UI.undoChangeBtn.disabled=true;
+  setAttendanceSaveState(anyThisLesson?'clean':'dirty',anyThisLesson?'Kaydedildi':'Kaydedilmedi',anyThisLesson?'Veritabanındaki kayıt gösteriliyor.':'Bu ders için henüz kayıt oluşturulmadı.');
+  if(UI.attChangeCount) UI.attChangeCount.textContent='Değişiklik yok';
+  if(UI.saveBtn) UI.saveBtn.textContent='Kaydet';
+  if(UI.attSearchInput) UI.attSearchInput.value='';
+  if(UI.attFilter) UI.attFilter.value='all';
+
   if(!list.length){
-    UI.studentList.innerHTML = `<li class="muted" style="padding:14px 0;">Bu dersin sınıf/grup kapsamına uyan öğrenci bulunamadı.</li>`;
+    UI.studentList.innerHTML='<li class="muted" style="padding:14px 0;">Bu dersin sınıf/grup kapsamına uyan öğrenci bulunamadı.</li>';
   }else{
-    UI.studentList.innerHTML = list.map(o=>{
-      const isVar = tempAtt[o.id].status==='var', isLate = !!tempAtt[o.id].late;
+    UI.studentList.innerHTML=list.map(o=>{
+      const isVar=tempAtt[o.id].status==='var',isLate=!!tempAtt[o.id].late;
       const meta=[`No: ${o.no}`];
-      if(scope.isMixed){
-        // v1.6 🔥 — Öğrenci satırında yalnızca sınıf gösterilir; grup filtreleme mantığı aynen korunur.
-        meta.push(`Sınıf: ${o.sinif}`);
-      }
-      return `<li class="student" data-id="${o.id}" tabindex="0" aria-label="${o.ad}">
+      if(scope.isMixed) meta.push(`Sınıf: ${o.sinif}`);
+      return `<li class="student" data-id="${o.id}" data-search="${o.ad} ${o.no}" tabindex="0" aria-label="${o.ad}">
         <div class="stack"><div class="name">${o.ad}</div><div class="muted">${meta.join(' • ')}</div></div>
         <div class="row">
           <button class="late ${isLate?'on':''}" data-role="late" type="button">⏰ Geç</button>
@@ -5989,72 +6033,60 @@ async function openLesson(lesson){
   }
 
   Array.from(UI.studentList.querySelectorAll('.student')).forEach(li=>{
-    const id = li.getAttribute('data-id');
-    const sw = li.querySelector('[data-role="switch"]');
-    const late = li.querySelector('[data-role="late"]');
-
-    sw.addEventListener('click', ()=>{
-      const isOn = sw.classList.toggle('on');
-      sw.setAttribute('aria-pressed', String(isOn));
-      tempAtt[id].status = isOn ? 'var' : 'yok';
-      if(!isOn){ tempAtt[id].late = false; late.classList.remove('on'); }
-      renderSummary();
+    const id=li.getAttribute('data-id');
+    const sw=li.querySelector('[data-role="switch"]');
+    const late=li.querySelector('[data-role="late"]');
+    sw.addEventListener('click',()=>{
+      pushAttendanceUndo();
+      const isOn=tempAtt[id].status!=='var';
+      tempAtt[id].status=isOn?'var':'yok';
+      if(!isOn) tempAtt[id].late=false;
+      syncAttendanceRows(); renderSummary();
     });
-    late.addEventListener('click', ()=>{
+    late.addEventListener('click',()=>{
       if(tempAtt[id].status!=='var') return;
-      tempAtt[id].late = !tempAtt[id].late;
-      late.classList.toggle('on', tempAtt[id].late);
-      renderSummary();
+      pushAttendanceUndo();
+      tempAtt[id].late=!tempAtt[id].late;
+      syncAttendanceRows(); renderSummary();
     });
   });
 
-  UI.allVar.onclick = ()=> setAll('var');
-  UI.allYok.onclick = ()=> setAll('yok');
-  UI.saveBtn.onclick = handleAttendanceSaveClick;
-  UI.undoBtn.onclick = undoAttendance;
+  UI.allVar.onclick=()=>setAll('var');
+  UI.allYok.onclick=()=>setAll('yok');
+  UI.saveBtn.onclick=handleAttendanceSaveClick;
+  UI.undoChangeBtn.onclick=undoLastAttendanceChange;
+  UI.removeAttendanceBtn.onclick=removeSavedAttendance;
+  UI.attSearchInput.oninput=applyAttendanceFilters;
+  UI.attFilter.onchange=applyAttendanceFilters;
 
   renderSummary();
-  focusAndScroll(UI.attCard, UI.studentList);
+  focusAndScroll(UI.attCard,UI.studentList);
 }
 
+function closeAttendance(refresh=true){
+  restoreNormalAttendanceUI();
+  UI.attCard.classList.add('hidden');
+  UI.studentList.innerHTML='';
+  currentLesson=null;
+  tempAtt={}; currentRoster=[]; currentLessonStoredEntries=[];
+  attendanceInitialSnapshot={}; attendanceChangeStack=[]; attendanceDirty=false; attendanceQueued=false;
+  const firstLesson=document.querySelector('.lesson'); firstLesson?.focus();
+  if(refresh){ refreshLessonChips(); refreshTeacherDailyKpis(); }
+}
 
-  function closeAttendance(refresh=true){
-      // bir sonraki açılış için UI'ı varsayılan hale getir
-      restoreNormalAttendanceUI();
-      UI.attCard.classList.add('hidden');
-      UI.studentList.innerHTML = '';
-      currentLesson = null;
-      tempAtt = {};
-      currentRoster = [];
-      currentLessonStoredEntries = [];
-      const firstLesson = document.querySelector('.lesson'); firstLesson?.focus();
-      // İptal/manuel kapatma sonrası tazele; kayıt/geri al akışında showTeacherToday tek seferde yeniler.
-      if(refresh){
-        refreshLessonChips();
-        refreshTeacherDailyKpis();
-      }
-    }
+function setAll(val){
+  if(!Object.keys(tempAtt||{}).length) return;
+  pushAttendanceUndo();
+  Object.keys(tempAtt).forEach(k=>{ tempAtt[k].status=val; tempAtt[k].late=false; });
+  syncAttendanceRows(); renderSummary();
+}
 
-    function setAll(val){
-      Object.keys(tempAtt).forEach(k=> { tempAtt[k].status=val; tempAtt[k].late=false; });
-      Array.from(UI.studentList.querySelectorAll('.student')).forEach(li=>{
-        const sw = li.querySelector('[data-role="switch"]');
-        const late = li.querySelector('[data-role="late"]');
-        const on = val==='var';
-        sw.classList.toggle('on', on);
-        sw.setAttribute('aria-pressed', String(on));
-        late.classList.remove('on');
-      });
-      renderSummary();
-    }
-
-    function renderSummary(){
-      const ids = Array.from(UI.studentList.querySelectorAll('.student')).map(li => li.getAttribute('data-id'));
-      const toplam = ids.length; let v=0,y=0,g=0;
-      ids.forEach(id => { const d = tempAtt[id]; if (d.status==='var') v++; else if (d.status==='yok') y++; if (d.late) g++; });
-      UI.sumBar.innerHTML = `<span class="pill">Toplam: ${toplam}</span><span class="pill">Var: ${v}</span><span class="pill">Yok: ${y}</span><span class="pill">Geç: ${g}</span>`;
-      updateTeacherKpis(toplam, v, y, g);
-    }
+function undoLastAttendanceChange(){
+  const prev=attendanceChangeStack.pop();
+  if(!prev) return;
+  tempAtt=cloneAttendanceState(prev);
+  syncAttendanceRows(); renderSummary();
+}
 
 
 /* ---------- 1. ve 2. Saat: Veli SMS Bildirimleri ---------- */
@@ -6307,6 +6339,7 @@ async function saveAttendance(){
 
   attendanceSaveInFlight=true;
   if(UI.saveBtn) UI.saveBtn.disabled=true;
+  setAttendanceSaveState('saving','Kaydediliyor…','Değişiklikler veritabanına gönderiliyor.');
 
   const tarih = toDateStr(nowTR());
   const lessonSnapshot = currentLesson;
@@ -6314,13 +6347,22 @@ async function saveAttendance(){
   const roster = Array.isArray(currentRoster) ? currentRoster : [];
   const rosterByNo = new Map(roster.map(st=>[safe(st.id),st]));
 
+  const markQueued = (message='Gönderilmeyi bekliyor')=>{
+    attendanceInitialSnapshot=cloneAttendanceState();
+    attendanceChangeStack=[];
+    attendanceDirty=false;
+    attendanceQueued=true;
+    updateAttendanceDirtyState();
+    setAttendanceSaveState('pending','Gönderilmeyi bekliyor',message);
+  };
+
   try{
     if(!rosterByNo.size){
+      setAttendanceSaveState('error','Kaydedilmedi','Bu ders için öğrenci listesi bulunamadı.');
       await Swal.fire('Öğrenci Yok','Bu dersin sınıf/grup kapsamına uyan öğrenci bulunamadığı için yoklama kaydedilmedi.','info');
       return false;
     }
 
-    // v1.8 🔥 — Her öğrenci mutlaka VAR veya YOK olmalı; gizli/boş üçüncü durum yok.
     const invalid=[];
     for(const st of roster){
       const id=safe(st?.id);
@@ -6330,6 +6372,7 @@ async function saveAttendance(){
       }
     }
     if(invalid.length){
+      setAttendanceSaveState('error','Kaydedilmedi',`${invalid.length} öğrencinin yoklama durumu eksik.`);
       await Swal.fire({
         icon:'warning',
         title:'Yoklama Tamamlanmadı',
@@ -6342,8 +6385,6 @@ async function saveAttendance(){
     const updates = {};
     const verifyMap = new Map();
 
-    // Eski/legacy sınıf veya programsız saat yolunda kalmış kayıt varsa
-    // yeni gerçek sınıf + program-ayrımlı saat yoluna taşınırken yalnızca bu derse ait olanı temizle.
     for(const entry of currentLessonStoredEntries||[]){
       const st=rosterByNo.get(safe(entry?.id)) || entry?.student;
       if(!st?.sinif) continue;
@@ -6353,11 +6394,10 @@ async function saveAttendance(){
       if(oldPath !== newPath) updates[oldPath]=null;
     }
 
-    // Roster üzerinden dön: tempAtt içinde kayıp öğrenci varsa sessizce atlanmasına izin verme.
     for(const st of roster){
       const id=safe(st.id);
       const d=tempAtt[id];
-      const status=d.status; // yukarıda yalnızca var/yok olduğu doğrulandı
+      const status=d.status;
       const late=status==='var' ? !!d.late : false;
       const pathBase = attPath(tarih, st.sinif, lessonSnapshot.saatKodu, lessonSnapshot.ogretmenId, lessonSnapshot.program);
 
@@ -6387,6 +6427,7 @@ async function saveAttendance(){
     }
 
     if(!Object.keys(updates).length){
+      setAttendanceSaveState('error','Kaydedilmedi','Gönderilecek yoklama verisi oluşmadı.');
       await Swal.fire('Kayıt Oluşturulamadı','Veritabanına gönderilecek yoklama verisi oluşmadı. Kayıt yapılmadı.','error');
       return false;
     }
@@ -6398,28 +6439,23 @@ async function saveAttendance(){
     ].join(':');
     const queueOptions={kind:'attendance', dedupeKey, verifyGroups};
 
-    // Tarayıcı interneti veya Firebase bağlantısı yoksa sunucuya kaydedildi demiyoruz.
     if(!canUseFirebase()){
       queueOfflineWrite('/', updates, queueOptions);
+      markQueued('Bağlantı geldiğinde otomatik gönderilecek.');
       await Swal.fire({
         icon:'warning',
         title:'Server Bağlantısı Yok',
         html:'Yoklama <b>cihazda güvenli kuyruğa alındı</b>.<br>Server bağlantısı geldiğinde otomatik gönderilecek ve doğrulanacak.<br><br><b>Bu kayıt için veli SMS’i henüz gönderilmeyecek.</b>',
         confirmButtonText:'Tamam'
       });
-      closeAttendance(false);
-      await showTeacherToday();
       return false;
     }
 
-    // Önceden başlamış kuyruk aktarımı varsa bitmesini bekle; eski kayıt yeni kaydın üstüne yazmasın.
     await flushQueue(false);
     removeSupersededAttendanceQueue(dedupeKey, verifyGroups);
-
     setStatus('Yoklama veritabanına gönderiliyor…','info');
 
     try{
-      // update() Promise'i ancak RTDB sunucu yazmayı kabul ettiğinde tamamlanır.
       await update(ref(db), updates);
     }catch(writeErr){
       console.error('attendance firebase write error', writeErr);
@@ -6429,56 +6465,60 @@ async function saveAttendance(){
 
       if(permanent){
         setStatus('Veritabanı kayıt yetkisi reddedildi. Yoklama kaydedilmedi.','bad');
+        setAttendanceSaveState('error','Kaydedilmedi','Veritabanı yazma yetkisi reddedildi.');
         await Swal.fire('Veritabanı Kayıt Hatası','Veritabanı bu yazma işlemini reddetti. Kayıt kuyruğa alınmadı; yetki/veritabanı kuralları kontrol edilmeli.','error');
         return false;
       }
 
-      // Ağ/bağlantı kaynaklı hata: veriyi kaybetme, güvenli kuyruğa al.
       queueOfflineWrite('/', updates, queueOptions);
       setStatus('Veritabanı onayı alınamadı; yoklama güvenli kuyrukta.','bad');
+      markQueued('Veritabanı onayı bekleniyor; bağlantı düzeldiğinde yeniden gönderilecek.');
       await Swal.fire({
         icon:'warning',
         title:'Veritabanı Onayı Alınamadı',
         html:'Yoklama cihazda <b>güvenli kuyruğa alındı</b>. Bağlantı düzeldiğinde otomatik yeniden gönderilecek ve doğrulanacak.<br><br><b>Veli SMS’i gönderilmedi.</b>',
         confirmButtonText:'Tamam'
       });
-      closeAttendance(false);
-      await showTeacherToday();
       return false;
     }
 
-    // Sunucu yazma onayından sonra aynı kayıtları geri oku ve öğrenci bazında karşılaştır.
     setStatus('Veritabanı kaydı doğrulanıyor…','info');
     const verified=await verifyAttendanceGroups(verifyGroups, {attempts:3, waitMs:350});
     if(!verified.ok){
-      // Yazma ACK almış olsa bile geri okuma doğrulaması başarısızsa başarı mesajı gösterme.
-      // Aynı veri kuyruğa alınır; tekrar gönderim idempotenttir ve bağlantı gelince yeniden doğrulanır.
       queueOfflineWrite('/', updates, queueOptions);
       console.error('attendance verification mismatch', verified.mismatches);
       setStatus('Veritabanı kaydı doğrulanamadı; yoklama güvenli kuyrukta.','bad');
+      markQueued('Sunucu geri okuma doğrulaması bekleniyor.');
       await Swal.fire({
         icon:'warning',
         title:'Kayıt Doğrulanamadı',
         html:'Veritabanı yazma isteğini aldı ancak geri okuma kontrolü tamamlanamadı.<br>Yoklama <b>güvenli kuyruğa alındı</b> ve otomatik tekrar doğrulanacak.<br><br><b>Veli SMS’i gönderilmedi.</b>',
         confirmButtonText:'Tamam'
       });
-      closeAttendance(false);
-      await showTeacherToday();
       return false;
     }
 
-    // Yalnızca sunucu ACK + geri okuma birebir eşleşirse "Kaydedildi" denir.
+    attendanceInitialSnapshot=cloneAttendanceState();
+    attendanceChangeStack=[];
+    attendanceDirty=false;
+    attendanceQueued=false;
+    try{
+      const latest=await readLessonAttendance(tarih, lessonSnapshot);
+      currentLessonStoredEntries=latest.entries||currentLessonStoredEntries||[];
+    }catch(_){ }
+    if(UI.removeAttendanceBtn) UI.removeAttendanceBtn.disabled=false;
+    updateAttendanceDirtyState();
+    setAttendanceSaveState('clean','Kaydedildi','Veritabanına kaydedildi ve doğrulandı.');
     setStatus('Veritabanına kaydedildi ve doğrulandı.','ok');
     showToast('Veritabanına kaydedildi ✓','ok');
+    await refreshLessonChips?.();
+    await refreshTeacherDailyKpis?.();
     await Swal.fire('Kaydedildi','Yoklama veritabanına kaydedildi ve öğrenci bazında doğrulandı.','success');
-
-    closeAttendance(false);
-    await showTeacherToday();
-
     return true;
   }catch(e){
     console.error('saveAttendance unexpected error', e);
     setStatus('Hata: yoklama kayıt işlemi tamamlanamadı.','bad');
+    setAttendanceSaveState('error','Kaydedilmedi','Kayıt işlemi tamamlanamadı. Değişiklikler ekranda korunuyor.');
     await Swal.fire('Hata','Yoklama kayıt işlemi tamamlanamadı. Veri doğrulanmadan başarı mesajı verilmedi.','error');
     return false;
   }finally{
@@ -6487,7 +6527,7 @@ async function saveAttendance(){
   }
 }
 
-async function undoAttendance(){
+async function removeSavedAttendance(){
   if(!currentLesson) return;
   if(attendanceConfigReady && !attendanceEnabled){
     Swal.fire('Tatil Modu','Yoklama şu anda pasif.','info');
@@ -6496,7 +6536,7 @@ async function undoAttendance(){
   }
   const tarih = toDateStr(nowTR());
 
-  const ok = await Swal.fire({title:'Geri al?', text:'Bu ders kapsamına ait kayıtlar öğrencilerin gerçek sınıflarından silinecek.', icon:'warning', showCancelButton:true, confirmButtonText:'Evet', cancelButtonText:'Vazgeç'});
+  const ok = await Swal.fire({title:'Kayıtlı yoklamayı kaldır?', text:'Bu ders kapsamına ait kayıtlı yoklama veritabanından silinecek.', icon:'warning', showCancelButton:true, confirmButtonText:'Evet, Kaldır', cancelButtonText:'Vazgeç'});
   if(!ok.isConfirmed) return;
 
   try{
@@ -6518,13 +6558,13 @@ async function undoAttendance(){
     else queueOfflineWrite('/', updates);
 
     if(queued){
-      await Swal.fire('Kuyruğa Alındı','Geri alma işlemi server bağlantısı geldiğinde otomatik uygulanacak.','warning');
+      await Swal.fire('Kuyruğa Alındı','Kaldırma işlemi server bağlantısı geldiğinde otomatik uygulanacak.','warning');
     }else{
-      await Swal.fire('Geri alındı','Bu ders kapsamına ait kayıtlar veritabanından silindi.','success');
+      await Swal.fire('Kaldırıldı','Bu ders kapsamına ait kayıtlı yoklama veritabanından silindi.','success');
     }
     closeAttendance(false);
     await showTeacherToday();
-  }catch(e){ console.error(e); Swal.fire('Hata','Geri alırken sorun oluştu.','error'); }
+  }catch(e){ console.error(e); Swal.fire('Hata','Kayıtlı yoklama kaldırılırken sorun oluştu.','error'); }
 }
 
     /* ---------- PARENT VIEW ---------- */
@@ -6548,20 +6588,13 @@ async function undoAttendance(){
       // İlk açılışta mevcut öğeleri göster; arka plandan dönüş senkronunda kullanıcının filtresini koru.
       if(resetFilters){
         parentHwFilter = 'current';
-        parentQzFilter = 'current';
       }
       if(UI.hwFilterCurrent && UI.hwFilterPast){
         UI.hwFilterCurrent.classList.toggle('ghost', parentHwFilter !== 'current');
         UI.hwFilterPast.classList.toggle('ghost', parentHwFilter === 'current');
       }
-      if(UI.qzFilterCurrent && UI.qzFilterPast){
-        UI.qzFilterCurrent.classList.toggle('ghost', parentQzFilter !== 'current');
-        UI.qzFilterPast.classList.toggle('ghost', parentQzFilter === 'current');
-      }
-
-      // Ödev ve quiz listelerini yükle
+      // Ödev listesini yükle
       await loadParentHomeworks();
-      await loadParentQuizzes();
 
       // Veli için "Detaylı Öğrenci Raporu" — Admin’deki birebir rapor
       if(UI.parentReportBtn){
@@ -6794,14 +6827,12 @@ async function refreshAdminAllData(){
       const attendancePath = attDayRoot(date, 'hepsi');
 
       // Ağ okumaları paralel: sürelerin toplamını beklemek yerine en yavaş isteğin süresine yakın tamamlanır.
-      const [sheetResult, cfgSnap, daySnap, homeworksSnap, quizzesSnap, hwStatusSnap, qzResultsSnap] = await Promise.all([
+      const [sheetResult, cfgSnap, daySnap, homeworksSnap, hwStatusSnap] = await Promise.all([
         loadSheets({ forceNetwork:true, allowCacheFallback:false, freshVariant:true }),
         get(ref(db, ATT_CFG_PATH)),
         get(ref(db, attendancePath)),
         get(ref(db, 'homeworks')),
-        get(ref(db, 'quizzes')),
-        get(ref(db, 'hwStatus')),
-        get(ref(db, 'qzResults'))
+        get(ref(db, 'hwStatus'))
       ]);
 
       // Master veriler değişmiş olabilir: saat ve filtre kataloglarını yeni veriyle yeniden kur.
@@ -6814,7 +6845,7 @@ async function refreshAdminAllData(){
 
       // Firebase modüllerinin tamamı başarıyla okundu; değişkenleri özellikle kullanarak
       // Promise.all içindeki okumaların optimizasyonla/yanlışlıkla kaldırılmamasını ve amacı net tutuyoruz.
-      void homeworksSnap; void quizzesSnap; void hwStatusSnap; void qzResultsSnap; void sheetResult;
+      void homeworksSnap; void hwStatusSnap; void sheetResult;
 
       // Öğrenci listesi değişmişse sınıf seçeneklerini yenile; mümkünse kullanıcının filtresini koru.
       const classSet = new Set((students||[]).map(st=>safe(st.SINIF)).filter(Boolean));
@@ -7997,235 +8028,38 @@ async function openWeeklyAbsenceModal(){
 
 /* ---------- ADMIN: ÖĞRENCİ RAPORU (Detay + Yazdır) ---------- */
 async function showStudentReport(no, name){
-  // --- Fetch attendance data for the student ---
-  // Attendance records are stored under ATT_ROOT by date/class/program-aware-slot/teacher/student
-  const snap = await get(ref(db, ATT_ROOT));
-  const root = snap.exists() ? snap.val() : {};
-  const attRows = [];
-  Object.entries(root).forEach(([tarih, byClass])=>{
-    Object.entries(byClass||{}).forEach(([cls, bySlot])=>{
-      Object.entries(bySlot||{}).forEach(([saatKodu, byTeacher])=>{
-        Object.entries(byTeacher||{}).forEach(([ogretmenId, byStudent])=>{
-          const rec = byStudent?.[no];
-          if(rec){
-            attRows.push({
-              tarih,
-              cls,
-              durum: rec.durum,
-              late: !!rec.late,
-              ogretmen: rec.ogretmenAd || '',
-              ders: rec.ders || '',
-              saatNo: rec.saatNo || null,
-              saatBas: rec.saatBas || '',
-              saatBit: rec.saatBit || '',
-              // Program bilgisini aktar (yoksa boş string)
-              prog: rec.program || ''
-            });
-          }
-        });
-      });
-    });
-  });
-  attRows.sort((a,b)=> a.tarih.localeCompare(b.tarih));
+  const snap=await get(ref(db,ATT_ROOT));
+  const root=snap.exists()?snap.val():{};
+  const attRows=[];
+  Object.entries(root).forEach(([tarih,byClass])=>Object.entries(byClass||{}).forEach(([cls,bySlot])=>Object.entries(bySlot||{}).forEach(([,byTeacher])=>Object.values(byTeacher||{}).forEach(byStudent=>{
+    const rec=byStudent?.[no]; if(rec) attRows.push({tarih,cls,durum:rec.durum,late:!!rec.late,ogretmen:rec.ogretmenAd||'',ders:rec.ders||'',saatNo:rec.saatNo||null,saatBas:rec.saatBas||'',saatBit:rec.saatBit||'',prog:rec.program||''});
+  }))));
+  attRows.sort((a,b)=>a.tarih.localeCompare(b.tarih));
+  const total=attRows.filter(r=>r.durum==='var'||r.durum==='yok').length, came=attRows.filter(r=>r.durum==='var').length;
+  const absent=attRows.filter(r=>r.durum==='yok'), late=attRows.filter(r=>r.durum==='var'&&r.late), pct=total?Math.round(came/total*100):0;
+  const fmtDate=ds=>{const [Y,M,D]=ds.split('-').map(Number);return new Intl.DateTimeFormat('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(Y,M-1,D));};
+  const fmtSaat=r=>`${r.saatNo?ordinal(r.saatNo)+' ':''}(${r.saatBas||''}-${r.saatBit||''})${labelProgram(r.prog)?` • ${labelProgram(r.prog)}`:''}`;
 
-  const totalMarked = attRows.filter(r=> r.durum==='var' || r.durum==='yok').length;
-  const came       = attRows.filter(r=> r.durum==='var').length;
-  const absentRows = attRows.filter(r=> r.durum==='yok');
-  const lateRows   = attRows.filter(r=> r.durum==='var' && r.late);
-  const pct        = totalMarked ? Math.round((came/totalMarked)*100) : 0;
-
-  // Helpers to format dates and lesson times
-  const fmtDate = (ds)=> {
-    const [Y,M,D] = ds.split('-').map(Number);
-    return new Intl.DateTimeFormat('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(Y,M-1,D));
-  };
-  const fmtSaat = (r)=> {
-    const progLbl = labelProgram(r.prog);
-    if(r.saatNo){
-      return `${ordinal(r.saatNo)} (${r.saatBas||''}-${r.saatBit||''})${progLbl?` • ${progLbl}`:''}`;
-    } else {
-      return `(${r.saatBas||''}-${r.saatBit||''})${progLbl?` • ${progLbl}`:''}`;
-    }
-  };
-
-  // --- Fetch homework and quiz data for the student ---
-  // Determine student's class
-  const studentObj = students.find(s => safe(s.NO) === safe(no));
-  const cls = safe(studentObj?.SINIF);
-
-  // Homework list
-  const homeworkList = [];
+  const studentObj=students.find(x=>safe(x.NO)===safe(no)); const cls=safe(studentObj?.SINIF); const homeworkList=[];
   if(cls){
     try{
-      const hwSnap = await get(ref(db, `homeworks/${cls}`));
-      const hwData = hwSnap.exists() ? hwSnap.val() : {};
-      Object.entries(hwData).forEach(([hwId, hw])=>{
-        const dueStr = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
-        const rec = (hw.statuses || {})[no] || {};
-        const stKey = rec.status;
-        const statusText = stKey ? (HW_STATUSES[stKey] || stKey) : '—';
-        homeworkList.push({
-          title: hw.title || '',
-          subject: hw.subject || '',
-          due: dueStr,
-          teacherName: hw.teacherName || '',
-          statusText
-        });
-      });
-      // Sort by due date ascending (empty due dates at end)
-      homeworkList.sort((a,b)=> ((a.due||'').localeCompare(b.due||'','tr')));
-    }catch(err){ console.error(err); }
+      const hs=await get(ref(db,`homeworks/${cls}`)); const data=hs.exists()?hs.val():{};
+      for(const [id,hw] of Object.entries(data)){
+        const {statuses}=await getHomeworkStatuses(cls,id,hw);
+        const key=statuses?.[safe(no)]?.status||'';
+        homeworkList.push({title:hw.title||'',subject:hw.subject||'',due:hw.dueDate?dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY'):'—',teacherName:hw.teacherName||'',statusText:key?(HW_STATUSES[key]||key):'Kontrol edilmedi'});
+      }
+    }catch(e){console.error(e);}
   }
 
-  // Quiz list
-  const quizList = [];
-  if(cls){
-    try{
-      const qSnap = await get(ref(db, `quizzes/${cls}`));
-      const qData = qSnap.exists() ? qSnap.val() : {};
-      Object.entries(qData).forEach(([qId, q])=>{
-        const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
-        const res = (q.results || {})[no];
-        let resultText = 'Katılmadı';
-        if(res && typeof res.correct === 'number' && typeof res.percent === 'number'){
-          const correct = res.correct;
-          const wrong   = res.wrong ?? (typeof res.total === 'number' ? res.total - res.correct : undefined);
-          const pctRes  = res.percent;
-          if(typeof wrong === 'number'){
-            resultText = `${correct} Doğru • ${wrong} Yanlış • %${pctRes}`;
-          } else {
-            resultText = `${correct} Doğru • %${pctRes}`;
-          }
-        }
-        quizList.push({
-          title: q.title || '',
-          subject: q.subject || '',
-          date: dateStr,
-          teacherName: q.teacherName || '',
-          resultText
-        });
-      });
-      // Sort by date ascending (empty dates at end)
-      quizList.sort((a,b)=> ((a.date||'').localeCompare(b.date||'','tr')));
-    }catch(err){ console.error(err); }
-  }
-
-  // Build HTML for each section (attendance, homeworks, quizzes)
-  const attendanceSection = `
-    <div id="tab-attendance" class="report-tab">
-      <h2 style="margin:0 0 6px 0;">Fenomen Eğitim Kurumları — Öğrenci Raporu</h2>
-      <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
-      <div class="grid cols-3" style="margin:8px 0;">
-        <div class="kpi"><div class="muted">Toplam İşaretli</div><div style="font-weight:800;">${totalMarked}</div></div>
-        <div class="kpi"><div class="muted">Toplam Geldi</div><div style="font-weight:800;">${came}</div></div>
-        <div class="kpi"><div class="muted">Katılım %</div><div style="font-weight:800;">${pct}%</div></div>
-      </div>
-      <h3 style="margin-top:16px;">❌ Gelmeyen Günler (Detay)</h3>
-      ${
-        absentRows.length
-        ? `<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${
-            absentRows.map(r=> `<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')
-          }</tbody></table>`
-        : `<div class="muted">Kayıtlı “gelmedi” bulunamadı.</div>`
-      }
-      <h3 style="margin-top:16px;">⏰ Geç Geldiği Günler (Detay)</h3>
-      ${
-        lateRows.length
-        ? `<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${
-            lateRows.map(r=> `<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')
-          }</tbody></table>`
-        : `<div class="muted">Kayıtlı “geç” bulunamadı.</div>`
-      }
-    </div>`;
-
-  const homeworksSection = `
-    <div id="tab-homeworks" class="report-tab" style="display:none;">
-      <h2 style="margin:0 0 6px 0;">Fenomen Eğitim Kurumları — Öğrenci Ödevleri</h2>
-      <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
-      ${
-        homeworkList.length
-        ? `<table class="table"><thead><tr><th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th></tr></thead><tbody>${
-            homeworkList.map(r=> `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.due}</td><td>${r.teacherName}</td><td>${r.statusText}</td></tr>`).join('')
-          }</tbody></table>`
-        : `<div class="muted">Ödev bulunamadı.</div>`
-      }
-    </div>`;
-
-  const quizzesSection = `
-    <div id="tab-quizzes" class="report-tab" style="display:none;">
-      <h2 style="margin:0 0 6px 0;">Fenomen Eğitim Kurumları — Öğrenci Quizleri</h2>
-      <div class="muted" style="margin-bottom:12px;">${name} — No: ${no}</div>
-      ${
-        quizList.length
-        ? `<table class="table"><thead><tr><th>Quiz</th><th>Ders</th><th>Tarih</th><th>Öğretmen</th><th>Sonuç</th></tr></thead><tbody>${
-            quizList.map(r=> `<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.date}</td><td>${r.teacherName}</td><td>${r.resultText}</td></tr>`).join('')
-          }</tbody></table>`
-        : `<div class="muted">Quiz bulunamadı.</div>`
-      }
-    </div>`;
-
-  // Build navigation buttons
-  const navBar = `
-  <div class="row report-toolbar no-print" style="gap:6px; align-items:center; margin-bottom:8px;">
-    <button class="btn tab-btn" data-tab="attendance" type="button">Yoklama</button>
-    <button class="btn ghost tab-btn" data-tab="homeworks" type="button">Ödevler</button>
-    <button class="btn ghost tab-btn" data-tab="quizzes" type="button">Quizler</button>
-    <span style="flex:1;"></span>
-    <button id="btnPrintStudent" class="btn" type="button">Yazdır</button>
-  </div>`; // Neden: bu satırların çıktıda görünmemesi gerekiyor
-
-  // Compose the modal HTML
-  const modalHtml = `
-  <div style="text-align:left;max-height:70vh;overflow:auto;">
-    ${navBar}
-    <div id="printStudentReport">
-      ${attendanceSection}
-      ${homeworksSection}
-      ${quizzesSection}
-    </div>
-  </div>`; // Neden: yazdırılacak alan artık sadece #printStudentReport
-
-
-  // Show modal with SweetAlert2
-  await Swal.fire({
-    title:'Öğrenci Raporu',
-    html: modalHtml,
-    width: 1000,
-    showConfirmButton:false,
-    showCloseButton:true,
-    didOpen: bindReport
-  });
-
-  // Bind events for tab navigation and printing
-  function bindReport(){
-    const h   = Swal.getHtmlContainer();
-    const tabs = h.querySelectorAll('.report-tab');
-    const btns = h.querySelectorAll('.tab-btn');
-    const showTab = (tabName)=>{
-      tabs.forEach(div=>{
-        const isMatch = div.id === `tab-${tabName}`;
-        div.style.display = isMatch ? '' : 'none';
-      });
-      btns.forEach(b=>{
-        const isActive = b.getAttribute('data-tab') === tabName;
-        if(isActive) b.classList.remove('ghost'); else b.classList.add('ghost');
-      });
-    };
-    btns.forEach(btn=>{
-      btn.addEventListener('click', ()=> {
-        const tabName = btn.getAttribute('data-tab');
-        showTab(tabName);
-      }, { passive:true });
-    });
-    // Initialize default tab
-    showTab('attendance');
-    // Print current visible tab (export entire report)
-    const printBtn = h.querySelector('#btnPrintStudent');
-    printBtn.addEventListener('click', ()=>{
-      const reportDiv = h.querySelector('#printStudentReport');
-      printDivAsA4(reportDiv, `Fenomen_ogrenci_${no}.pdf`);
-    }, { passive:true });
-  }
+  const attendanceSection=`<div id="tab-attendance" class="report-tab"><h2>Fenomen Eğitim Kurumları — Öğrenci Raporu</h2><div class="muted">${name} — No: ${no}</div><div class="grid cols-3" style="margin:8px 0"><div class="kpi"><div class="muted">Toplam İşaretli</div><strong>${total}</strong></div><div class="kpi"><div class="muted">Toplam Geldi</div><strong>${came}</strong></div><div class="kpi"><div class="muted">Katılım %</div><strong>${pct}%</strong></div></div><h3>❌ Gelmeyen Günler</h3>${absent.length?`<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${absent.map(r=>`<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">Kayıtlı devamsızlık bulunamadı.</div>'}<h3>⏰ Geç Geldiği Günler</h3>${late.length?`<table class="table"><thead><tr><th>Tarih</th><th>Sınıf</th><th>Öğretmen</th><th>Ders</th><th>Saat</th></tr></thead><tbody>${late.map(r=>`<tr><td>${fmtDate(r.tarih)}</td><td>${r.cls}</td><td>${r.ogretmen}</td><td>${r.ders}</td><td>${fmtSaat(r)}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">Kayıtlı geç kalma bulunamadı.</div>'}</div>`;
+  const homeworksSection=`<div id="tab-homeworks" class="report-tab" style="display:none"><h2>Fenomen Eğitim Kurumları — Öğrenci Ödevleri</h2><div class="muted">${name} — No: ${no}</div>${homeworkList.length?`<table class="table"><thead><tr><th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th></tr></thead><tbody>${homeworkList.map(r=>`<tr><td>${r.title}</td><td>${r.subject}</td><td>${r.due}</td><td>${r.teacherName}</td><td>${r.statusText}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">Ödev bulunamadı.</div>'}</div>`;
+  const modalHtml=`<div style="text-align:left;max-height:70vh;overflow:auto"><div class="row report-toolbar no-print" style="gap:6px;margin-bottom:8px"><button class="btn tab-btn" data-tab="attendance">Yoklama</button><button class="btn ghost tab-btn" data-tab="homeworks">Ödevler</button><span style="flex:1"></span><button id="btnPrintStudent" class="btn">Yazdır</button></div><div id="printStudentReport">${attendanceSection}${homeworksSection}</div></div>`;
+  await Swal.fire({title:'Öğrenci Raporu',html:modalHtml,width:1000,showConfirmButton:false,showCloseButton:true,didOpen:()=>{
+    const h=Swal.getHtmlContainer(),tabs=h.querySelectorAll('.report-tab'),btns=h.querySelectorAll('.tab-btn');
+    btns.forEach(b=>b.addEventListener('click',()=>{const t=b.dataset.tab;tabs.forEach(x=>x.style.display=x.id===`tab-${t}`?'':'none');btns.forEach(x=>x.classList.toggle('ghost',x!==b));}));
+    h.querySelector('#btnPrintStudent')?.addEventListener('click',()=>printDivAsA4(h.querySelector('#printStudentReport'),`Fenomen_ogrenci_${no}.pdf`));
+  }});
 }
 
     function printDivAsA4(div, title){
@@ -8281,7 +8115,7 @@ async function showStudentReport(no, name){
       <button id="hDelSel" class="btn danger" type="button">Seçilileri Sil</button>
       <button id="hDelAll" class="btn danger" type="button">Bugünü Sil</button>
       <button id="hDelAllTime" class="btn danger" type="button">Tüm Zamanı Sil</button>
-      <button id="hResetAllData" class="btn danger" type="button" title="Yoklama + Ödev + Quiz verilerini tamamen sil">Her Şeyi Sil</button>
+      <button id="hResetAllData" class="btn danger" type="button" title="Yoklama ve Ödev verilerini tamamen sil">Her Şeyi Sil</button>
     </div>
 
     <div style="max-height:60vh;overflow:auto;">
@@ -8455,7 +8289,7 @@ async function showStudentReport(no, name){
 btnResetAll && btnResetAll.addEventListener('click', async ()=>{
   const warn1 = await Swal.fire({
     title:'Her Şeyi Sil',
-    html:'<div style="text-align:left;line-height:1.5">Bu işlem <b>geri alınamaz</b>.<br><br><b>Yoklama</b>, <b>Ödev</b> ve <b>Quiz</b> verilerinin tamamı veritabanından silinecek.</div>',
+    html:'<div style="text-align:left;line-height:1.5">Bu işlem <b>geri alınamaz</b>.<br><br><b>Yoklama</b> ve <b>Ödev</b> verilerinin tamamı veritabanından silinecek.</div>',
     icon:'warning',
     showCancelButton:true,
     confirmButtonText:'Evet, sil',
@@ -8473,12 +8307,12 @@ btnResetAll && btnResetAll.addEventListener('click', async ()=>{
   });
   if(!warn2.isConfirmed) return;
 
-  const wipe = { [ATT_ROOT]: null, homeworks: null, hwStatus: null, quizzes: null, qzResults: null };
+  const wipe = { [ATT_ROOT]: null, homeworks: null, hwStatus: null };
   try{
     const queued = !canUseFirebase();
     if(!queued){ await flushQueue(false); await update(ref(db), wipe); }
     else{ queueOfflineWrite('/', wipe); }
-    setStatus(queued ? 'Tüm verileri sıfırlama işlemi güvenli kuyrukta.' : 'Tüm yoklama/ödev/quiz verileri veritabanında sıfırlandı.', queued?'bad':'ok');
+    setStatus(queued ? 'Tüm verileri sıfırlama işlemi güvenli kuyrukta.' : 'Tüm yoklama/ödev verileri veritabanında sıfırlandı.', queued?'bad':'ok');
     tbBody.innerHTML='';
     h.querySelector('#hEmpty').classList.remove('hidden');
   }catch(e){ console.error(e); Swal.fire('Hata','Sıfırlama sırasında sorun oluştu.','error'); }
@@ -8881,7 +8715,7 @@ async function buildAdminPrintSheet(){
   tbody.innerHTML = rows || `<tr><td colspan="5" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
 }
 
-/* ---------- Ödev & Quiz Fonksiyonları ---------- */
+/* ---------- Ödev Fonksiyonları — v2.0 ---------- */
 
 const HW_STATUSES = {
   yapti: 'Yaptı',
@@ -8891,9 +8725,8 @@ const HW_STATUSES = {
   gelmedi: 'Gelmedi'
 };
 
-// Açık kontrol panellerini takip et (neden: silinen ödev/quiz için paneli otomatik kapat)
+// Açık ödev kontrol panelini takip et.
 let openHwCtx = null; // { cls, id }
-let openQzCtx = null; // { cls, id }
 
 /* ---------- Öğretmen Ödev Liste Filtreleri (Sınıf + Sekmeler) ---------- */
 let teacherHwAll = [];        // tüm ödevler (fetch sonrası)
@@ -8901,6 +8734,7 @@ let teacherHwGidMap = new Map(); // groupId -> statuses
 let teacherHwTab = 'current'; // 'current' | 'upcoming' | 'past'
 let teacherHwPastSort = (localStorage.getItem('teacherHwPastSort') || 'desc'); // 'desc'(Yeni→Eski) | 'asc'(Eski→Yeni)
 let teacherHwClass = 'hepsi'; // 'hepsi' veya sınıf
+let teacherHwSearch = ''; // konu / ders araması
 
 function hwInTab(hw, tab){
   try{
@@ -8947,17 +8781,15 @@ function syncTeacherHwTabButtons(){
 
 function applyTeacherHwFiltersAndRender(){
   if(!UI?.hwList) return;
-
-  // UI state -> memory
   teacherHwClass = UI.hwFilterClass?.value || teacherHwClass || 'hepsi';
-
-  const filtered = (Array.isArray(teacherHwAll) ? teacherHwAll : []).filter(hw=>{
-    const clsOk = (teacherHwClass==='hepsi') || (safe(hw.class)===safe(teacherHwClass));
-    const tabOk = hwInTab(hw, teacherHwTab);
-    return clsOk && tabOk;
+  teacherHwSearch = (UI.hwSearch?.value || '').trim().toLocaleLowerCase('tr-TR');
+  const filtered=(Array.isArray(teacherHwAll)?teacherHwAll:[]).filter(hw=>{
+    const clsOk=teacherHwClass==='hepsi'||safe(hw.class)===safe(teacherHwClass);
+    const tabOk=hwInTab(hw,teacherHwTab);
+    const hay=`${hw?.title||''} ${hw?.subject||''}`.toLocaleLowerCase('tr-TR');
+    return clsOk && tabOk && (!teacherHwSearch || hay.includes(teacherHwSearch));
   });
-
-  renderTeacherHomeworks(filtered, teacherHwGidMap, { tab: teacherHwTab, pastSort: teacherHwPastSort });
+  renderTeacherHomeworks(filtered,teacherHwGidMap,{tab:teacherHwTab,pastSort:teacherHwPastSort});
   syncTeacherHwTabButtons();
 }
 
@@ -8976,289 +8808,49 @@ function classChipStyle(cls){
 
 function renderTeacherHomeworks(items, gidMap, opts={}){
   if(!UI.hwList) return;
-
-  if(!(items && items.length)){
-    UI.hwList.innerHTML = '<div class="muted">Ödev yok.</div>';
-    return;
-  }
-
-  // 1) Sırala: teslim tarihi, sonra sınıf
-  //    Not: Sadece 'Geçmiş' sekmesinde ↑↓ sıralama uygulanır.
-  const sortDir = (opts?.tab === 'past') ? (opts?.pastSort || 'desc') : 'asc';
-
-  const sorted = [...items].sort((a,b)=>{
-    const aHas = !!a?.dueDate;
-    const bHas = !!b?.dueDate;
-
-    // Teslim tarihi olmayanlar her zaman en sonda kalsın
-    if(!aHas && !bHas) {
-      const ac0 = safe(a?.class), bc0 = safe(b?.class);
-      if(ac0 !== bc0) return ac0.localeCompare(bc0,'tr',{numeric:true,sensitivity:'base'});
-      return safe(a?.title).localeCompare(safe(b?.title),'tr',{numeric:true,sensitivity:'base'});
-    }
-    if(!aHas) return 1;
-    if(!bHas) return -1;
-
-    const ad = dayjs(a.dueDate).valueOf();
-    const bd = dayjs(b.dueDate).valueOf();
-    if(ad !== bd) return (sortDir === 'asc') ? (ad - bd) : (bd - ad);
-
-    const ac = safe(a?.class), bc = safe(b?.class);
-    if(ac !== bc) return ac.localeCompare(bc,'tr',{numeric:true,sensitivity:'base'});
-    return safe(a?.title).localeCompare(safe(b?.title),'tr',{numeric:true,sensitivity:'base'});
+  if(!(items && items.length)){ UI.hwList.innerHTML='<div class="muted">Bu filtrelere uygun ödev yok.</div>'; return; }
+  const sortDir=(opts?.tab==='past')?(opts?.pastSort||'desc'):'asc';
+  const sorted=[...items].sort((a,b)=>{
+    if(!a?.dueDate&&!b?.dueDate) return safe(a?.class).localeCompare(safe(b?.class),'tr',{numeric:true});
+    if(!a?.dueDate) return 1; if(!b?.dueDate) return -1;
+    const d=dayjs(a.dueDate).valueOf()-dayjs(b.dueDate).valueOf();
+    return d ? (sortDir==='asc'?d:-d) : safe(a?.class).localeCompare(safe(b?.class),'tr',{numeric:true});
   });
-
-  // 2) Grupla: teslim tarihine göre (kategori)
-  const groups = new Map(); // key: YYYY-MM-DD | 'nodate'  -> items[]
-  for(const hw of sorted){
-    const key = hw?.dueDate ? dayjs(hw.dueDate).format('YYYY-MM-DD') : 'nodate';
-    if(!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(hw);
-  }
-
-  const rawKeys = [...groups.keys()];
-  const hasNoDate = rawKeys.includes('nodate');
-  const dateKeys = rawKeys.filter(k => k !== 'nodate').sort((a,b)=> a.localeCompare(b));
-
-  // Past sekmesinde: sortDir'a göre ↑↓
-  if(sortDir === 'desc') dateKeys.reverse();
-
-  const groupKeys = hasNoDate ? [...dateKeys, 'nodate'] : dateKeys;
-
-  const renderCard = (hw)=>{
-    const dueText = hw.dueDate ? dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY') : '';
-    // Özet: yalnız bu sınıfa ait öğrenciler
-    const classSet = new Set(students.filter(s=> safe(s.SINIF)===safe(hw.class)).map(s=>safe(s.NO)));
-
-    const statuses = (() => {
-      const gid = hw.groupId ?? (String(hw.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(hw.id).split('-')[0]) : null);
-      const g = gid ? (gidMap.get(gid)||{}) : null;
-      return g || (hw.statuses || {});
-    })();
-
-    const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
-    Object.entries(statuses).forEach(([sid,rec])=>{
-      if(!classSet.has(sid)) return;
-      const st=rec?.status; if(st && counts.hasOwnProperty(st)) counts[st]++;
-    });
-    const summary = Object.entries(counts)
-      .filter(([_,v])=>v>0)
-      .map(([k,v])=>`<span class="chip ${k==='yapti'?'ok':(k==='yapmadi'?'bad':'warn')}" style="border-radius:12px;">${HW_STATUSES[k]}: ${v}</span>`)
-      .join(' ') || `<span class="muted">Henüz kontrol edilmedi</span>`;
-
-    // Kalan süre etiketi
-    let leftClass='ok', timeLeft='—';
-    try{
-      if(hw.dueDate){
-        const diff = dayjs(hw.dueDate).endOf('day').diff(dayjs().startOf('day'),'day');
-        if(diff < 0){ timeLeft='Süre doldu'; leftClass='bad'; }
-        else if(diff===0){ timeLeft='Bugün teslim'; leftClass='bad'; }
-        else if(diff===1){ timeLeft='1 gün kaldı'; leftClass='bad'; }
-        else if(diff===2){ timeLeft='2 gün kaldı'; leftClass='warn'; }
-        else { timeLeft=`${diff} gün kaldı`; leftClass='ok'; }
-      } else {
-        timeLeft='Tarih yok'; leftClass='future';
-      }
-    }catch(_){}
-
-    return `
-      <article class="hw-card hw-item hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" tabindex="0" role="button" aria-label="Ödev kartı">
-        <div class="hw-top">
-          <div class="hw-badges">
-            <span class="chip class-chip" style="${classChipStyle(hw.class)}">${hw.class || '—'}</span>
-            <span class="chip ${leftClass}">${timeLeft}</span>
-          </div>
-          <span class="chip due-pill" title="Teslim tarihi">${dueText || '—'}</span>
-        </div>
-
-        <div class="hw-title"><span class="pin" aria-hidden="true">📌</span>Ödev: ${(hw.title||'').trim()}</div>
-        <div class="hw-meta">Ders: ${(hw.subject||'—').trim()}</div>
-
-        <div class="hw-summary">
-          <div class="muted" style="font-weight:900;margin-bottom:6px;">Kontrol Özeti</div>
-          <div class="hw-summary-chips">${summary}</div>
-        </div>
-
-        <div class="hw-actions">
-          <button class="btn hw-control hw-control-btn" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Kontrol">
-            <span class="ico" aria-hidden="true">✅</span>
-            <span class="lbl">Kontrol</span>
-            <span class="hw-progress" aria-hidden="true"></span>
-          </button>
-
-          <button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Düzenle">✏️</button>
-          <button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Sil">🗑️</button>
-        </div>
-
-        <div class="hw-secondary-actions">
-          <button class="btn hw-bulk-msg-btn bulk-hw-msg" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" aria-label="Toplu mesaj at">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
-            <span>Toplu Mesaj At</span>
-          </button>
-        </div>
-      </article>`;
+  const groups=new Map();
+  for(const hw of sorted){ const k=hw?.dueDate?dayjs(hw.dueDate).format('YYYY-MM-DD'):'nodate'; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(hw); }
+  let keys=[...groups.keys()].filter(k=>k!=='nodate').sort(); if(sortDir==='desc') keys.reverse(); if(groups.has('nodate')) keys.push('nodate');
+  const renderCard=(hw)=>{
+    const dueText=hw.dueDate?dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY'):'—';
+    const classSet=new Set(students.filter(x=>safe(x.SINIF)===safe(hw.class)).map(x=>safe(x.NO)));
+    const gid=hw.groupId ?? (String(hw.id||'').match(/^(\d+)-\d+$/)?.[1]?Number(String(hw.id).split('-')[0]):null);
+    const statuses=(gid?gidMap.get(gid):null)||hw.statuses||{};
+    const counts={yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0}; let checked=0;
+    Object.entries(statuses).forEach(([sid,rec])=>{ if(!classSet.has(safe(sid))) return; const v=rec?.status||''; if(v&&Object.prototype.hasOwnProperty.call(counts,v)){checked++;counts[v]++;} });
+    const total=classSet.size, pct=total?Math.round(checked/total*100):0;
+    const summary=Object.entries(counts).filter(([,v])=>v>0).map(([k,v])=>`<span class="chip ${k==='yapti'?'ok':(k==='yapmadi'?'bad':'warn')}">${HW_STATUSES[k]}: ${v}</span>`).join(' ')||'<span class="muted">Henüz kontrol edilmedi</span>';
+    let leftClass='ok',timeLeft='—';
+    if(hw.dueDate){ const d=dayjs(hw.dueDate).endOf('day').diff(dayjs().startOf('day'),'day'); if(d<0){timeLeft='Süre doldu';leftClass='bad';}else if(d===0){timeLeft='Bugün teslim';leftClass='bad';}else if(d===1){timeLeft='1 gün kaldı';leftClass='warn';}else{timeLeft=`${d} gün kaldı`;}} else {timeLeft='Tarih yok';leftClass='future';}
+    return `<article class="hw-card hw-item hover-raise" data-hw-id="${hw.id}" data-hw-class="${hw.class}" tabindex="0">
+      <div class="hw-top"><div class="hw-badges"><span class="chip class-chip" style="${classChipStyle(hw.class)}">${hw.class||'—'}</span><span class="chip ${leftClass}">${timeLeft}</span></div><span class="chip due-pill">${dueText}</span></div>
+      <div class="hw-title"><span class="pin">📌</span>${(hw.title||'').trim()}</div><div class="hw-meta">Ders: ${(hw.subject||'—').trim()}</div>
+      <div class="hw-summary"><div class="hw-progress-line"><span>Kontrol: ${checked}/${total}</span><span>✅ Tamamladı: ${counts.yapti}</span></div><div class="hw-progress-track"><div class="hw-progress-fill" style="width:${pct}%"></div></div><div class="hw-summary-chips" style="margin-top:8px">${summary}</div></div>
+      <div class="hw-actions"><button class="btn hw-control hw-control-btn" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button"><span class="ico">✅</span><span class="lbl">Kontrol Et</span><span class="hw-progress"></span></button><button class="btn ghost copy-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" title="Kopyala">⧉ Kopyala</button><button class="btn ghost hw-mini edit-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" title="Düzenle">✏️</button><button class="btn ghost danger hw-mini delete-hw" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button" title="Sil">🗑️</button></div>
+      <div class="hw-secondary-actions"><button class="btn hw-bulk-msg-btn bulk-hw-msg" data-hw-id="${hw.id}" data-hw-class="${hw.class}" type="button"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp"><span>Veli Mesajı</span></button></div></article>`;
   };
-
-  UI.hwList.innerHTML = groupKeys.map(key=>{
-    const arr = groups.get(key) || [];
-    const head = (key==='nodate')
-      ? 'Teslim Tarihi Yok'
-      : dayjs(key).locale('tr').format('D MMMM YYYY');
-
-    const chips = [
-      `<span class="chip">${arr.length} ödev</span>`,
-      (teacherHwClass && teacherHwClass!=='hepsi') ? `<span class="chip purple">${teacherHwClass}</span>` : ''
-    ].filter(Boolean).join(' ');
-
-    return `
-      <section class="hw-group" data-hw-group="${key}">
-        <div class="hw-group-head">
-          <div class="hw-group-title">${head}</div>
-          <div class="hw-group-meta">${chips}</div>
-        </div>
-        <div class="hw-list-grid">
-          ${arr.map(renderCard).join('')}
-        </div>
-      </section>`;
-  }).join('');
-
-  // Olaylar
-  Array.from(UI.hwList.querySelectorAll('button.edit-hw')).forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const id  = btn.getAttribute('data-hw-id');
-      const cls = btn.getAttribute('data-hw-class');
-      if(id && cls){ editHomework(cls,id); }
-    });
-  });
-  Array.from(UI.hwList.querySelectorAll('button.delete-hw')).forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const id  = btn.getAttribute('data-hw-id');
-      const cls = btn.getAttribute('data-hw-class');
-      if(id && cls){ deleteHomework(cls,id); }
-    });
-  });
-  Array.from(UI.hwList.querySelectorAll('button.bulk-hw-msg')).forEach(btn=>{
-    btn.addEventListener('click', async (e)=>{
-      e.stopPropagation();
-      const id  = btn.getAttribute('data-hw-id');
-      const cls = btn.getAttribute('data-hw-class');
-      if(id && cls){ await sendHomeworkBulkMessage(cls,id); }
-    });
-  });
-
-  // Kontrol düğmesi: sadece buradan kontrol paneli açılır
-  // İyileştirme: basınca hazırlık/progress animasyonu (liste açılmadan önce hafif geçiş)
-  const HW_CONTROL_OPEN_DELAY_MS = 2000;
-  let hwControlDelayTimer = null;
-  let hwControlDelayBtn = null;
-
-  function startHwControlProgress(btn){
-    if(!btn) return;
-    // daha önce başka bir butonda bekleme varsa iptal et
-    if(hwControlDelayTimer){
-      clearTimeout(hwControlDelayTimer);
-      hwControlDelayTimer = null;
-    }
-    if(hwControlDelayBtn && hwControlDelayBtn !== btn){
-      stopHwControlProgress(hwControlDelayBtn);
-    }
-    hwControlDelayBtn = btn;
-
-    if(!btn.dataset.prevLbl){
-      const lbl = btn.querySelector('.lbl');
-      btn.dataset.prevLbl = lbl ? lbl.textContent : 'Kontrol';
-    }
-    const lblEl = btn.querySelector('.lbl');
-    if(lblEl) lblEl.textContent = 'Hazırlanıyor…';
-
-    btn.classList.add('is-loading');
-    btn.setAttribute('aria-busy','true');
-    btn.disabled = true;
-  }
-
-  function stopHwControlProgress(btn){
-    if(!btn) return;
-    btn.classList.remove('is-loading');
-    btn.removeAttribute('aria-busy');
-    btn.disabled = false;
-    const lblEl = btn.querySelector('.lbl');
-    if(lblEl) lblEl.textContent = btn.dataset.prevLbl || 'Kontrol';
-  }
-
-  Array.from(UI.hwList.querySelectorAll('button.hw-control')).forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      if(btn.classList.contains('is-loading')) return;
-
-      const id  = btn.getAttribute('data-hw-id');
-      const cls = btn.getAttribute('data-hw-class');
-      if(!(id && cls)) return;
-
-      startHwControlProgress(btn);
-      hwControlDelayTimer = setTimeout(()=>{
-        stopHwControlProgress(btn);
-        hwControlDelayTimer = null;
-        hwControlDelayBtn = null;
-        openHomeworkControl(cls,id);
-      }, HW_CONTROL_OPEN_DELAY_MS);
-    });
-  });
-
-  // Kart tıklama: sadece görsel vurgu (2 sn sonra eski hal)
-  const clearPicked = ()=>{
-    Array.from(UI.hwList.querySelectorAll('.hw-item.is-picked')).forEach(x=>{
-      x.classList.remove('is-picked');
-      if(x.__pickT){ clearTimeout(x.__pickT); x.__pickT = null; }
-    });
-  };
-  Array.from(UI.hwList.querySelectorAll('.hw-item[data-hw-id]')).forEach(el=>{
-    const pick = () => {
-      clearPicked();
-      el.classList.add('is-picked');
-      el.__pickT = setTimeout(()=>{
-        el.classList.remove('is-picked');
-        el.__pickT = null;
-      }, 2000);
-    };
-
-    el.addEventListener('click', (e)=>{
-      if(e.target && e.target.closest && e.target.closest('button')) return;
-      pick();
-    });
-    el.addEventListener('keydown', (e)=>{
-      if(e.key==='Enter' || e.key===' '){
-        e.preventDefault();
-        pick();
-      }
-    });
-  });
+  UI.hwList.innerHTML=keys.map(k=>{const a=groups.get(k)||[];const h=k==='nodate'?'Teslim Tarihi Yok':dayjs(k).locale('tr').format('D MMMM YYYY');return `<section class="hw-group"><div class="hw-group-head"><div class="hw-group-title">${h}</div><div class="hw-group-meta"><span class="chip">${a.length} ödev</span></div></div><div class="hw-list-grid">${a.map(renderCard).join('')}</div></section>`;}).join('');
+  const bind=(sel,fn)=>Array.from(UI.hwList.querySelectorAll(sel)).forEach(b=>b.addEventListener('click',async e=>{e.stopPropagation();await fn(b);}));
+  bind('.edit-hw',b=>editHomework(b.dataset.hwClass,b.dataset.hwId)); bind('.delete-hw',b=>deleteHomework(b.dataset.hwClass,b.dataset.hwId)); bind('.copy-hw',b=>copyHomework(b.dataset.hwClass,b.dataset.hwId)); bind('.bulk-hw-msg',b=>sendHomeworkBulkMessage(b.dataset.hwClass,b.dataset.hwId));
+  Array.from(UI.hwList.querySelectorAll('.hw-control')).forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();if(b.classList.contains('is-loading'))return;const id=b.dataset.hwId,cls=b.dataset.hwClass;if(!id||!cls)return;const l=b.querySelector('.lbl');b.classList.add('is-loading');b.disabled=true;b.setAttribute('aria-busy','true');if(l)l.textContent='Hazırlanıyor…';setTimeout(()=>{b.classList.remove('is-loading');b.disabled=false;b.removeAttribute('aria-busy');if(l)l.textContent='Kontrol Et';openHomeworkControl(cls,id);},1000);}));
+  Array.from(UI.hwList.querySelectorAll('.hw-item')).forEach(c=>c.addEventListener('click',e=>{if(e.target?.closest?.('button'))return;UI.hwList.querySelectorAll('.hw-item.is-picked').forEach(x=>x.classList.remove('is-picked'));c.classList.add('is-picked');setTimeout(()=>c.classList.remove('is-picked'),1200);}));
 }
 
-// Öğretmen: sınıf listesini yükle (ödev/quiz için)
+// Öğretmen: ödev sınıf listesini yükle
 async function loadTeacherClasses(){
   if(!session || session.role !== 'ogretmen') return;
   const actualClassMap=getActualStudentClassMap();
-  const classes = uniqueTokens(schedule
-    .filter(r => safe(r.OGRETMEN_ID) === safe(session.ogretmenId))
-    .flatMap(r => parseClassValues(r.SINIF))
-    .filter(c => actualClassMap.has(normTR(c)))
-  ).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
-  // Sınıf seçimi için checkbox'lar oluştur
-  if(UI.hwClassSelect){
-    UI.hwClassSelect.innerHTML = classes.map(c => `<label><input type="checkbox" value="${c}" /> ${c}</label>`).join('');
-  }
-  if(UI.qzClassSelect){
-    UI.qzClassSelect.innerHTML = classes.map(c => `<label><input type="checkbox" value="${c}" /> ${c}</label>`).join('');
-  }
-
-  // Öğretmen: ödev listesi sınıf filtresi (dropdown)
-  if(UI.hwFilterClass){
-    const cur = UI.hwFilterClass.value || 'hepsi';
-    UI.hwFilterClass.innerHTML = `<option value="hepsi"${cur==='hepsi'?' selected':''}>Hepsi</option>` + 
-      classes.map(c => `<option value="${c}"${cur===c?' selected':''}>${c}</option>`).join('');
-  }
+  const classes=uniqueTokens(schedule.filter(r=>safe(r.OGRETMEN_ID)===safe(session.ogretmenId)).flatMap(r=>parseClassValues(r.SINIF)).filter(c=>actualClassMap.has(normTR(c)))).sort((a,b)=>a.localeCompare(b,'tr',{numeric:true}));
+  if(UI.hwClassSelect) UI.hwClassSelect.innerHTML=classes.map(c=>`<label><input type="checkbox" value="${c}" /> ${c}</label>`).join('');
+  if(UI.hwFilterClass){ const cur=UI.hwFilterClass.value||teacherHwClass||'hepsi'; UI.hwFilterClass.innerHTML='<option value="hepsi">Hepsi</option>'+classes.map(c=>`<option value="${c}">${c}</option>`).join(''); UI.hwFilterClass.value=classes.includes(cur)?cur:'hepsi'; }
 }
 
 // Öğretmen: yeni ödev oluştur
@@ -9296,6 +8888,35 @@ async function createHomework(){
     if(UI.hwDueDate) UI.hwDueDate.value='';
     if(!queued) await loadTeacherHomeworks();
   }catch(e){ console.error(e); Swal.fire('Hata','Ödev kaydedilemedi.','error'); }
+}
+
+// Ödevi yeni tarih / sınıf için kopyala
+async function copyHomework(cls,id){
+  if(!cls || !id) return;
+  try{
+    const snap=await get(ref(db,`homeworks/${cls}/${id}`));
+    if(!snap.exists()) return Swal.fire('Hata','Ödev bulunamadı.','error');
+    const hw=snap.val()||{};
+    const classes=Array.from(UI.hwClassSelect?.querySelectorAll('input[type="checkbox"]')||[]).map(x=>x.value).filter(Boolean);
+    const html=`<div class="stack" style="text-align:left">
+      <label class="field"><span class="field-label">Ödev konusu</span><input id="copyHwTitle" class="swal2-input" style="margin:0;width:100%" value="${String(hw.title||'').replace(/"/g,'&quot;')}"></label>
+      <label class="field"><span class="field-label">Teslim tarihi</span><input id="copyHwDate" type="date" class="swal2-input" style="margin:0;width:100%" value="${hw.dueDate||''}"></label>
+      <div class="field"><span class="field-label">Sınıf seçimi</span><div id="copyHwClasses" class="checkbox-group">${classes.map(c=>`<label><input type="checkbox" value="${c}" ${safe(c)===safe(cls)?'checked':''}> ${c}</label>`).join('')}</div></div>
+    </div>`;
+    const res=await Swal.fire({title:'Ödevi Kopyala',html,showCancelButton:true,confirmButtonText:'Kopyala',cancelButtonText:'Vazgeç',focusConfirm:false,preConfirm:()=>{
+      const title=safe(document.getElementById('copyHwTitle')?.value);
+      const dueDate=document.getElementById('copyHwDate')?.value||'';
+      const picked=Array.from(document.querySelectorAll('#copyHwClasses input:checked')).map(x=>x.value);
+      if(!title||!dueDate||!picked.length){Swal.showValidationMessage('Konu, teslim tarihi ve en az bir sınıf seçilmelidir.');return false;}
+      return {title,dueDate,classes:picked};
+    }});
+    if(!res.value) return;
+    const ts=Date.now(), groupId=ts, updates={};
+    res.value.classes.forEach((c,i)=>{ updates[`homeworks/${c}/${ts}-${i}`]={title:res.value.title,dueDate:res.value.dueDate,teacherId:session?.ogretmenId||'',teacherName:session?.teacherName||'',subject:hw.subject||session?.teacherBranch||'',created:ts,groupId}; });
+    const queued=!canUseFirebase(); if(queued) queueOfflineWrite('/',updates); else await update(ref(db),updates);
+    if(!queued) await loadTeacherHomeworks();
+    await Swal.fire(queued?'Kuyruğa Alındı':'Kopyalandı',queued?'Kopya, bağlantı geldiğinde kaydedilecek.':'Ödev seçilen tarih ve sınıflar için kopyalandı.',queued?'warning':'success');
+  }catch(e){console.error(e);Swal.fire('Hata','Ödev kopyalanamadı.','error');}
 }
 
 // Öğretmen: ödev listesini yükle
@@ -9366,639 +8987,110 @@ async function loadTeacherHomeworks(){
 
   applyTeacherHwFiltersAndRender();
 }
-async function sendHomeworkBulkMessage(cls,id){
-  if(!cls || !id) return;
-  try{
-    const snap = await get(ref(db, `homeworks/${cls}/${id}`));
-    if(!snap.exists()){
-      Swal.fire('Hata','Ödev bulunamadı.','error');
-      return;
-    }
-    const hw = snap.val() || {};
-    const list = students
-      .filter(s => safe(s.SINIF) === safe(cls))
-      .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '' }));
-
-    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
-    const groupId = hw.groupId ?? legacyGid ?? null;
-
-    let statuses = {};
-    if(groupId){
-      try{
-        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
-        statuses = sSnap.exists() ? (sSnap.val() || {}) : {};
-      }catch{ statuses = {}; }
-    }else{
-      statuses = hw.statuses || {};
-    }
-
-    const done = list
-      .filter(s => (statuses?.[s.id]?.status || '') === 'yapti')
-      .map(s => s.ad)
-      .filter(Boolean);
-
-    if(!done.length){
-      Swal.fire('Bilgi','Bu ödev için kayıtlı "Yaptı" durumunda öğrenci yok.','info');
-      return;
-    }
-
-    const teacherName = session?.teacherName || hw?.teacherName || '';
-    const title = hw?.title || 'Ödev';
-    const dueStr = hw?.dueDate ? (()=>{
-      try{
-        const d = new Date(hw.dueDate);
-        return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
-      }catch{ return '—'; }
-    })() : '—';
-    const lessonName = hw?.subject || session?.teacherBranch || 'Ders';
-    const listLines = done.map((n,i) => `${i+1}. ${n}`).join('\n');
-
-    const msg =
-`*Fenomen Eğitim Kurumları Bilgi Sistemi* 🏫\n\n` +
-`Merhaba Sayın Velilerim, ☀️\n\n` +
-`*Ödev:* ${title} 📝\n` +
-`*Teslim Tarihi:* ${dueStr} ⏳\n\n` +
-`Ödev teslimini başarıyla tamamlayan öğrencilerimiz: 👇\n\n` +
-`${listLines}\n\n` +
-`Öğrencilerimize gayretleri için teşekkür ederim. 🌟\n` +
-`Bilgilerinize sunarım, iyi günler dilerim.\n\n` +
-`*${teacherName}*\n` +
-`_${lessonName}_ Öğretmeni\n`;
-
-    openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
-  }catch(err){
-    console.error(err);
-    Swal.fire('Hata','Toplu mesaj oluşturulamadı.','error');
-  }
+function returnToHomeworkCard(ctx){
+  if(!ctx || !UI.hwList) return;
+  const cards=Array.from(UI.hwList.querySelectorAll('.hw-item[data-hw-id]'));
+  const card=cards.find(x=>safe(x.dataset.hwId)===safe(ctx.id)&&safe(x.dataset.hwClass)===safe(ctx.cls)) || cards.find(x=>safe(x.dataset.hwId)===safe(ctx.id));
+  if(card){
+    UI.hwList.querySelectorAll('.hw-item.is-picked').forEach(x=>x.classList.remove('is-picked'));
+    card.classList.add('is-picked');
+    setTimeout(()=>card.classList.remove('is-picked'),1800);
+    card.scrollIntoView({behavior:'smooth',block:'center'});
+    try{card.focus({preventScroll:true});}catch(_){ }
+  }else UI.hwList.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-// Öğretmen: ödev kontrol panelini aç
-// /index.html — openHomeworkControl(cls,id) EMOJİLİ MESAJLA GÜNCELLENMİŞ
+async function getHomeworkStatuses(cls,id,hw){
+  const legacy=(()=>{const m=String(id).match(/^(\d+)-\d+$/);return m?Number(m[1]):null;})();
+  const groupId=hw?.groupId ?? legacy ?? null;
+  if(groupId){
+    try{const snap=await get(ref(db,`hwStatus/${groupId}`));return {groupId,statuses:snap.exists()?(snap.val()||{}):{}};}catch(_){return {groupId,statuses:{}};}
+  }
+  return {groupId:null,statuses:hw?.statuses||{}};
+}
+
+function homeworkStatusPhrase(key){
+  return ({'':'🟡 Kontrol edilmedi — kontrollerini yapmamış',yapti:'✅ Tamamladı',yapmadi:'❌ Yapmadı',eksik:'⚠️ Eksik yaptı',kitap:'📕 Kitap Yok',gelmedi:'🚫 Gelmedi'})[key] || key;
+}
+
+function openHomeworkBulkMessage(hw,cls,list,statuses){
+  const groups={yapti:[],eksik:[],unchecked:[],yapmadi:[],kitap:[],gelmedi:[]};
+  list.forEach(s=>{const k=statuses?.[s.id]?.status||'';if(k==='')groups.unchecked.push(s.ad);else if(groups[k])groups[k].push(s.ad);});
+  const section=(title,arr)=>arr.length?`*${title}*\n${arr.map((n,i)=>`${i+1}. ${n}`).join('\n')}`:'';
+  const parts=[section('✅ Tamamladı',groups.yapti),section('⚠️ Eksik yaptı',groups.eksik),section('🟡 Kontrol edilmedi — kontrollerini yapmamış',groups.unchecked),section('❌ Yapmadı',groups.yapmadi),section('📕 Kitap Yok',groups.kitap),section('🚫 Gelmedi',groups.gelmedi)].filter(Boolean).join('\n\n');
+  const due=hw?.dueDate?dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY'):'—';
+  const teacher=session?.teacherName||hw?.teacherName||'',lesson=hw?.subject||session?.teacherBranch||'Ders';
+  const msg=`*Fenomen Eğitim Kurumları Bilgi Sistemi*\n\n*Ödev:* ${hw?.title||'Ödev'}\n*Ders:* ${lesson}\n*Teslim Tarihi:* ${due}\n*Sınıf:* ${cls}\n\n${parts||'*🟡 Kontrol edilmedi*\nHenüz öğrenci durumu girilmedi.'}\n\nÖdev kontrol durumu yukarıdaki gibidir. Bilgilerinize sunarım.\n\n*${teacher}*\n_${lesson} Öğretmeni_`;
+  openWhatsAppComposer({text:msg,modalTitle:'Veli Bilgilendirme Mesajı',messageTitle:'Mesaj Önizleme (Düzenlenebilir)'});
+}
+
+async function sendHomeworkBulkMessage(cls,id){
+  if(!cls||!id)return;
+  try{
+    const snap=await get(ref(db,`homeworks/${cls}/${id}`)); if(!snap.exists())return Swal.fire('Hata','Ödev bulunamadı.','error');
+    const hw=snap.val()||{}, {statuses}=await getHomeworkStatuses(cls,id,hw);
+    const list=students.filter(s=>safe(s.SINIF)===safe(cls)).map(s=>({id:safe(s.NO),ad:s.ADSOYAD||''})).sort((a,b)=>a.ad.localeCompare(b.ad,'tr'));
+    openHomeworkBulkMessage(hw,cls,list,statuses);
+  }catch(e){console.error(e);Swal.fire('Hata','Toplu mesaj oluşturulamadı.','error');}
+}
+
 async function openHomeworkControl(cls,id){
-  if(!cls || !id) return;
-  openHwCtx = { cls, id };
-  try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
+  if(!cls||!id) return;
+  openHwCtx={cls,id};
   UI.hwControlCard?.classList.remove('hidden');
   try{
-    const snap = await get(ref(db, `homeworks/${cls}/${id}`));
-    if(!snap.exists()){ Swal.fire('Hata','Ödev bulunamadı.','error'); return; }
-    const hw = snap.val();
-
-    if(UI.hwControlTitle) UI.hwControlTitle.textContent = `📘 Ödev Kontrol — ${cls} • ${hw.title||''}`;
-
-    // Sınıf listesini hazırla
-    const list = students
-      .filter(s => safe(s.SINIF) === safe(cls))
-      .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) }))
-      .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
-
-    // Legacy fallback: id "ts-i" ise ts'i groupId gibi kullan
-    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
-    const groupId = hw.groupId ?? legacyGid ?? null;
-
-    // Statüleri yükle: önce global, yoksa eski local
-    let statuses = {};
-    if(groupId){
-      try{
-        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
-        statuses = sSnap.exists() ? (sSnap.val()||{}) : {};
-      }catch{ statuses = {}; }
-    }else{
-      statuses = hw.statuses || {};
-    }
-
-    const STATUS_EMOJI = { yapti:'✅', yapmadi:'❌', eksik:'⚠️', kitap:'📕', gelmedi:'🚫' }; // neden: platform uyumlu ikonlar
-
-// Ödev kontrol: durum filtresi (Hepsi / Yapanlar / Yapmayanlar / Diğerleri)
-const filterEl = UI.hwStatusFilter || document.getElementById('hwStatusFilter');
-const _norm = (v)=> (v || '').toString().trim();
-let hwListFilter = _norm(filterEl?.value) || 'all';
-if(filterEl && !filterEl.value) filterEl.value = 'all'; // ilk açılış: Hepsi
-
-const matchHwFilter = (st)=>{
-  const v = _norm(st);
-  if(hwListFilter === 'all') return true;
-  if(hwListFilter === 'done') return v === 'yapti';
-  if(hwListFilter === 'notdone') return v === 'yapmadi';
-  // Diğerleri: yapti & yapmadi dışındaki tüm durumlar + seçilmemiş(—)
-  if(hwListFilter === 'other') return (v !== 'yapti' && v !== 'yapmadi');
-  return true;
-};
-
-const applyHwFilterToDom = ()=>{
-  if(!UI.hwStudentList) return;
-  Array.from(UI.hwStudentList.querySelectorAll('li.student')).forEach(li=>{
-    const sel = li.querySelector('select.statusSelect');
-    const st = sel ? sel.value : '';
-    li.classList.toggle('hidden', !matchHwFilter(st));
-  });
-};
-
-if(filterEl){
-  filterEl.onchange = ()=>{
-    hwListFilter = _norm(filterEl.value) || 'all';
-    applyHwFilterToDom();
-  };
-}
+    const snap=await get(ref(db,`homeworks/${cls}/${id}`));
+    if(!snap.exists()) return Swal.fire('Hata','Ödev bulunamadı.','error');
+    const hw=snap.val()||{};
+    if(UI.hwControlTitle) UI.hwControlTitle.textContent=`📘 Ödev Kontrol — ${cls} • ${hw.title||''}`;
+    const list=students.filter(s=>safe(s.SINIF)===safe(cls)).map(s=>({id:safe(s.NO),ad:s.ADSOYAD||'',no:safe(s.NO)})).sort((a,b)=>a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
+    const {groupId,statuses}=await getHomeworkStatuses(cls,id,hw);
+    const initial={}; list.forEach(s=>initial[s.id]=statuses?.[s.id]?.status||'');
 
     if(UI.hwStudentList){
-      UI.hwStudentList.innerHTML = list.map(s => {
-        return `<li class="student" data-id="${s.id}" data-name="${s.ad}">
-  <div class="stack">
-    <div class="name">${s.ad}</div>
-    <div class="muted">No: ${s.no}</div>
-  </div>
-  <button type="button" class="btn whatsBtn hidden" title="Veliyi WhatsApp'ta bilgilendir">
-   <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
-   </button>
-  <select class="input statusSelect" aria-label="Ödev durumu">
-    <option value="">—</option>
-    <option value="yapti">Yaptı</option>
-    <option value="yapmadi">Yapmadı</option>
-    <option value="eksik">Eksik</option>
-    <option value="kitap">Kitap Yok</option>
-    <option value="gelmedi">Gelmedi</option>
-  </select>
-</li>`;
-      }).join('');
-
-      // Satır başlatma + WhatsApp butonu
-      Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
-        const sid = li.getAttribute('data-id');
-        const sel = li.querySelector('select.statusSelect');
-        const btn = li.querySelector('button.whatsBtn');
-
-        sel.value = (statuses[sid]?.status) || '';
-
-        const syncBtn = () => {
-          const v = sel.value;
-          btn.classList.toggle('hidden', !(v && v !== 'yapti')); // neden: yalnız olumsuzlarda bildir
-        };
-        syncBtn();
-        sel.addEventListener('change', syncBtn);
-        sel.addEventListener('change', applyHwFilterToDom);
-
-        // WhatsApp yönlendirme (neden: hızlı veli bilgilendirme)
-        function formatDateTR(dateInput) {
-          try {
-            const d = new Date(dateInput);
-            if (Number.isNaN(d.getTime())) return '—';
-            return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
-          } catch { return '—'; }
-        }
-        btn.addEventListener('click', () => {
-          const stKey = sel.value;
-          if (!stKey || stKey === 'yapti') return;
-          const studentName = li.getAttribute('data-name') || '';
-          const teacherName = session?.teacherName || '';
-          const statusText  = (typeof HW_STATUSES !== 'undefined' && HW_STATUSES[stKey]) ? HW_STATUSES[stKey] : stKey;
-          const statusIcon  = STATUS_EMOJI?.[stKey] || 'ℹ️';
-          const companyName = (typeof COMPANY_NAME === 'string' && COMPANY_NAME) ? COMPANY_NAME : 'Kurumumuz';
-          const title       = hw?.title || 'Ödev';
-          const dueStr      = hw?.dueDate ? formatDateTR(hw.dueDate) : '—';
-          const lessonName  = hw?.subject || session?.teacherBranch || 'Ders';
-          const DEADLINE_DAYS = 3; // isterseniz 2 yapabilirsiniz
-          const deadlineStr = (() => {
-            const d = new Date();
-            d.setDate(d.getDate() + DEADLINE_DAYS);
-            return formatDateTR(d);
-          })();
-
-          const msg =
-`Merhaba, iyi günler dilerim. ☀️\n\n` +
-`Ben *${lessonName}* öğretmeni *${teacherName}*. 📚\n\n` +
-`Öğrencimiz *${studentName}*'nin *\"${title}\"* başlıklı ödevinin teslim tarihi *${dueStr}* olarak belirlenmişti. \n\n` +
-`Ancak sistemimizi kontrol ettiğimde ödevin mevcut durumu *_${statusText}_* olarak görünmektedir. 📊\n\n` +
-`Öğrencimizin öğrenme sürecini aksatmamak adına, ilgili ödevin en geç *${deadlineStr}* tarihine kadar tamamlanması konusunda desteğinizi rica ediyorum. 🎯\n\n` +
-`İlginiz ve iş birliğiniz için çok teşekkür ederim. \n\n` +
-`_${companyName}_`;
-          openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
-        });
-      
-      // Filtreyi ilk render'da uygula
-      applyHwFilterToDom();
-});
+      UI.hwStudentList.innerHTML=list.map(s=>`<li class="student" data-id="${s.id}" data-name="${s.ad}" data-no="${s.no}"><div class="stack"><div class="name">${s.ad}</div><div class="muted">No: ${s.no}</div></div><button type="button" class="btn whatsBtn" title="Veli mesajı"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp"></button><select class="input statusSelect" aria-label="${s.ad} ödev durumu"><option value="">Kontrol edilmedi</option><option value="yapti">Yaptı</option><option value="yapmadi">Yapmadı</option><option value="eksik">Eksik</option><option value="kitap">Kitap Yok</option><option value="gelmedi">Gelmedi</option></select></li>`).join('');
     }
 
-    
-// Kaydet: groupId varsa globale, yoksa eski path'e
-// Not: Kaydet'e basınca önce "Evet / Hayır" sorgusu açılır.
-// - Evet: kayıt başarılı olursa 2 sn içinde kapanan Swal mesajı gösterilir.
-// - Hayır: listeye geri dönülür, hiçbir işlem yapılmaz.
-const backToActiveHwCard = () => {
-  try{
-    const ctx = openHwCtx ? { ...openHwCtx } : null;
-    openHwCtx = null;
-          try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
+    const rows=()=>Array.from(UI.hwStudentList?.querySelectorAll('li.student')||[]);
+    rows().forEach(li=>{li.querySelector('select.statusSelect').value=initial[li.dataset.id]||'';});
+    const statusMatch=(v,f)=>({all:true,unchecked:v==='',done:v==='yapti',notdone:v==='yapmadi',incomplete:v==='eksik',book:v==='kitap',absent:v==='gelmedi'})[f]??true;
+    const applyFilter=()=>{
+      const q=(UI.hwStudentSearch?.value||'').trim().toLocaleLowerCase('tr-TR'); const f=UI.hwStatusFilter?.value||'all';
+      rows().forEach(li=>{const val=li.querySelector('select.statusSelect')?.value||'';const hay=`${li.dataset.name||''} ${li.dataset.no||''}`.toLocaleLowerCase('tr-TR');li.classList.toggle('hidden',!(statusMatch(val,f)&&(!q||hay.includes(q))));});
+    };
+    const changes=()=>rows().filter(li=>(li.querySelector('select.statusSelect')?.value||'')!==(initial[li.dataset.id]||''));
+    const syncChanges=()=>{const n=changes().length;if(UI.hwChangeState)UI.hwChangeState.textContent=n?`${n} değişiklik`:'Değişiklik yok';if(UI.hwSaveBtn){UI.hwSaveBtn.textContent=`Kaydet (${n})`;UI.hwSaveBtn.disabled=n===0;}applyFilter();};
+    const syncWa=li=>{const v=li.querySelector('select.statusSelect')?.value||'';li.querySelector('.whatsBtn')?.classList.toggle('hidden',v==='yapti');};
 
-    if(ctx && UI.hwList){
-      const esc = (v)=>{ try{ return (window.CSS && CSS.escape) ? CSS.escape(String(v)) : String(v).replace(/[^a-zA-Z0-9_-]/g,'\$&'); }catch(_){ return String(v); } };
-      const sel = `.hw-item[data-hw-id="${esc(ctx.id)}"][data-hw-class="${esc(ctx.cls)}"]`;
-      const card = UI.hwList.querySelector(sel) || UI.hwList.querySelector(`.hw-item[data-hw-id="${esc(ctx.id)}"]`);
-      if(card){
-        // mevcut seçimi temizle + kısa vurgula
-        Array.from(UI.hwList.querySelectorAll('.hw-item.is-picked')).forEach(x=>{
-          x.classList.remove('is-picked');
-          if(x.__pickT){ clearTimeout(x.__pickT); x.__pickT = null; }
-        });
-        card.classList.add('is-picked');
-        card.__pickT = setTimeout(()=>{ card.classList.remove('is-picked'); card.__pickT = null; }, 2000);
-
-        // ekrana getir + odakla
-        card.scrollIntoView({ behavior:'smooth', block:'center', inline:'nearest' });
-        try{ card.focus({ preventScroll:true }); }catch(_){ }
-      }else{
-        // Kart bulunamazsa en azından listeye dön
-        UI.hwList.scrollIntoView({ behavior:'smooth', block:'start' });
-      }
-    }
-  }catch(e){ console.error('hwBack error', e); }
-};
-
-if(UI.hwSaveBtn){
-  UI.hwSaveBtn.onclick = async () => {
-    // 1) Kaydet onayı
-    const ask = await Swal.fire({
-      title: 'Kaydet?',
-      text: 'Ödev durumlarını kaydetmek istiyor musunuz?',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Evet',
-      cancelButtonText: 'Hayır',
-      reverseButtons: true,
-      allowOutsideClick: false
+    rows().forEach(li=>{
+      const sel=li.querySelector('select.statusSelect'), btn=li.querySelector('.whatsBtn'); syncWa(li);
+      sel.addEventListener('change',()=>{syncWa(li);syncChanges();});
+      btn.addEventListener('click',()=>{
+        const key=sel.value||''; if(key==='yapti') return;
+        const due=hw.dueDate?dayjs(hw.dueDate).locale('tr').format('D MMMM YYYY'):'—'; const lesson=hw.subject||session?.teacherBranch||'Ders';
+        const msg=`Merhaba, iyi günler dilerim.\n\n*Öğrenci:* ${li.dataset.name}\n*Ödev:* ${hw.title||'Ödev'}\n*Teslim Tarihi:* ${due}\n*Durum:* ${homeworkStatusPhrase(key)}\n\nBilgilerinize sunarım.\n\n*${session?.teacherName||''}*\n_${lesson} Öğretmeni_`;
+        openWhatsAppComposer({text:msg,modalTitle:'Veli Bilgilendirme Mesajı',messageTitle:'Mesaj Önizleme (Düzenlenebilir)'});
+      });
     });
+    if(UI.hwStudentSearch){UI.hwStudentSearch.value='';UI.hwStudentSearch.oninput=applyFilter;}
+    if(UI.hwStatusFilter){UI.hwStatusFilter.value='all';UI.hwStatusFilter.onchange=applyFilter;}
+    if(UI.hwMarkVisibleDone) UI.hwMarkVisibleDone.onclick=()=>{rows().filter(li=>!li.classList.contains('hidden')).forEach(li=>{const sel=li.querySelector('select.statusSelect');sel.value='yapti';syncWa(li);});syncChanges();};
+    if(UI.hwBulkWhatsBtn) UI.hwBulkWhatsBtn.onclick=()=>{
+      const live={}; rows().forEach(li=>live[li.dataset.id]={status:li.querySelector('select.statusSelect')?.value||''});
+      const studentList=list.map(x=>({id:x.id,ad:x.ad}));
+      openHomeworkBulkMessage(hw,cls,studentList,live);
+    };
 
-    // 2) Hayır => hiçbir işlem yapma, mevcut öğrenci listesinde kal
-    if(!ask.isConfirmed){
-      return;
-    }
-
-    // 3) Evet => kaydet
-    const base = groupId ? `hwStatus/${groupId}` : `homeworks/${cls}/${id}/statuses`;
-    const updates2 = {};
-    Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
-      const sid = li.getAttribute('data-id');
-      const val = li.querySelector('select.statusSelect').value;
-      if(val){ updates2[`${base}/${sid}`] = { status: val, ts: Date.now() }; }
-      else   { updates2[`${base}/${sid}`] = null; }
-    });
-
-    try{
-      const queued = !canUseFirebase();
-      if(!queued) await update(ref(db), updates2);
-      else queueOfflineWrite('/', updates2);
-
-      if(queued){
-        await Swal.fire('Kuyruğa Alındı','Ödev durumları server bağlantısı geldiğinde otomatik kaydedilecek.','warning');
-      }else{
-        // Başarılı => 2 sn içinde kapanan mesaj
-        await Swal.fire({
-          title: 'Kaydedildi',
-          text: 'Ödev durumları veritabanına kaydedildi.',
-          icon: 'success',
-          timer: 2000,
-          timerProgressBar: true,
-          showConfirmButton: false
-        });
-      }
-
-      UI.hwControlCard?.classList.add('hidden');
-      if(!queued) await loadTeacherHomeworks();
-    }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
-  };
-}
-
-// Toplu WhatsApp butonu: "yaptı" olan öğrencileri listele ve teşekkür mesajı gönder
-    if(UI.hwBulkWhatsBtn){
-      UI.hwBulkWhatsBtn.onclick = () => {
-        try{
-          // Öğrencilerden "yapti" statüsünde olanları topla
-          const done = [];
-          Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li => {
-            const name = li.getAttribute('data-name') || '';
-            const st  = li.querySelector('select.statusSelect').value;
-            if(st === 'yapti') done.push(name);
-          });
-          // Mesaj oluştur; liste boşsa uyarı ver
-          const teacherName = session?.teacherName || '';
-          const title       = hw?.title || 'Ödev';
-          const dueStr      = hw?.dueDate ? (()=>{
-            try{
-              const d = new Date(hw.dueDate);
-              return new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', year:'numeric' }).format(d);
-            }catch{ return '—'; }
-          })() : '—';
-          const lessonName  = hw?.subject || session?.teacherBranch || 'Ders';
-          let listLines = done.map((n,i) => `${i+1}. ${n}`).join('\n');
-          if(!listLines){
-            Swal.fire('Bilgi','Henüz "Yaptı" durumunda öğrenci yok.','info');
-            return;
-          }
-          // Mesaj şablonu: Profesyonel ve bilgilendirici bir teşekkür mesajı.
-          // Başlık ve açıklamalar güncellendi. Önceki sürüm "Ödev Teşekkür Mesajı" başlığını ve
-          // kutlama emojisini kullanıyordu. Bu artık işletmenin adı ve daha ciddi bir kitap
-          // emojisi ile değiştirildi. Sonunda "Bilginize" ifadesi eklendi.
-          const msg =
-`*Fenomen Eğitim Kurumları Bilgi Sistemi* 🏫\n\n` +
-`Merhaba Sayın Velilerim, ☀️\n\n` +
-`*Ödev:* ${title} 📝\n` +
-`*Teslim Tarihi:* ${dueStr} ⏳\n\n` +
-`Ödev teslimini başarıyla tamamlayan öğrencilerimiz: 👇\n\n` +
-`${listLines}\n\n` +
-`Öğrencilerimize gayretleri için teşekkür ederim. 🌟\n` +
-`Bilgilerinize sunarım, iyi günler dilerim.\n\n` +
-`*${teacherName}*\n` +
-`_${lessonName}_ Öğretmeni\n`;
-          openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
-        }catch(err){ console.error(err); Swal.fire('Hata','Mesaj oluşturulamadı.','error'); }
-      };
-    }
-    if(UI.hwCancelBtn){
-      UI.hwCancelBtn.onclick = () => {
-        // 1) paneli kapat
-        UI.hwControlCard?.classList.add('hidden');
-
-        // 2) listede o anda aktif olan ödev kartına geri dön (mobilde "neredeydim?" kaybolmasın)
-        try{
-          const ctx = openHwCtx ? { ...openHwCtx } : null;
-          openHwCtx = null;
-          try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
-
-          if(ctx && UI.hwList){
-            const esc = (v)=>{ try{ return (window.CSS && CSS.escape) ? CSS.escape(String(v)) : String(v).replace(/[^a-zA-Z0-9_-]/g,'\$&'); }catch(_){ return String(v); } };
-            const sel = `.hw-item[data-hw-id="${esc(ctx.id)}"][data-hw-class="${esc(ctx.cls)}"]`;
-            const card = UI.hwList.querySelector(sel) || UI.hwList.querySelector(`.hw-item[data-hw-id="${esc(ctx.id)}"]`);
-            if(card){
-              // mevcut seçimi temizle + kısa vurgula
-              Array.from(UI.hwList.querySelectorAll('.hw-item.is-picked')).forEach(x=>{
-                x.classList.remove('is-picked');
-                if(x.__pickT){ clearTimeout(x.__pickT); x.__pickT = null; }
-              });
-              card.classList.add('is-picked');
-              card.__pickT = setTimeout(()=>{ card.classList.remove('is-picked'); card.__pickT = null; }, 2000);
-
-              // ekrana getir + odakla
-              card.scrollIntoView({ behavior:'smooth', block:'center', inline:'nearest' });
-              try{ card.focus({ preventScroll:true }); }catch(_){ }
-            }else{
-              // Kart bulunamazsa en azından listeye dön
-              UI.hwList.scrollIntoView({ behavior:'smooth', block:'start' });
-            }
-          }
-        }catch(e){ console.error('hwCancel back error', e); }
-      };
-    }
-  }catch(e){ console.error(e); Swal.fire('Hata','Ödev yüklenemedi.','error'); }
-
-  focusAndScroll(UI.hwControlCard, '#hwStudentList select, #hwStudentList');
-}
-
-
-// Öğretmen: Quiz oluştur
-async function createQuiz(){
-  const title = safe(UI.qzTitle?.value);
-  const date = UI.qzDate?.value;
-  const total = parseInt(UI.qzTotal?.value || '0',10);
-  const selected = Array.from(UI.qzClassSelect?.querySelectorAll('input[type="checkbox"]:checked') || []);
-  const classes = selected.map(el => el.value).filter(Boolean);
-  if(!title || !date || !total || total<=0 || classes.length === 0){
-    Swal.fire('Eksik','Lütfen tüm alanları doldurunuz ve sınıf seçiniz.','warning');
-    return;
-  }
-  const ts = Date.now();
-  const payloadBase = {
-    title: title,
-    date: date,
-    totalQuestions: total,
-    teacherId: session?.ogretmenId || '',
-    teacherName: session?.teacherName || '',
-    subject: session?.teacherBranch || '',
-    created: ts,
-    groupId: ts // neden: sonuçları sınıftan bağımsız saklamak
-  };
-  const updates = {};
-  classes.forEach((cls,i) => {
-    const id = `${ts}-${i}`;
-    updates[`quizzes/${cls}/${id}`] = payloadBase;
-  });
-  try{
-    const queued = !canUseFirebase();
-    if(!queued) await update(ref(db), updates);
-    else queueOfflineWrite('/', updates);
-    if(queued) await Swal.fire('Kuyruğa Alındı','Quiz server bağlantısı geldiğinde otomatik kaydedilecek.','warning');
-    else await Swal.fire('Kaydedildi','Quiz veritabanına kaydedildi.','success');
-    if(UI.qzTitle) UI.qzTitle.value='';
-    if(UI.qzDate) UI.qzDate.value='';
-    if(UI.qzTotal) UI.qzTotal.value='';
-    if(!queued) await loadTeacherQuizzes();
-  }catch(e){ console.error(e); Swal.fire('Hata','Quiz kaydedilemedi.','error'); }
-}
-
-// Öğretmen: quiz listesini yükle
-async function loadTeacherQuizzes(){
-  if(!session || session.role !== 'ogretmen') return;
-  const teacherId = session.ogretmenId;
-  const classes = Array.from(UI.qzClassSelect?.querySelectorAll('input[type="checkbox"]') || []).map(el => el.value);
-  const items = [];
-  for(const cls of classes){
-    const snap = await get(ref(db, `quizzes/${cls}`));
-    const data = snap.exists() ? snap.val() : {};
-    for(const id in data){
-      const q = data[id];
-      if(q.teacherId && safe(q.teacherId) !== safe(teacherId)) continue;
-      items.push({ id, class: cls, ...q });
-    }
-  }
-
-  // Tarihe göre (yakın gelecek/son eklenen) sırala
-  items.sort((a,b) => ((a.date||'').localeCompare(b.date||'','tr')));
-
-  // Global sonuçları (varsa) önceden çek
-  const gidSet = new Set(items.map(q => q.groupId ?? (String(q.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(q.id).split('-')[0]) : null)).filter(Boolean));
-  const gidMap = new Map();
-  for(const gid of gidSet){
-    try{
-      const sSnap = await get(ref(db, `qzResults/${gid}`));
-      gidMap.set(gid, sSnap.exists() ? (sSnap.val()||{}) : {});
-    }catch{ gidMap.set(gid, {}); }
-  }
-
-  if(UI.qzList){
-    if(items.length){
-      UI.qzList.innerHTML = items.map(q => {
-        const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
-        // Sadece bu sınıfın öğrencilerini say
-        const classSet = new Set(students.filter(s=> safe(s.SINIF)===safe(q.class)).map(s=>safe(s.NO)));
-        const results = (() => {
-          const gid = q.groupId ?? (String(q.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(q.id).split('-')[0]) : null);
-          const g = gid ? (gidMap.get(gid)||{}) : null;
-          return g || (q.results || {});
-        })();
-
-        // Özet: bu sınıfa ait kayıtlar üzerinden ortalama ve adet
-        let count = 0, sumPct = 0;
-        Object.entries(results).forEach(([sid,rec])=>{
-          if(!classSet.has(sid)) return;
-          const pct = Number(rec?.percent);
-          if(Number.isFinite(pct)){ count++; sumPct += pct; }
-        });
-        const avg = count>0 ? Math.round(sumPct / count) : null;
-        const summary = (count>0) ? `Ortalama %${avg} • ${count} öğrenci` : 'Henüz sonuç yok';
-
-        return `<div class="lesson hover-raise" data-qz-id="${q.id}" data-qz-class="${q.class}" role="button" tabindex="0">
-          <div>
-            <div class="title">${q.class} • ${q.title||''}</div>
-            <div class="muted">Ders: ${q.subject||''}</div>
-            <div class="muted">Tarih: ${dateStr}</div>
-            <div class="muted">${summary}</div>
-          </div>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button class="btn ghost small edit-qz" data-qz-id="${q.id}" data-qz-class="${q.class}" type="button">✏️</button>
-            <button class="btn ghost danger small delete-qz" data-qz-id="${q.id}" data-qz-class="${q.class}" type="button">🗑️</button>
-          </div>
-        </div>`;
-      }).join('');
-
-      // Olaylar
-      Array.from(UI.qzList.querySelectorAll('button.edit-qz')).forEach(btn=>{
-        btn.addEventListener('click', (e)=>{
-          e.stopPropagation();
-          const id  = btn.getAttribute('data-qz-id');
-          const cls = btn.getAttribute('data-qz-class');
-          if(id && cls){ editQuiz(cls,id); }
-        });
-      });
-      Array.from(UI.qzList.querySelectorAll('button.delete-qz')).forEach(btn=>{
-        btn.addEventListener('click', (e)=>{
-          e.stopPropagation();
-          const id  = btn.getAttribute('data-qz-id');
-          const cls = btn.getAttribute('data-qz-class');
-          if(id && cls){ deleteQuiz(cls,id); }
-        });
-      });
-      Array.from(UI.qzList.querySelectorAll('[data-qz-id]')).forEach(el=>{
-        const open = () => {
-          const id  = el.getAttribute('data-qz-id');
-          const cls = el.getAttribute('data-qz-class');
-          openQuizControl(cls,id);
-        };
-        el.addEventListener('click', open);
-        el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
-      });
-
-    } else {
-      UI.qzList.innerHTML = '<div class="muted">Quiz yok.</div>';
-    }
-  }
-}
-
-// Öğretmen: quiz kontrol panelini aç
-async function openQuizControl(cls,id){
-  if(!cls || !id) return;
-  openQzCtx = { cls, id };
-  UI.qzControlCard?.classList.remove('hidden');
-  try{
-    const snap = await get(ref(db, `quizzes/${cls}/${id}`));
-    if(!snap.exists()){ Swal.fire('Hata','Quiz bulunamadı.','error'); return; }
-    const q = snap.val();
-    if(UI.qzControlTitle) UI.qzControlTitle.textContent = `📝 Quiz Kontrol — ${cls} • ${q.title||''}`;
-
-    // Sınıf listesi
-    const list = students
-      .filter(s => safe(s.SINIF) === safe(cls))
-      .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) }))
-      .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
-
-    // Legacy fallback: id "ts-i" ise ts'i groupId gibi kullan
-    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
-    const groupId = q.groupId ?? legacyGid ?? null;
-
-    // Sonuçları yükle: önce global, yoksa eski local
-    let results = {};
-    if(groupId){
-      try{
-        const rSnap = await get(ref(db, `qzResults/${groupId}`));
-        results = rSnap.exists() ? (rSnap.val()||{}) : {};
-      }catch{ results = {}; }
-    }else{
-      results = q.results || {};
-    }
-
-    const totalQ = parseInt(q.totalQuestions||'0',10) || 0;
-
-    if(UI.qzStudentList){
-      UI.qzStudentList.innerHTML = list.map(s => {
-        const rec = results[s.id] || {};
-        const wrong = (typeof rec.wrong === 'number') ? rec.wrong : '';
-        const correct = (typeof rec.correct === 'number') ? rec.correct : '';
-        const pct = (typeof rec.percent === 'number') ? rec.percent : '';
-        const display = (wrong==='' || correct==='') ? '' : `${correct} Doğru • ${wrong} Yanlış • %${pct}`;
-        return `<li class="student" data-id="${s.id}" data-name="${s.ad}">
-  <div class="stack">
-    <div class="name">${s.ad}</div>
-    <div class="muted">No: ${s.no}</div>
-  </div>
-  <input class="input wrongInput" type="number" min="0" max="${totalQ}" step="1" placeholder="Yanlış" value="${wrong}"/>
-  <div class="muted result">${display}</div>
-</li>`;
-      }).join('');
-
-      // Hesaplamayı canlı güncelle (neden: öğretmene anlık geri bildirim)
-      Array.from(UI.qzStudentList.querySelectorAll('li')).forEach(li => {
-        const input = li.querySelector('input.wrongInput');
-        const resDiv = li.querySelector('.result');
-        input.addEventListener('input', () => {
-          const val = input.value;
-          if(val === ''){ resDiv.textContent = ''; return; }
-          let wNum = parseInt(val,10);
-          if(isNaN(wNum) || wNum < 0) wNum = 0;
-          if(wNum > totalQ) wNum = totalQ;
-          input.value = wNum;
-          const c = totalQ - wNum;
-          const pct2 = totalQ > 0 ? Math.round((c/totalQ)*100) : 0;
-          resDiv.textContent = `${c} Doğru • ${wNum} Yanlış • %${pct2}`;
-        });
-      });
-    }
-
-    // Kaydet: groupId varsa globale, yoksa eski path'e
-    if(UI.qzSaveBtn){
-      UI.qzSaveBtn.onclick = async () => {
-        const base = groupId ? `qzResults/${groupId}` : `quizzes/${cls}/${id}/results`;
-        const updates2 = {};
-        Array.from(UI.qzStudentList.querySelectorAll('li')).forEach(li => {
-          const sid = li.getAttribute('data-id');
-          const input = li.querySelector('input.wrongInput');
-          const val = input.value;
-          if(val === '' || val === null){
-            updates2[`${base}/${sid}`] = null;
-          } else {
-            let wNum = parseInt(val,10);
-            if(isNaN(wNum) || wNum < 0) wNum = 0;
-            if(wNum > totalQ) wNum = totalQ;
-            const c = totalQ - wNum;
-            const pct2 = totalQ > 0 ? Math.round((c/totalQ)*100) : 0;
-            updates2[`${base}/${sid}`] = { wrong: wNum, correct: c, percent: pct2, ts: Date.now() };
-          }
-        });
-        try{
-          const queued = !canUseFirebase();
-          if(!queued) await update(ref(db), updates2);
-          else queueOfflineWrite('/', updates2);
-          if(queued) await Swal.fire('Kuyruğa Alındı','Quiz sonuçları server bağlantısı geldiğinde otomatik kaydedilecek.','warning');
-          else await Swal.fire('Kaydedildi','Quiz sonuçları veritabanına kaydedildi.','success');
-          UI.qzControlCard?.classList.add('hidden');
-          if(!queued) await loadTeacherQuizzes();
-        }catch(e){ console.error(e); Swal.fire('Hata','Kaydedilemedi.','error'); }
-      };
-    }
-    if(UI.qzCancelBtn){
-      UI.qzCancelBtn.onclick = () => { UI.qzControlCard?.classList.add('hidden'); openQzCtx = null; };
-    }
-  }catch(e){ console.error(e); Swal.fire('Hata','Quiz yüklenemedi.','error'); }
-
-  focusAndScroll(UI.qzControlCard, '#qzStudentList input, #qzStudentList');
+    const closeAndReturn=async(reload=false)=>{const ctx={...openHwCtx};UI.hwControlCard?.classList.add('hidden');openHwCtx=null;if(reload)await loadTeacherHomeworks();returnToHomeworkCard(ctx);};
+    if(UI.hwCancelBtn) UI.hwCancelBtn.onclick=async()=>{if(changes().length){const r=await Swal.fire({title:'Kaydedilmemiş değişiklikler var',text:'Ödev kontrolündeki değişiklikler kaydedilmeden listeye dönülsün mü?',icon:'warning',showCancelButton:true,confirmButtonText:'Kaydetmeden Dön',cancelButtonText:'Vazgeç'});if(!r.isConfirmed)return;}await closeAndReturn(false);};
+    if(UI.hwSaveBtn) UI.hwSaveBtn.onclick=async()=>{
+      const changed=changes(); if(!changed.length)return;
+      const base=groupId?`hwStatus/${groupId}`:`homeworks/${cls}/${id}/statuses`, updates={};
+      changed.forEach(li=>{const sid=li.dataset.id,val=li.querySelector('select.statusSelect')?.value||'';updates[`${base}/${sid}`]=val?{status:val,ts:Date.now()}:null;});
+      try{UI.hwSaveBtn.disabled=true;const queued=!canUseFirebase();if(queued)queueOfflineWrite('/',updates);else await update(ref(db),updates);changed.forEach(li=>initial[li.dataset.id]=li.querySelector('select.statusSelect')?.value||'');syncChanges();await Swal.fire(queued?'Kuyruğa Alındı':'Kaydedildi',queued?'Değişiklikler bağlantı geldiğinde otomatik kaydedilecek.':'Ödev durumları kaydedildi.',queued?'warning':'success');await closeAndReturn(!queued);}catch(e){console.error(e);Swal.fire('Hata','Ödev durumları kaydedilemedi.','error');syncChanges();}
+    };
+    syncChanges(); applyFilter(); focusAndScroll(UI.hwControlCard,'#hwStudentSearch');
+  }catch(e){console.error(e);Swal.fire('Hata','Ödev yüklenemedi.','error');}
 }
 
 // Veli: ödevleri yükle
@@ -10091,9 +9183,8 @@ async function loadParentHomeworks(){
 }
 
 /* --------------------------------------------------------------------------
-   Öğretmen: Ödev ve Quiz Düzenleme / Silme Fonksiyonları
-   Bu fonksiyonlar öğretmenlerin oluşturdukları ödev ve quizleri düzenlemesine
-   veya silmesine olanak tanır. Düzenleme işlemi için SweetAlert üzerinden
+   Öğretmen: Ödev Düzenleme / Silme Fonksiyonları
+   Öğretmenlerin oluşturdukları ödevleri düzenlemesine veya silmesine olanak tanır. Düzenleme işlemi için SweetAlert üzerinden
    basit bir form kullanılır. Silme işlemi öncesinde onay alınır.
 */
 
@@ -10155,7 +9246,6 @@ async function deleteHomework(cls,id){
     if(openHwCtx && safe(openHwCtx.cls)===safe(cls) && safe(openHwCtx.id)===safe(id)){
       UI.hwControlCard?.classList.add('hidden');
       openHwCtx = null;
-          try{ localStorage.setItem('hwCardExpanded','1'); }catch(_){ }
     }
     const updates = {};
     updates[`homeworks/${cls}/${id}`] = null;
@@ -10170,85 +9260,8 @@ async function deleteHomework(cls,id){
   }
 }
 
-// Öğretmen: quiz düzenle
-async function editQuiz(cls,id){
-  if(!cls || !id) return;
-  try{
-    const snap = await get(ref(db, `quizzes/${cls}/${id}`));
-    if(!snap.exists()){ Swal.fire('Hata','Quiz bulunamadı.','error'); return; }
-    const q = snap.val();
-    const { value: formValues } = await Swal.fire({
-      title: 'Quiz Düzenle',
-      html: `
-        <input id="swalQzTitle" class="swal2-input" placeholder="Quiz başlığı" value="${(q.title||'').replace(/"/g,'&quot;')}" />
-        <input id="swalQzDate" type="date" class="swal2-input" value="${q.date||''}" />
-        <input id="swalQzTotal" type="number" min="1" class="swal2-input" placeholder="Soru sayısı" value="${q.totalQuestions||''}" />
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText:'Kaydet',
-      cancelButtonText:'İptal',
-      preConfirm: () => {
-        const title = document.getElementById('swalQzTitle').value.trim();
-        const date  = document.getElementById('swalQzDate').value;
-        const total = parseInt(document.getElementById('swalQzTotal').value,10);
-        if(!title || !date || !total || total <= 0){
-          Swal.showValidationMessage('Lütfen tüm alanları doldurunuz ve geçerli soru sayısı giriniz.');
-          return false;
-        }
-        return { title, date, total };
-      }
-    });
-    if(!formValues) return;
-    const updates = {};
-    updates[`quizzes/${cls}/${id}/title`] = formValues.title;
-    updates[`quizzes/${cls}/${id}/date`]  = formValues.date;
-    updates[`quizzes/${cls}/${id}/totalQuestions`] = formValues.total;
-    try{
-      const queued = !canUseFirebase();
-      if(!queued) await update(ref(db), updates);
-      else queueOfflineWrite('/', updates);
-      if(!queued) await loadTeacherQuizzes();
-      if(queued) await Swal.fire('Kuyruğa Alındı','Quiz güncellemesi server bağlantısı geldiğinde otomatik uygulanacak.','warning');
-      else await Swal.fire('Kaydedildi','Quiz veritabanında güncellendi.','success');
-    }catch(e){ console.error(e); Swal.fire('Hata','Güncelleme sırasında hata oluştu.','error'); }
-  }catch(err){ console.error(err); Swal.fire('Hata','Quiz yüklenemedi.','error'); }
-}
-
-// Öğretmen: quiz sil
-async function deleteQuiz(cls,id){
-  if(!cls || !id) return;
-  const confirm = await Swal.fire({
-    title:'Quiz Sil',
-    text:'Bu quizi silmek istediğinize emin misiniz?',
-    icon:'warning',
-    showCancelButton:true,
-    confirmButtonText:'Sil',
-    cancelButtonText:'İptal'
-  });
-  if(confirm.isConfirmed){
-    // Eğer silinen quizin kontrol paneli açıksa kapat
-    if(openQzCtx && safe(openQzCtx.cls)===safe(cls) && safe(openQzCtx.id)===safe(id)){
-      UI.qzControlCard?.classList.add('hidden');
-      openQzCtx = null;
-    }
-    const updates = {};
-    updates[`quizzes/${cls}/${id}`] = null;
-    try{
-      const queued = !canUseFirebase();
-      if(!queued) await update(ref(db), updates);
-      else queueOfflineWrite('/', updates);
-      if(!queued) await loadTeacherQuizzes();
-      if(queued) await Swal.fire('Kuyruğa Alındı','Quiz silme işlemi server bağlantısı geldiğinde otomatik uygulanacak.','warning');
-      else await Swal.fire('Silindi','Quiz veritabanından silindi.','success');
-    }catch(e){ console.error(e); Swal.fire('Hata','Quiz silinemedi.','error'); }
-  }
-}
-
 /* --------------------------------------------------------------------------
-   Admin: Ödev ve Quiz Detay Fonksiyonları
-   Yönetici raporlarında bir ödev veya quiz satırına tıklandığında
-   öğrencilerin durumlarının detaylı bir listesini gösterir.
+   Admin: Ödev Detay Fonksiyonları
 */
 
 async function showAdminHomeworkDetail(cls,id, reportState = null){
@@ -10314,139 +9327,6 @@ async function showAdminHomeworkDetail(cls,id, reportState = null){
       }
     });
   }catch(err){ console.error(err); Swal.fire('Hata','Detaylar yüklenemedi.','error'); }
-}
-
-async function showAdminQuizDetail(cls,id){
-  if(!cls || !id) return;
-  try{
-    const snap = await get(ref(db, `quizzes/${cls}/${id}`));
-    if(!snap.exists()){ Swal.fire('Hata','Quiz bulunamadı.','error'); return; }
-    const q = snap.val();
-
-    // groupId (legacy fallback: id = ts-i → ts)
-    const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
-    const groupId = q.groupId ?? legacyGid ?? null;
-
-    let results = {};
-    if(groupId){
-      try{
-        const sSnap = await get(ref(db, `qzResults/${groupId}`));
-        results = sSnap.exists() ? (sSnap.val()||{}) : {};
-      }catch{ results = {}; }
-    }else{
-      results = q.results || {};
-    }
-
-    const totalQ = parseInt(q.totalQuestions || '0', 10) || 0;
-    const list = students
-      .filter(s => safe(s.SINIF) === safe(cls))
-      .map(s => ({ id: safe(s.NO), name: s.ADSOYAD || '', no: safe(s.NO) }))
-      .sort((a,b) => a.name.localeCompare(b.name,'tr',{sensitivity:'base'}));
-
-    const htmlList = '<ul class="list">' + list.map(st => {
-      const rec = results[st.id] || {};
-      const wrong = typeof rec.wrong === 'number' ? rec.wrong : null;
-      const correct = typeof rec.correct === 'number' ? rec.correct : (wrong!==null ? (totalQ - wrong) : null);
-      const pct = typeof rec.percent === 'number' ? rec.percent : (correct!==null && totalQ>0 ? Math.round((correct/totalQ)*100) : null);
-      let display = '—', chipClass = 'muted';
-      if(wrong!==null && correct!==null && pct!==null){
-        display = `${correct} Doğru • ${wrong} Yanlış • %${pct}`;
-        chipClass = (pct >= 70) ? 'ok' : (pct >= 40 ? 'warn' : 'bad');
-      }
-      return `<li class="student">
-        <div class="stack"><div class="name">${st.name}</div><div class="muted">No: ${st.no}</div></div>
-        <div class="chip ${chipClass}">${display}</div>
-      </li>`;
-    }).join('') + '</ul>';
-
-    const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
-    const titleHtml = `📝 Quiz Detayı — ${cls} • ${q.title || ''}`;
-    const subHtml = `<div class="muted" style="margin-bottom:10px;">Tarih: ${dateStr} • Öğretmen: ${q.teacherName || ''} • Ders: ${q.subject || ''}</div>`;
-    await Swal.fire({ title: titleHtml, html: subHtml + htmlList, width: 600, showConfirmButton: false, showCloseButton: true });
-  }catch(err){ console.error(err); Swal.fire('Hata','Detaylar yüklenemedi.','error'); }
-}
-
-// Veli: quizleri yükle
-async function loadParentQuizzes(){
-  const no = safe(session?.ogrNo);
-  const st = students.find(s => safe(s.NO) === no);
-  if(!st) return;
-  const cls = safe(st.SINIF);
-  if(!cls) return;
-
-  const snap = await get(ref(db, `quizzes/${cls}`));
-  const data = snap.exists() ? snap.val() : {};
-  const items = [];
-  for(const id in data){ items.push({ id, ...data[id] }); }
-  items.sort((a,b) => ((b.date||'').localeCompare(a.date||'','tr')));
-
-  // groupId’leri topla ve global sonuçları çek
-  const gidList = Array.from(new Set(items.map(q => (q.groupId ?? (String(q.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(q.id).split('-')[0]) : null))).filter(Boolean)));
-  const gidMap = new Map();
-  for(const gid of gidList){
-    try{
-      const sSnap = await get(ref(db, `qzResults/${gid}`));
-      gidMap.set(gid, sSnap.exists() ? (sSnap.val()||{}) : {});
-    }catch{ gidMap.set(gid, {}); }
-  }
-
-  const displayItems = [];
-  const now = dayjs().startOf('day');
-  for(const q of items){
-    // Filtre: current/past
-    let include = true;
-    try{
-      if(q.date){
-        const d = dayjs(q.date).endOf('day');
-        const diff = d.diff(now,'day');
-        if(parentQzFilter === 'current'){ include = (diff >= -30); } // neden: son 1 ayı da göster
-        else if(parentQzFilter === 'past'){ include = (diff < -30); }
-      } else {
-        include = (parentQzFilter === 'current');
-      }
-    }catch(_){}
-    if(!include) continue;
-
-    const dateStr = q.date ? dayjs(q.date).locale('tr').format('D MMMM YYYY') : '';
-    const gid = q.groupId ?? (String(q.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(q.id).split('-')[0]) : null);
-    const globalResults = gid ? (gidMap.get(gid) || {}) : null;
-    const rec = globalResults ? globalResults[no] : (q.results || {})[no];
-
-    let resultText='—', chipClass='muted';
-    if(rec){
-      const wrong = typeof rec.wrong === 'number' ? rec.wrong : null;
-      const correct = typeof rec.correct === 'number' ? rec.correct : null;
-      const pct = typeof rec.percent === 'number' ? rec.percent : null;
-      if(wrong!==null && correct!==null && pct!==null){
-        resultText = `${correct} Doğru • ${wrong} Yanlış • %${pct}`;
-        chipClass = (pct >= 70) ? 'ok' : (pct >= 40 ? 'warn' : 'bad');
-      }
-    }
-
-    displayItems.push({
-      title: q.title || '',
-      subject: q.subject || '',
-      date: dateStr,
-      teacherName: q.teacherName || '',
-      resultText,
-      resultClass: chipClass
-    });
-  }
-
-  parentQzDisplayed = displayItems;
-  if(UI.parentQuizList){
-    if(displayItems.length){
-      UI.parentQuizList.innerHTML = displayItems.map(item => {
-        return `<li class="student">
-          <div class="stack"><div>${item.title}</div><div class="muted">Ders: ${item.subject} • Tarih: ${item.date} • Öğretmen: ${item.teacherName}</div></div>
-          <div class="chip ${item.resultClass}">${item.resultText}</div>
-        </li>`;
-      }).join('');
-    } else {
-      UI.parentQuizList.innerHTML = '<div class="muted">Quiz bulunmuyor.</div>';
-    }
-    UI.noParentQuiz?.classList.toggle('hidden', displayItems.length>0);
-  }
 }
 
 // Ödev Raporları: geri dönüş için geçici durum
@@ -10891,247 +9771,20 @@ function openAdminHomeworks(state = null){
 }
 
 
-// Admin: quiz raporları
-function openAdminQuizzes(){
-  const classSet = new Set(students.map(s => safe(s.SINIF)).filter(Boolean));
-  const classes = Array.from(classSet).sort((a,b)=> a.localeCompare(b,'tr',{numeric:true}));
-  const html = `
-  <div class="stack" style="text-align:left">
-    <div class="row" style="gap:10px;align-items:center;">
-      <label class="row"><span class="muted">Tarih:</span><input id="admQzDate" type="date" class="input" /></label>
-      <label class="row"><span class="muted">Sınıf:</span>
-        <select id="admQzClass" class="input">
-          <option value="hepsi" selected>Hepsi</option>
-          ${classes.map(c=>`<option value="${c}">${c}</option>`).join('')}
-        </select>
-      </label>
-      <button class="btn" id="admQzLoad" type="button">Yükle</button>
-      <button class="btn" id="admQzPrint" type="button">Yazdır</button>
-    </div>
-
-    <table class="table" style="margin-top:8px;">
-      <thead>
-        <tr>
-          <th>Quiz</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Tarih</th>
-          <th>Ortalama %</th><th>Öğrenci Sayısı</th>
-        </tr>
-      </thead>
-      <tbody id="admQzBody"></tbody>
-    </table>
-  </div>
-  `;
-  Swal.fire({
-    title: 'Quiz Raporları',
-    html,
-    width: Math.min(innerWidth-40, 1000),
-    showConfirmButton: false,
-    showCloseButton: true,
-    didOpen: bind
-  });
-
-  function bind(){
-    const h = Swal.getHtmlContainer();
-    const dateInput = h.querySelector('#admQzDate');
-    const classSelect = h.querySelector('#admQzClass');
-    const loadBtn = h.querySelector('#admQzLoad');
-    const printBtn = h.querySelector('#admQzPrint');
-    dateInput.value = '';
-
-    const run = async () => {
-      const date = dateInput.value || '';
-      const cls = classSelect.value || 'hepsi';
-      const rootSnap = await get(ref(db, 'quizzes'));
-      const all = rootSnap.exists() ? rootSnap.val() : {};
-      const rows = [];
-      for(const classKey in all){
-        if(cls !== 'hepsi' && classKey !== cls) continue;
-        const classData = all[classKey];
-        for(const id in classData){
-          const q = classData[id];
-          if(date && q.date){
-            const sel = dayjs(date);
-            const qdt = dayjs(q.date);
-            if(!qdt.isSame(sel, 'day')) continue;
-          }
-          const results = q.results || {};
-          let sum=0, count=0;
-          Object.values(results).forEach(rec=>{
-            const p=rec?.percent; if(typeof p==='number'){ sum += p; count++; }
-          });
-          const avg = count>0 ? Math.round(sum / count) : null;
-          rows.push({
-            id,
-            title: q.title || '',
-            subject: q.subject || '',
-            teacher: q.teacherName || '',
-            date: q.date || '',
-            avg,
-            count,
-            cls: classKey
-          });
-        }
-      }
-      const tbody = h.querySelector('#admQzBody');
-      if(rows.length){
-        const sortedRows = rows.sort((a,b)=> ((a.date||'').localeCompare(b.date||'','tr')));
-        tbody.innerHTML = sortedRows.map(r=>`
-          <tr>
-            <td>${r.title}</td>
-            <td>${r.subject}</td>
-            <td>${r.cls}</td>
-            <td>${r.teacher}</td>
-            <td>${r.date ? formatDateTRLong(r.date) : '-'}</td>
-            <td>${r.avg ?? '-'}</td>
-            <td>${r.count}</td>
-          </tr>`).join('');
-      }else{
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#777">Kayıt bulunamadı</td></tr>`;
-      }
-    };
-
-    loadBtn.addEventListener('click', run);
-
-    // YAZDIR: A4 + sabit sütun genişlikleri + uzun tarih
-    printBtn.addEventListener('click', () => {
-      const rowsHtml = h.querySelector('#admQzBody').innerHTML || `<tr><td colspan="7">Kayıt bulunamadı</td></tr>`;
-      const selDate = dateInput.value ? formatDateTRLong(dateInput.value) : 'Tümü';
-      const selClass = classSelect.value || 'hepsi';
-
-      const container = document.createElement('div');
-      container.innerHTML = `
-        <div>
-          <style>
-            *{box-sizing:border-box}
-            body{font:13px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif; color:#111; margin:0}
-            h2{margin:0 0 6px 0; text-align:center; font-size:14px; letter-spacing:.2px}
-            .meta{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin:0 0 8px 0; font-size:11px; color:#444}
-            table{width:100%; border-collapse:collapse; table-layout:fixed}
-            th,td{border:1px solid #e6e6e6; padding:4px 6px; vertical-align:top; word-break:break-word}
-              th{font-size:11px}
-              td{font-size:11px}
-            thead th{background:#fafafa}
-            col.title{width:28%} col.subject{width:16%} col.class{width:10%} col.teacher{width:18%} col.date{width:12%}
-            col.avg{width:8%} col.n{width:8%}
-            @page{size:A4 landscape; margin:10mm}
-            @media print{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
-          
-          <h2>${(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Quiz Raporları</h2>
-          <div class="meta"><div>Tarih: <strong>${selDate}</strong></div><div>Sınıf: <strong>${selClass}</strong></div></div>
-          <table>
-            <colgroup>
-              <col class="title"><col class="subject"><col class="class"><col class="teacher"><col class="date"><col class="avg"><col class="n">
-            </colgroup>
-            <thead>
-              <tr>
-                <th>Quiz</th><th>Ders</th><th>Sınıf</th><th>Öğretmen</th><th>Tarih</th>
-                <th>Ortalama %</th><th>Öğrenci Sayısı</th>
-              </tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
-          </table>
-        </div>`;
-      document.body.appendChild(container);
-      try { printDivAsA4(container, 'Quiz_Raporlari'); } finally { container.remove(); }
-    });
-
-    run();
-  }
-}
-
-// Veli: ödev ve quiz listelerini yazdırma
+// Veli: ödev listesini yazdırma
 function printParentHomeworks(){
-  if (!Array.isArray(parentHwDisplayed) || parentHwDisplayed.length === 0) {
-    if (typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak ödev yok.','warning');
-    return;
-  }
-
-  // HTML kaçışı (neden: hücrelerde özel karakterler çıktıyı bozmasın)
-  const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
-
-  // Geçici içerik
-  const tmp = document.createElement('div');
-  tmp.id = 'print-parent-homeworks';
-  tmp.innerHTML = `
-    <div>
-      <h2 style="margin:0 0 6px 0;">${esc(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Ödevler</h2>
-      <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th><th>Kalan Süre</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${parentHwDisplayed.map(item => `
-            <tr>
-              <td>${esc(item.title)}</td>
-              <td>${esc(item.subject)}</td>
-              <td>${esc(item.due)}</td>
-              <td>${esc(item.teacherName)}</td>
-              <td>${esc(item.statusText)}</td>
-              <td>${esc(item.timeLeft)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-
-  document.body.appendChild(tmp);
-  try {
-    // Öğrenci raporundaki aynı yazdırma fonksiyonunu kullan
-    printDivAsA4(tmp, 'Odevler.pdf');
-  } finally {
-    tmp.remove(); // Neden: DOM’u kirletmemek
-  }
-}
-
-function printParentQuizzes(){
-  if (!Array.isArray(parentQzDisplayed) || parentQzDisplayed.length === 0) {
-    if (typeof Swal !== 'undefined') Swal.fire('Uyarı','Yazdırılacak quiz yok.','warning');
-    return;
-  }
-
-  const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
-
-  const tmp = document.createElement('div');
-  tmp.id = 'print-parent-quizzes';
-  tmp.innerHTML = `
-    <div>
-      <h2 style="margin:0 0 6px 0;">${esc(COMPANY_NAME || 'Fenomen Eğitim Kurumları')} — Quizler</h2>
-      <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th>Quiz</th><th>Ders</th><th>Tarih</th><th>Öğretmen</th><th>Sonuç</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${parentQzDisplayed.map(item => `
-            <tr>
-              <td>${esc(item.title)}</td>
-              <td>${esc(item.subject)}</td>
-              <td>${esc(item.date)}</td>
-              <td>${esc(item.teacherName)}</td>
-              <td>${esc(item.resultText)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-
-  document.body.appendChild(tmp);
-  try {
-    printDivAsA4(tmp, 'Quizler.pdf');
-  } finally {
-    tmp.remove();
-  }
+  if(!Array.isArray(parentHwDisplayed)||parentHwDisplayed.length===0){Swal.fire('Uyarı','Yazdırılacak ödev yok.','warning');return;}
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const tmp=document.createElement('div'); tmp.id='print-parent-homeworks';
+  tmp.innerHTML=`<div><h2>${esc(COMPANY_NAME||'Fenomen Eğitim Kurumları')} — Ödevler</h2><table style="width:100%;border-collapse:collapse"><thead><tr><th>Ödev</th><th>Ders</th><th>Teslim</th><th>Öğretmen</th><th>Durum</th><th>Kalan Süre</th></tr></thead><tbody>${parentHwDisplayed.map(x=>`<tr><td>${esc(x.title)}</td><td>${esc(x.subject)}</td><td>${esc(x.due)}</td><td>${esc(x.teacherName)}</td><td>${esc(x.statusText)}</td><td>${esc(x.timeLeft)}</td></tr>`).join('')}</tbody></table></div>`;
+  document.body.appendChild(tmp); try{printDivAsA4(tmp,'Odevler.pdf');}finally{tmp.remove();}
 }
 
     // Boot
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v1.7 🔥</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.0</span></p>
   </footer>
  <style>
 .site-footer{
