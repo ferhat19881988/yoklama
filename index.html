@@ -1898,7 +1898,12 @@ div.admin-filters .button-row {
   text-align:left !important;
   -webkit-overflow-scrolling:touch;
 }
-.shr-shell{ display:grid; gap:12px; text-align:left; }
+.shr-shell{ display:grid; gap:14px; text-align:left; }
+#shrReport{
+  display:grid;
+  gap:14px;
+  min-width:0;
+}
 .shr-picker{
   display:grid;
   grid-template-columns:minmax(150px,.72fr) minmax(190px,1fr) minmax(240px,1.28fr);
@@ -1920,11 +1925,16 @@ div.admin-filters .button-row {
 #shrStudent option{ font-size:.84rem; }
 .shr-quick{
   display:grid;
-  gap:8px;
-  padding:10px 12px;
+  gap:9px;
+  padding:11px 12px;
   border:1px solid rgba(245,158,11,.24);
   border-radius:14px;
   background:linear-gradient(90deg, rgba(245,158,11,.08), rgba(249,115,22,.035));
+  box-shadow:0 8px 24px rgba(0,0,0,.08);
+}
+.shr-quick.is-search{
+  border-color:rgba(59,130,246,.28);
+  background:linear-gradient(90deg, rgba(59,130,246,.09), rgba(14,165,233,.035));
 }
 .shr-quick-head{
   display:flex;
@@ -1968,6 +1978,50 @@ div.admin-filters .button-row {
   font-weight:900;
 }
 .shr-quick-empty{ font-size:.80rem; color:var(--muted); }
+.shr-search-list{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.btn.shr-search-btn{
+  min-width:0;
+  min-height:40px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:11px;
+  border:1px solid rgba(59,130,246,.22);
+  background:rgba(255,255,255,.035);
+  color:var(--ink);
+  box-shadow:none;
+  text-align:left;
+}
+.btn.shr-search-btn:hover,
+.btn.shr-search-btn:focus-visible{
+  border-color:rgba(59,130,246,.50);
+  background:rgba(59,130,246,.10);
+  box-shadow:none;
+}
+.shr-search-name{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.82rem;
+  font-weight:900;
+}
+.shr-search-no{
+  flex:0 0 auto;
+  padding:2px 7px;
+  border-radius:999px;
+  background:rgba(59,130,246,.12);
+  color:#60a5fa;
+  font-size:.73rem;
+  font-weight:900;
+  white-space:nowrap;
+}
 .shr-student-meta{
   display:flex;
   align-items:center;
@@ -2027,30 +2081,104 @@ div.admin-filters .button-row {
   background:rgba(37,211,102,.13) !important;
 }
 .shr-wa-btn:disabled{ opacity:.45; }
-.shr-kpis{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
-.shr-kpi{
-  padding:10px 12px;
-  border:var(--stroke);
-  border-radius:13px;
-  background:rgba(255,255,255,.025);
+.shr-kpis{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:11px;
 }
-.shr-kpi .v{ display:block; margin-top:3px; font-size:1.18rem; font-weight:900; }
-.shr-report-list{ display:grid; gap:9px; }
+.shr-kpi{
+  position:relative;
+  min-width:0;
+  min-height:70px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:11px 13px 12px;
+  overflow:hidden;
+  border:1px solid rgba(148,163,184,.20);
+  border-radius:15px;
+  background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+  box-shadow:0 8px 22px rgba(0,0,0,.08);
+}
+.shr-kpi::before{
+  content:"";
+  position:absolute;
+  inset:0 auto 0 0;
+  width:3px;
+  border-radius:15px 0 0 15px;
+  background:var(--brand);
+}
+.shr-kpi:nth-child(2)::before{ background:var(--ok); }
+.shr-kpi:nth-child(3)::before{ background:var(--warn); }
+.shr-kpi .muted{
+  font-size:.75rem;
+  font-weight:850;
+  letter-spacing:.18px;
+}
+.shr-kpi .v{
+  display:block;
+  margin-top:2px;
+  font-size:1.22rem;
+  line-height:1.1;
+  font-weight:900;
+}
+.shr-report-list{
+  display:grid;
+  gap:11px;
+  min-width:0;
+}
 .shr-row{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(145px,180px);
-  gap:12px;
+  grid-template-columns:minmax(0,1fr) minmax(150px,180px);
+  gap:14px;
   align-items:center;
-  padding:11px 12px;
-  border:var(--stroke);
-  border-radius:14px;
-  background:rgba(255,255,255,.025);
+  min-width:0;
+  padding:12px 13px;
+  border:1px solid rgba(148,163,184,.20);
+  border-radius:15px;
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+  box-shadow:0 7px 20px rgba(0,0,0,.07);
+  transition:border-color .16s ease, transform .16s ease, box-shadow .16s ease;
 }
-.shr-row-title{ font-weight:900; line-height:1.3; }
-.shr-row-meta{ margin-top:4px; color:var(--muted); font-size:.82rem; font-weight:700; line-height:1.35; }
-.shr-status-wrap{ display:grid; gap:5px; }
-.shr-status-wrap .input{ min-height:40px; padding:8px 10px; }
-.shr-save-state{ min-height:17px; font-size:.76rem; color:var(--muted); text-align:right; font-weight:800; }
+.shr-row:hover{
+  transform:translateY(-1px);
+  border-color:rgba(249,115,22,.28);
+  box-shadow:0 10px 24px rgba(0,0,0,.10);
+}
+.shr-row > div:first-child{ min-width:0; }
+.shr-row-title{
+  min-width:0;
+  font-weight:900;
+  line-height:1.34;
+  overflow-wrap:anywhere;
+}
+.shr-row-meta{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:.80rem;
+  font-weight:700;
+  line-height:1.35;
+}
+.shr-status-wrap{
+  display:grid;
+  gap:5px;
+  min-width:0;
+}
+.shr-status-wrap .input{
+  width:100%;
+  min-width:0;
+  min-height:40px;
+  padding:8px 10px;
+  border-color:rgba(148,163,184,.22);
+  background:rgba(255,255,255,.035);
+}
+.shr-save-state{
+  min-height:17px;
+  font-size:.75rem;
+  color:var(--muted);
+  text-align:right;
+  font-weight:800;
+}
 .shr-empty{
   padding:18px 14px;
   border:1px dashed rgba(148,163,184,.30);
@@ -2086,8 +2214,10 @@ div.admin-filters .button-row {
   .shr-actions{ grid-template-columns:1fr; }
   .shr-actions .btn{ width:100%; }
   .shr-quick-list{ display:grid; grid-template-columns:1fr; }
+  .shr-search-list{ grid-template-columns:1fr; }
   .btn.shr-quick-btn{ width:100%; justify-content:space-between; }
-  .shr-kpi{ padding:9px; }
+  .btn.shr-search-btn{ width:100%; }
+  .shr-kpi{ min-height:62px; padding:9px 10px; }
   .shr-kpi .v{ font-size:1.05rem; }
   .shr-message-panel{ padding:10px; }
 }
@@ -2897,9 +3027,11 @@ function openWhatsAppComposer(opts){
     const initialText = (cfg.text ?? '').toString();
     const phone = normalizeWhatsAppPhone(cfg.phone || '');
     const recipientLabel = (cfg.recipientLabel || '').toString().trim();
-    const after = (typeof cfg.onAfterClose === 'function') ? cfg.onAfterClose : null;
+    const onBack = (typeof cfg.onBack === 'function') ? cfg.onBack : null;
     const closeWithX = !!cfg.closeWithX;
+    const backActionHtml = onBack ? '<button type="button" class="btn ghost wa-btn" id="waBackBtn">← Geri</button>' : '';
     const closeActionHtml = closeWithX ? '' : '<button type="button" class="btn ghost wa-btn" id="waCancelBtn">Kapat</button>';
+    let closeReason = 'close';
 
     // Basit escape (Swal html içinde güvenli başlık)
     const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
@@ -2924,6 +3056,7 @@ function openWhatsAppComposer(opts){
             <div class="wa-label">İşlemler</div>
             <div class="wa-btnrow">
               <button type="button" class="btn ghost wa-btn" id="waCopyBtn">Kopyala</button>
+              ${backActionHtml}
               ${closeActionHtml}
               <button type="button" class="btn wa-btn wa-send" id="waSendBtn">WhatsApp'a Gönder</button>
             </div>
@@ -2938,6 +3071,7 @@ function openWhatsAppComposer(opts){
       didOpen: (el) => {
         const ta = el.querySelector('#waMsgBox');
         const bCopy = el.querySelector('#waCopyBtn');
+        const bBack = el.querySelector('#waBackBtn');
         const bCancel = el.querySelector('#waCancelBtn');
         const bSend = el.querySelector('#waSendBtn');
         const modal = el.querySelector('.wa-modal');
@@ -2979,6 +3113,7 @@ function openWhatsAppComposer(opts){
         const sendText = ()=>{
           try{
             persistTeacherPanels();
+            closeReason = 'send';
             const v = (ta ? ta.value : initialText) || '';
             const baseUrl = 'https://api.whatsapp.com/send';
             const query = phone
@@ -2993,11 +3128,19 @@ function openWhatsAppComposer(opts){
         };
 
         if(bCopy) bCopy.addEventListener('click', copyText);
-        if(bCancel) bCancel.addEventListener('click', ()=>Swal.close());
+        if(bBack) bBack.addEventListener('click', ()=>{
+          closeReason = 'back';
+          Swal.close();
+        });
+        if(bCancel) bCancel.addEventListener('click', ()=>{
+          closeReason = 'cancel';
+          Swal.close();
+        });
         if(bSend) bSend.addEventListener('click', sendText);
       },
       didClose: () => {
-        try{ after && after(); }catch(e){ console.error('wa afterClose err', e); }
+        if(closeReason !== 'back') return;
+        try{ onBack && onBack(); }catch(e){ console.error('wa back err', e); }
       }
     });
   }catch(e){
@@ -9331,13 +9474,16 @@ function buildStudentHomeworkWhatsAppMessage(student, rows, mode){
 
   if(mode === 'done'){
     const doneRows = rows.filter(r => r.status === 'yapti').slice().reverse();
-    const lines = doneRows.map((r,i)=> `${i+1}. ✅ *${r.title}* — ${formatHomeworkReportDate(r.dueDate)}`).join('\n');
+    const lines = doneRows.map((r,i)=>
+      `${i+1}. ✅ *${r.title}* — ${formatHomeworkReportDate(r.dueDate)} teslim tarihli ödevini yapmıştır.`
+    ).join('\n');
+
     return `🏫 *${institutionName}*\n\n` +
       `✅ *Ödev Takip Bilgilendirmesi*\n\n` +
       `Merhaba, iyi günler dilerim.\n\n` +
-      `Öğrencimiz *${studentName}* için tarafımdan kontrol edilip sistemde *Yaptı* olarak kaydedilen çalışmalar aşağıdadır: 📚\n\n` +
+      `Öğrencimiz *${studentName}* için tarafımdan kontrol edilip sistemde kaydedilen çalışmaları aşağıdadır: 📚\n\n` +
       `${lines}\n\n` +
-      `Ödevlerini düzenli takip etmesi, konuların pekişmesi açısından önemlidir. Düzenli takibi için öğrencimizi tebrik ediyor, evdeki desteğiniz için teşekkür ediyorum. 🎯\n\n` +
+      `Düzenli takibi için öğrencimizi tebrik ediyor, evdeki desteğiniz için teşekkür ediyorum. 🎯\n\n` +
       `*${teacherName}*\n_${lessonName} Öğretmeni_`;
   }
 
@@ -9346,15 +9492,15 @@ function buildStudentHomeworkWhatsAppMessage(student, rows, mode){
     .slice()
     .reverse();
   const lines = issueRows.map((r,i)=>
-    `${i+1}. ${hwReportStatusIcon(r.status)} *${r.title}* — *Durum: ${HW_STATUSES[r.status]}* — ${formatHomeworkReportDate(r.dueDate)}`
+    `${i+1}. ${hwReportStatusIcon(r.status)} *${r.title}* — *Durum: ${HW_STATUSES[r.status]}* — ${formatHomeworkReportDate(r.dueDate)} teslim tarihli`
   ).join('\n');
 
   return `🏫 *${institutionName}*\n\n` +
-    `⚠️ *Ödev Takip Bilgilendirmesi*\n\n` +
+    `*Ödev Takip Bilgilendirmesi*\n\n` +
     `Merhaba, iyi günler dilerim.\n\n` +
-    `Öğrencimiz *${studentName}* için yapılan ödev kontrollerinde, *Yaptı* dışındaki takip gerektiren kayıtlar aşağıdadır. Her ödevin güncel durumu yanında belirtilmiştir: 📚\n\n` +
+    `Öğrencimiz *${studentName}* için yapılan ödev kontrollerinde, takip gerektiren kayıtlar aşağıdadır. Her ödevin güncel durumu yanında belirtilmiştir: 📚\n\n` +
     `${lines}\n\n` +
-    `Duruma göre ilgili ödevin tamamlanması, eksiklerin giderilmesi, kitabın getirilmesi veya öğrencimizin katılamadığı dersin çalışmasının telafi edilmesi konusunda desteğinizi rica ederim. 🎯\n\n` +
+    `Duruma göre ilgili ödevin tamamlanması, eksiklerin giderilmesi, kitabın getirilmesi veya öğrencimizin katılamadığı dersin çalışmasının bana getirilip gösterilmesi konusunda desteğinizi rica ederim. 🎯\n\n` +
     `İlginiz ve iş birliğiniz için teşekkür ederim.\n\n` +
     `*${teacherName}*\n_${lessonName} Öğretmeni_`;
 }
@@ -9373,6 +9519,8 @@ async function openStudentHomeworkReport(initialState={}){
     const esc = (v)=> String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const initialClass = classes.includes(safe(initialState.className)) ? safe(initialState.className) : classes[0];
     const initialStudentId = safe(initialState.studentId);
+    const initialSearchQuery = safe(initialState.searchQuery);
+    const initialScrollTop = Math.max(0, Number(initialState.scrollTop) || 0);
 
     const html = `
       <div class="shr-shell">
@@ -9411,11 +9559,13 @@ async function openStudentHomeworkReport(initialState={}){
         if(!classEl || !searchEl || !studentEl || !quickEl || !reportEl) return;
 
         let selectedStudentId = initialStudentId;
+        searchEl.value = initialSearchQuery;
 
         const isReportStillOpen = ()=>
           document.body.contains(root) && !!Swal.getPopup()?.classList.contains('student-hw-report-popup');
 
         const renderQuickPick = ()=>{
+          quickEl.classList.remove('is-search');
           const ranking = getStudentHomeworkCompletionRanking(classEl.value, 5, 70);
           if(!ranking.length){
             quickEl.innerHTML = `
@@ -9453,6 +9603,46 @@ async function openStudentHomeworkReport(initialState={}){
           });
         };
 
+        const renderSearchPick = (filtered, rawQuery)=>{
+          quickEl.classList.add('is-search');
+          const list = Array.isArray(filtered) ? filtered.slice(0, 10) : [];
+          const total = Array.isArray(filtered) ? filtered.length : 0;
+          const queryLabel = safe(rawQuery).trim();
+
+          if(!list.length){
+            quickEl.innerHTML = `
+              <div class="shr-quick-head">
+                <div class="shr-quick-title">🔎 Öğrenci Arama</div>
+                <div class="shr-quick-note">${queryLabel ? `“${esc(queryLabel)}”` : ''}</div>
+              </div>
+              <div class="shr-quick-empty">Bu aramaya uygun öğrenci bulunamadı.</div>`;
+            return;
+          }
+
+          quickEl.innerHTML = `
+            <div class="shr-quick-head">
+              <div class="shr-quick-title">🔎 Öğrenci Arama — Hızlı Seçim</div>
+              <div class="shr-quick-note">${total} öğrenci bulundu${total > list.length ? ` • İlk ${list.length} gösteriliyor` : ''}</div>
+            </div>
+            <div class="shr-search-list">
+              ${list.map(st => `
+                <button class="btn ghost shr-search-btn" type="button" data-student-id="${esc(safe(st.NO))}">
+                  <span class="shr-search-name">${esc(safe(st.ADSOYAD))}</span>
+                  <span class="shr-search-no">No: ${esc(safe(st.NO))}</span>
+                </button>`).join('')}
+            </div>`;
+
+          Array.from(quickEl.querySelectorAll('.shr-search-btn')).forEach(btn=>{
+            btn.addEventListener('click', ()=>{
+              const sid = safe(btn.getAttribute('data-student-id'));
+              if(!sid) return;
+              studentEl.value = sid;
+              selectedStudentId = sid;
+              renderReport();
+            });
+          });
+        };
+
         const classStudents = ()=> (students || [])
           .filter(st => safe(st.SINIF) === safe(classEl.value))
           .filter(st => safe(st.NO))
@@ -9470,7 +9660,8 @@ async function openStudentHomeworkReport(initialState={}){
             studentEl.disabled = true;
             selectedStudentId = '';
             reportEl.innerHTML = '<div class="shr-empty">Bu aramaya uygun öğrenci bulunamadı.</div>';
-            renderQuickPick();
+            if(q) renderSearchPick([], searchEl.value);
+            else renderQuickPick();
             return;
           }
 
@@ -9484,7 +9675,9 @@ async function openStudentHomeworkReport(initialState={}){
 
           if(selectedStudentId) renderReport();
           else reportEl.innerHTML = '<div class="shr-empty shr-prompt">Raporu görüntülemek için öğrenci seçiniz.</div>';
-          renderQuickPick();
+
+          if(q) renderSearchPick(filtered, searchEl.value);
+          else renderQuickPick();
         };
 
         const renderReport = ()=>{
@@ -9589,7 +9782,13 @@ async function openStudentHomeworkReport(initialState={}){
               showToast('Bu öğrenci için veli telefonu bulunamadı.','warn',2600);
               return;
             }
-            const returnState = { className:safe(classEl.value), studentId:sid, skipReload:true };
+            const returnState = {
+              className:safe(classEl.value),
+              studentId:sid,
+              searchQuery:searchEl.value,
+              scrollTop:root.scrollTop,
+              skipReload:true
+            };
             const msg = buildStudentHomeworkWhatsAppMessage(student, currentRows, mode);
             openWhatsAppComposer({
               text:msg,
@@ -9598,7 +9797,7 @@ async function openStudentHomeworkReport(initialState={}){
               modalTitle: mode==='done' ? 'Yapılan Ödev Mesajı' : 'Yapılmayan Ödev Mesajı',
               messageTitle:'WhatsApp Önizleme (Düzenlenebilir)',
               closeWithX:true,
-              onAfterClose:()=>openStudentHomeworkReport(returnState)
+              onBack:()=>openStudentHomeworkReport(returnState)
             });
           };
 
@@ -9611,13 +9810,23 @@ async function openStudentHomeworkReport(initialState={}){
           selectedStudentId = '';
           refreshStudentOptions();
         });
-        searchEl.addEventListener('input', refreshStudentOptions);
+        let searchRenderFrame = 0;
+        searchEl.addEventListener('input', ()=>{
+          if(searchRenderFrame) cancelAnimationFrame(searchRenderFrame);
+          searchRenderFrame = requestAnimationFrame(()=>{
+            searchRenderFrame = 0;
+            refreshStudentOptions();
+          });
+        });
         studentEl.addEventListener('change', ()=>{
           selectedStudentId = safe(studentEl.value);
           renderReport();
         });
 
         refreshStudentOptions();
+        if(initialScrollTop > 0){
+          requestAnimationFrame(()=>{ root.scrollTop = initialScrollTop; });
+        }
 
         // Ağ/veritabanı yenilemesi modal açıldıktan sonra çalışır; açılış hızını bloke etmez.
         if(refreshAfterOpen){
