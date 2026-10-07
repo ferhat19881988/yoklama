@@ -1901,7 +1901,7 @@ div.admin-filters .button-row {
 .shr-shell{ display:grid; gap:12px; text-align:left; }
 .shr-picker{
   display:grid;
-  grid-template-columns:minmax(160px,.8fr) minmax(210px,1.1fr) minmax(220px,1.2fr);
+  grid-template-columns:minmax(150px,.72fr) minmax(190px,1fr) minmax(240px,1.28fr);
   gap:10px;
   padding:12px;
   border:var(--stroke);
@@ -1909,8 +1909,15 @@ div.admin-filters .button-row {
   background:rgba(255,255,255,.025);
 }
 .shr-field{ display:grid; gap:6px; min-width:0; }
-.shr-field > span{ font-size:.78rem; color:var(--muted); font-weight:900; letter-spacing:.25px; }
-.shr-help{ font-size:.82rem; color:var(--muted); line-height:1.4; }
+.shr-field > span{ font-size:.75rem; color:var(--muted); font-weight:900; letter-spacing:.2px; }
+#shrStudent{
+  min-width:0;
+  font-size:.84rem;
+  padding-left:9px;
+  padding-right:28px;
+  text-overflow:ellipsis;
+}
+#shrStudent option{ font-size:.84rem; }
 .shr-quick{
   display:grid;
   gap:8px;
@@ -1973,6 +1980,53 @@ div.admin-filters .button-row {
   background:linear-gradient(90deg, rgba(249,115,22,.10), transparent 75%);
 }
 .shr-student-name{ font-weight:900; font-size:1.02rem; }
+.shr-phone-state{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  white-space:nowrap;
+}
+.shr-phone-state.ok{ color:var(--ok); }
+.shr-phone-state.bad{ color:var(--bad); }
+.shr-message-panel{
+  display:grid;
+  gap:10px;
+  padding:12px;
+  border:1px solid rgba(37,211,102,.20);
+  border-radius:15px;
+  background:linear-gradient(135deg, rgba(37,211,102,.075), rgba(255,255,255,.018) 52%, rgba(249,115,22,.045));
+}
+.shr-message-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.shr-message-title{ font-size:.86rem; font-weight:900; }
+.shr-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+.shr-actions .btn{ box-shadow:none; }
+.shr-actions .btn img{ width:18px; height:18px; display:block; }
+.shr-wa-btn{
+  min-height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border-color:rgba(37,211,102,.26) !important;
+  background:rgba(37,211,102,.07) !important;
+  font-size:.84rem;
+  line-height:1.2;
+}
+.shr-wa-btn:hover:not(:disabled){
+  border-color:rgba(37,211,102,.52) !important;
+  background:rgba(37,211,102,.13) !important;
+}
+.shr-wa-btn:disabled{ opacity:.45; }
 .shr-kpis{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
 .shr-kpi{
   padding:10px 12px;
@@ -1981,10 +2035,6 @@ div.admin-filters .button-row {
   background:rgba(255,255,255,.025);
 }
 .shr-kpi .v{ display:block; margin-top:3px; font-size:1.18rem; font-weight:900; }
-.shr-actions{ display:flex; gap:8px; flex-wrap:wrap; }
-.shr-actions .btn{ box-shadow:none; }
-.shr-actions .btn img{ width:17px; height:17px; display:block; }
-.shr-wa-btn{ display:inline-flex; align-items:center; justify-content:center; gap:7px; }
 .shr-report-list{ display:grid; gap:9px; }
 .shr-row{
   display:grid;
@@ -2009,6 +2059,11 @@ div.admin-filters .button-row {
   color:var(--muted);
   line-height:1.45;
 }
+.shr-empty.shr-prompt{
+  background:linear-gradient(180deg, rgba(249,115,22,.045), rgba(255,255,255,.012));
+  color:var(--ink);
+  font-weight:800;
+}
 .wa-recipient{
   margin-top:5px;
   color:var(--muted);
@@ -2022,14 +2077,19 @@ div.admin-filters .button-row {
 @media (max-width:520px){
   #homeworkCard .homework-titlebar{ align-items:stretch; }
   .btn.hw-student-report-btn{ width:100%; min-height:40px; }
+  .shr-picker{ gap:8px; padding:10px; }
+  .shr-field > span{ font-size:.70rem; }
+  #shrStudent, #shrStudent option{ font-size:.76rem; }
+  #shrStudent{ padding:9px 26px 9px 8px; }
   .shr-row{ grid-template-columns:1fr; gap:8px; }
   .shr-save-state{ text-align:left; }
-  .shr-actions{ display:grid; grid-template-columns:1fr; }
+  .shr-actions{ grid-template-columns:1fr; }
   .shr-actions .btn{ width:100%; }
   .shr-quick-list{ display:grid; grid-template-columns:1fr; }
   .btn.shr-quick-btn{ width:100%; justify-content:space-between; }
   .shr-kpi{ padding:9px; }
   .shr-kpi .v{ font-size:1.05rem; }
+  .shr-message-panel{ padding:10px; }
 }
 
 /* ===== v1.7 🔥 — Öğretmen haftalık Derslerim görünümü ===== */
@@ -2838,6 +2898,8 @@ function openWhatsAppComposer(opts){
     const phone = normalizeWhatsAppPhone(cfg.phone || '');
     const recipientLabel = (cfg.recipientLabel || '').toString().trim();
     const after = (typeof cfg.onAfterClose === 'function') ? cfg.onAfterClose : null;
+    const closeWithX = !!cfg.closeWithX;
+    const closeActionHtml = closeWithX ? '' : '<button type="button" class="btn ghost wa-btn" id="waCancelBtn">Kapat</button>';
 
     // Basit escape (Swal html içinde güvenli başlık)
     const esc = (s)=> String(s ?? '').replace(/[&<>"']/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
@@ -2862,7 +2924,7 @@ function openWhatsAppComposer(opts){
             <div class="wa-label">İşlemler</div>
             <div class="wa-btnrow">
               <button type="button" class="btn ghost wa-btn" id="waCopyBtn">Kopyala</button>
-              <button type="button" class="btn ghost wa-btn" id="waCancelBtn">Kapat</button>
+              ${closeActionHtml}
               <button type="button" class="btn wa-btn wa-send" id="waSendBtn">WhatsApp'a Gönder</button>
             </div>
           </div>
@@ -2870,7 +2932,8 @@ function openWhatsAppComposer(opts){
       `,
       showConfirmButton: false,
       showCancelButton: false,
-      allowOutsideClick: true,
+      showCloseButton: closeWithX,
+      allowOutsideClick: closeWithX ? false : true,
       allowEscapeKey: true,
       didOpen: (el) => {
         const ta = el.querySelector('#waMsgBox');
@@ -2933,7 +2996,7 @@ function openWhatsAppComposer(opts){
         if(bCancel) bCancel.addEventListener('click', ()=>Swal.close());
         if(bSend) bSend.addEventListener('click', sendText);
       },
-      willClose: () => {
+      didClose: () => {
         try{ after && after(); }catch(e){ console.error('wa afterClose err', e); }
       }
     });
@@ -9179,19 +9242,20 @@ function getStudentHomeworkReportRows(cls, studentId){
     });
 }
 
-function getStudentHomeworkCompletionRanking(cls, limit=5){
+function getStudentHomeworkCompletionRanking(cls, limit=5, maxRate=70){
   return (students || [])
     .filter(st => safe(st.SINIF) === safe(cls) && safe(st.NO))
     .map(st => {
       const rows = getStudentHomeworkReportRows(cls, safe(st.NO));
-      if(!rows.length) return null; // “—” ve kayıtsız öğrenciler sıralamaya girmez.
+      if(!rows.length) return null;
       const done = rows.filter(r => r.status === 'yapti').length;
       const total = rows.length;
-      const rate = Math.round((done / total) * 100);
+      const rateValue = (done / total) * 100;
+      const rate = Math.round(rateValue);
       const follow = rows.filter(r => r.status !== 'yapti').length;
-      return { student:st, id:safe(st.NO), name:safe(st.ADSOYAD), done, total, follow, rate };
+      return { student:st, id:safe(st.NO), name:safe(st.ADSOYAD), done, total, follow, rate, rateValue };
     })
-    .filter(Boolean)
+    .filter(item => item && item.rateValue <= Number(maxRate))
     .sort((a,b) =>
       a.rate - b.rate ||
       b.total - a.total ||
@@ -9263,26 +9327,34 @@ function buildStudentHomeworkWhatsAppMessage(student, rows, mode){
   const studentName = safe(student?.ADSOYAD) || 'Öğrencimiz';
   const teacherName = safe(session?.teacherName) || 'Öğretmeniniz';
   const lessonName = safe(session?.teacherBranch) || safe(rows?.[0]?.subject) || 'Ders';
+  const institutionName = safe(COMPANY_NAME) || 'Fenomen Eğitim Kurumları';
 
   if(mode === 'done'){
     const doneRows = rows.filter(r => r.status === 'yapti').slice().reverse();
     const lines = doneRows.map((r,i)=> `${i+1}. ✅ *${r.title}* — ${formatHomeworkReportDate(r.dueDate)}`).join('\n');
-    return `✅ *Ödev Takip Bilgilendirmesi*\n\n` +
+    return `🏫 *${institutionName}*\n\n` +
+      `✅ *Ödev Takip Bilgilendirmesi*\n\n` +
       `Merhaba, iyi günler dilerim.\n\n` +
-      `Öğrencimiz *${studentName}* için şimdiye kadar tarafımdan kontrol edilip sistemde *Yaptı* olarak kaydedilen çalışmalar aşağıdadır: 📚\n\n` +
+      `Öğrencimiz *${studentName}* için tarafımdan kontrol edilip sistemde *Yaptı* olarak kaydedilen çalışmalar aşağıdadır: 📚\n\n` +
       `${lines}\n\n` +
-      `Ödevlerini düzenli takip etmesi, konuların pekişmesi açısından oldukça önemli. Bu düzenli takibi için öğrencimizi tebrik ediyor, evdeki desteğiniz için teşekkür ediyorum. 🎯\n\n` +
+      `Ödevlerini düzenli takip etmesi, konuların pekişmesi açısından önemlidir. Düzenli takibi için öğrencimizi tebrik ediyor, evdeki desteğiniz için teşekkür ediyorum. 🎯\n\n` +
       `*${teacherName}*\n_${lessonName} Öğretmeni_`;
   }
 
-  const issueRows = rows.filter(r => ['yapmadi','eksik','kitap'].includes(r.status)).slice().reverse();
-  const lines = issueRows.map((r,i)=> `${i+1}. ${hwReportStatusIcon(r.status)} *${r.title}* — ${HW_STATUSES[r.status]} — ${formatHomeworkReportDate(r.dueDate)}`).join('\n');
-  return `⚠️ *Ödev Takip Bilgilendirmesi*\n\n` +
+  const issueRows = rows
+    .filter(r => r.status !== 'yapti' && Object.prototype.hasOwnProperty.call(HW_STATUSES, r.status))
+    .slice()
+    .reverse();
+  const lines = issueRows.map((r,i)=>
+    `${i+1}. ${hwReportStatusIcon(r.status)} *${r.title}* — *Durum: ${HW_STATUSES[r.status]}* — ${formatHomeworkReportDate(r.dueDate)}`
+  ).join('\n');
+
+  return `🏫 *${institutionName}*\n\n` +
+    `⚠️ *Ödev Takip Bilgilendirmesi*\n\n` +
     `Merhaba, iyi günler dilerim.\n\n` +
-    `Öğrencimiz *${studentName}* için yaptığımız ödev kontrollerinde aşağıdaki çalışmaların henüz tamamlanmadığını, eksik kaldığını veya kitabın getirilmediğini görüyoruz: 📚\n\n` +
+    `Öğrencimiz *${studentName}* için yapılan ödev kontrollerinde, *Yaptı* dışındaki takip gerektiren kayıtlar aşağıdadır. Her ödevin güncel durumu yanında belirtilmiştir: 📚\n\n` +
     `${lines}\n\n` +
-    `Ders içindeki hatırlatmalarımıza rağmen bu eksiklerin devam etmesi, kullandığımız kaynak kitabın bazı bölümlerinin boş kalmasına ve konuların yeterince pekişmemesine neden olabilir. ⚠️\n\n` +
-    `Evde kısa bir kontrol yaparak ilgili çalışmaların tamamlanmasına destek olmanızı rica ederim. Amacımız öğrencimizin konuları düzenli takip ederek eksik bırakmadan ilerlemesini sağlamak. 🎯\n\n` +
+    `Duruma göre ilgili ödevin tamamlanması, eksiklerin giderilmesi, kitabın getirilmesi veya öğrencimizin katılamadığı dersin çalışmasının telafi edilmesi konusunda desteğinizi rica ederim. 🎯\n\n` +
     `İlginiz ve iş birliğiniz için teşekkür ederim.\n\n` +
     `*${teacherName}*\n_${lessonName} Öğretmeni_`;
 }
@@ -9290,7 +9362,8 @@ function buildStudentHomeworkWhatsAppMessage(student, rows, mode){
 async function openStudentHomeworkReport(initialState={}){
   if(!session || session.role !== 'ogretmen') return;
   try{
-    if(!initialState.skipReload) await loadTeacherHomeworks();
+    // Modalı veri yenilemesini bekletmeden aç: mevcut bellek/UI sınıflarıyla anında görünür.
+    const refreshAfterOpen = !initialState.skipReload;
     const classes = getTeacherHomeworkReportClasses();
     if(!classes.length){
       await Swal.fire('Bilgi','Rapor oluşturulabilecek sınıf bulunamadı.','info');
@@ -9299,6 +9372,7 @@ async function openStudentHomeworkReport(initialState={}){
 
     const esc = (v)=> String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const initialClass = classes.includes(safe(initialState.className)) ? safe(initialState.className) : classes[0];
+    const initialStudentId = safe(initialState.studentId);
 
     const html = `
       <div class="shr-shell">
@@ -9312,13 +9386,12 @@ async function openStudentHomeworkReport(initialState={}){
             <input id="shrSearch" class="input" type="search" autocomplete="off" placeholder="Ad veya öğrenci no" />
           </label>
           <label class="shr-field">
-            <span>Öğrenci</span>
+            <span>Öğrenci Seçimi</span>
             <select id="shrStudent" class="input" aria-label="Öğrenci seçimi"></select>
           </label>
         </div>
         <div class="shr-quick" id="shrQuickPick" aria-live="polite"></div>
-        <div class="shr-help">Yalnızca kaydedilmiş ödev durumları gösterilir. <strong>—</strong> olan belirsiz/eski kayıtlar rapora alınmaz.</div>
-        <div id="shrReport"></div>
+        <div id="shrReport"><div class="shr-empty shr-prompt">Raporu görüntülemek için öğrenci seçiniz.</div></div>
       </div>`;
 
     await Swal.fire({
@@ -9337,22 +9410,26 @@ async function openStudentHomeworkReport(initialState={}){
         const reportEl = root?.querySelector('#shrReport');
         if(!classEl || !searchEl || !studentEl || !quickEl || !reportEl) return;
 
-        let selectedStudentId = safe(initialState.studentId);
+        let selectedStudentId = initialStudentId;
+
+        const isReportStillOpen = ()=>
+          document.body.contains(root) && !!Swal.getPopup()?.classList.contains('student-hw-report-popup');
 
         const renderQuickPick = ()=>{
-          const ranking = getStudentHomeworkCompletionRanking(classEl.value, 5);
+          const ranking = getStudentHomeworkCompletionRanking(classEl.value, 5, 70);
           if(!ranking.length){
             quickEl.innerHTML = `
               <div class="shr-quick-head">
                 <div class="shr-quick-title">📉 Hızlı Seçim — Ödev yapma oranı en düşük öğrenciler</div>
+                <div class="shr-quick-note">Yalnızca %70 ve altı</div>
               </div>
-              <div class="shr-quick-empty">Bu sınıfta oran hesaplamak için kayıtlı ödev durumu bulunmuyor.</div>`;
+              <div class="shr-quick-empty">Bu ölçüte uygun öğrenci bulunmuyor.</div>`;
             return;
           }
           quickEl.innerHTML = `
             <div class="shr-quick-head">
               <div class="shr-quick-title">📉 Hızlı Seçim — Ödev yapma oranı en düşük öğrenciler</div>
-              <div class="shr-quick-note">Yaptı / kayıtlı ödev • İlk ${ranking.length}</div>
+              <div class="shr-quick-note">Yaptı / kayıtlı ödev • İlk ${ranking.length} • %70 ve altı</div>
             </div>
             <div class="shr-quick-list">
               ${ranking.map(item => `
@@ -9387,18 +9464,26 @@ async function openStudentHomeworkReport(initialState={}){
           const filtered = q
             ? all.filter(st => normTR(`${safe(st.ADSOYAD)} ${safe(st.NO)}`).includes(q))
             : all;
+
           if(!filtered.length){
             studentEl.innerHTML = '<option value="">Öğrenci bulunamadı</option>';
             studentEl.disabled = true;
             selectedStudentId = '';
             reportEl.innerHTML = '<div class="shr-empty">Bu aramaya uygun öğrenci bulunamadı.</div>';
+            renderQuickPick();
             return;
           }
+
           studentEl.disabled = false;
-          const wanted = filtered.some(st => safe(st.NO)===safe(selectedStudentId)) ? safe(selectedStudentId) : safe(filtered[0].NO);
-          studentEl.innerHTML = filtered.map(st => `<option value="${esc(safe(st.NO))}"${safe(st.NO)===wanted?' selected':''}>${esc(safe(st.ADSOYAD))} • No: ${esc(safe(st.NO))}</option>`).join('');
-          selectedStudentId = wanted;
-          renderReport();
+          const selectedStillVisible = filtered.some(st => safe(st.NO) === safe(selectedStudentId));
+          if(!selectedStillVisible) selectedStudentId = '';
+
+          studentEl.innerHTML = `
+            <option value=""${selectedStudentId ? '' : ' selected'}>Öğrenci seçiniz…</option>` +
+            filtered.map(st => `<option value="${esc(safe(st.NO))}"${safe(st.NO)===safe(selectedStudentId)?' selected':''}>${esc(safe(st.ADSOYAD))} • No: ${esc(safe(st.NO))}</option>`).join('');
+
+          if(selectedStudentId) renderReport();
+          else reportEl.innerHTML = '<div class="shr-empty shr-prompt">Raporu görüntülemek için öğrenci seçiniz.</div>';
           renderQuickPick();
         };
 
@@ -9407,13 +9492,15 @@ async function openStudentHomeworkReport(initialState={}){
           selectedStudentId = sid;
           const student = (students || []).find(st => safe(st.NO)===sid && safe(st.SINIF)===safe(classEl.value));
           if(!student){
-            reportEl.innerHTML = '<div class="shr-empty">Öğrenci seçiniz.</div>';
+            reportEl.innerHTML = '<div class="shr-empty shr-prompt">Raporu görüntülemek için öğrenci seçiniz.</div>';
             return;
           }
+
           const rows = getStudentHomeworkReportRows(classEl.value, sid);
           const doneCount = rows.filter(r=>r.status==='yapti').length;
-          const issueCount = rows.filter(r=>['yapmadi','eksik','kitap'].includes(r.status)).length;
+          const issueCount = rows.filter(r=>r.status!=='yapti' && Object.prototype.hasOwnProperty.call(HW_STATUSES, r.status)).length;
           const phone = getStudentParentPhone(student);
+          const hasPhone = !!normalizeWhatsAppPhone(phone);
 
           const rowsHtml = rows.length ? rows.map((r,idx)=>`
             <div class="shr-row" data-hw-id="${esc(r.hw.id)}" data-hw-class="${esc(r.hw.class)}" data-row-index="${idx}">
@@ -9425,23 +9512,30 @@ async function openStudentHomeworkReport(initialState={}){
                 <select class="input shr-status" aria-label="${esc(r.title)} durumu">${hwReportStatusOptions(r.status)}</select>
                 <div class="shr-save-state" aria-live="polite"></div>
               </div>
-            </div>`).join('') : '<div class="shr-empty">Bu öğrenci için kaydedilmiş ödev durumu bulunmuyor.<br><strong>—</strong> durumundaki belirsiz kayıtlar özellikle gösterilmez.</div>';
+            </div>`).join('') : '<div class="shr-empty">Bu öğrenci için kaydedilmiş ödev durumu bulunmuyor.</div>';
 
           reportEl.innerHTML = `
             <div class="shr-student-meta">
               <div>
                 <div class="shr-student-name">${esc(safe(student.ADSOYAD))}</div>
-                <div class="muted">${esc(safe(student.SINIF))} • No: ${esc(sid)}${phone ? ` • Veli tel. kayıtlı` : ' • Veli telefonu bulunamadı'}</div>
+                <div class="muted">${esc(safe(student.SINIF))} • No: ${esc(sid)} • <span class="shr-phone-state ${hasPhone?'ok':'bad'}">Veli Telefonu: ${hasPhone?'✅':'❌'}</span></div>
+              </div>
+            </div>
+
+            <div class="shr-message-panel">
+              <div class="shr-message-head">
+                <div class="shr-message-title">💬 Veli Mesajları</div>
               </div>
               <div class="shr-actions">
                 <button class="btn ghost shr-wa-btn" id="shrMsgMissing" type="button" ${issueCount ? '' : 'disabled'}>
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt=""> Yapılmayanlar
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt=""> Yapılmayan Ödev Mesajı
                 </button>
                 <button class="btn ghost shr-wa-btn" id="shrMsgDone" type="button" ${doneCount ? '' : 'disabled'}>
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt=""> Yapılanlar
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt=""> Yapılan Ödev Mesajı
                 </button>
               </div>
             </div>
+
             <div class="shr-kpis">
               <div class="shr-kpi"><span class="muted">Kayıtlı</span><span class="v">${rows.length}</span></div>
               <div class="shr-kpi"><span class="muted">Yaptı</span><span class="v">${doneCount}</span></div>
@@ -9467,7 +9561,9 @@ async function openStudentHomeworkReport(initialState={}){
                 state.textContent = result.queued ? 'Kuyruğa alındı' : 'Kaydedildi ✓';
                 state.style.color = result.queued ? 'var(--warn)' : 'var(--ok)';
                 renderQuickPick();
-                setTimeout(()=>renderReport(), 450);
+                setTimeout(()=>{
+                  if(isReportStillOpen()) renderReport();
+                }, 300);
               }catch(err){
                 console.error('student homework report update error', err);
                 select.value = oldStatus;
@@ -9483,9 +9579,9 @@ async function openStudentHomeworkReport(initialState={}){
             const currentRows = getStudentHomeworkReportRows(classEl.value, sid);
             const relevant = mode==='done'
               ? currentRows.filter(r=>r.status==='yapti')
-              : currentRows.filter(r=>['yapmadi','eksik','kitap'].includes(r.status));
+              : currentRows.filter(r=>r.status!=='yapti' && Object.prototype.hasOwnProperty.call(HW_STATUSES, r.status));
             if(!relevant.length){
-              showToast(mode==='done' ? 'Yapıldı olarak kayıtlı ödev yok.' : 'Takip mesajına eklenecek eksik ödev yok.','warn',2200);
+              showToast(mode==='done' ? 'Yapıldı olarak kayıtlı ödev yok.' : 'Takip mesajına eklenecek kayıt yok.','warn',2200);
               return;
             }
             const parentPhone = getStudentParentPhone(student);
@@ -9493,17 +9589,20 @@ async function openStudentHomeworkReport(initialState={}){
               showToast('Bu öğrenci için veli telefonu bulunamadı.','warn',2600);
               return;
             }
+            const returnState = { className:safe(classEl.value), studentId:sid, skipReload:true };
             const msg = buildStudentHomeworkWhatsAppMessage(student, currentRows, mode);
             openWhatsAppComposer({
               text:msg,
               phone:parentPhone,
               recipientLabel:`${safe(student.ADSOYAD)} velisi`,
-              modalTitle: mode==='done' ? 'Yapılan Ödevler — Veli Mesajı' : 'Eksik Ödevler — Veli Mesajı',
-              messageTitle:'WhatsApp Önizleme (Düzenlenebilir)'
+              modalTitle: mode==='done' ? 'Yapılan Ödev Mesajı' : 'Yapılmayan Ödev Mesajı',
+              messageTitle:'WhatsApp Önizleme (Düzenlenebilir)',
+              closeWithX:true,
+              onAfterClose:()=>openStudentHomeworkReport(returnState)
             });
           };
 
-          reportEl.querySelector('#shrMsgMissing')?.addEventListener('click', ()=>openMessage('missing'));
+          reportEl.querySelector('#shrMsgMissing')?.addEventListener('click', ()=>openMessage('followup'));
           reportEl.querySelector('#shrMsgDone')?.addEventListener('click', ()=>openMessage('done'));
         };
 
@@ -9517,7 +9616,20 @@ async function openStudentHomeworkReport(initialState={}){
           selectedStudentId = safe(studentEl.value);
           renderReport();
         });
+
         refreshStudentOptions();
+
+        // Ağ/veritabanı yenilemesi modal açıldıktan sonra çalışır; açılış hızını bloke etmez.
+        if(refreshAfterOpen){
+          requestAnimationFrame(()=>{
+            loadTeacherHomeworks().then(()=>{
+              if(!isReportStillOpen()) return;
+              refreshStudentOptions();
+            }).catch(err=>{
+              console.error('student homework report refresh error', err);
+            });
+          });
+        }
       }
     });
   }catch(err){
