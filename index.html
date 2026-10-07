@@ -1854,6 +1854,184 @@ div.admin-filters .button-row {
   pointer-events:none;
 }
 
+
+/* ===== v2.1 — Öğretmen / Öğrenci Ödev Raporu ===== */
+#homeworkCard .homework-titlebar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+#homeworkCard .homework-titlebar > span{ min-width:0; }
+.btn.hw-student-report-btn{
+  flex:0 0 auto;
+  min-height:36px;
+  padding:7px 11px;
+  border-radius:11px;
+  font-size:.84rem;
+  line-height:1;
+  box-shadow:none;
+}
+.student-hw-report-popup.swal2-popup{
+  width:min(920px, 96vw) !important;
+  max-height:92vh;
+  padding:14px !important;
+  border-radius:18px !important;
+  background:var(--panel) !important;
+  color:var(--ink) !important;
+  border:var(--stroke);
+}
+.student-hw-report-popup .swal2-title{
+  color:var(--ink) !important;
+  font-size:1.12rem !important;
+  font-weight:900 !important;
+  margin:2px 0 10px !important;
+}
+.student-hw-report-popup .swal2-close{ color:var(--muted) !important; }
+.student-hw-report-popup .swal2-html-container{
+  margin:0 !important;
+  padding:0 2px !important;
+  color:var(--ink) !important;
+  overflow:auto !important;
+  max-height:76vh !important;
+  text-align:left !important;
+  -webkit-overflow-scrolling:touch;
+}
+.shr-shell{ display:grid; gap:12px; text-align:left; }
+.shr-picker{
+  display:grid;
+  grid-template-columns:minmax(160px,.8fr) minmax(210px,1.1fr) minmax(220px,1.2fr);
+  gap:10px;
+  padding:12px;
+  border:var(--stroke);
+  border-radius:15px;
+  background:rgba(255,255,255,.025);
+}
+.shr-field{ display:grid; gap:6px; min-width:0; }
+.shr-field > span{ font-size:.78rem; color:var(--muted); font-weight:900; letter-spacing:.25px; }
+.shr-help{ font-size:.82rem; color:var(--muted); line-height:1.4; }
+.shr-quick{
+  display:grid;
+  gap:8px;
+  padding:10px 12px;
+  border:1px solid rgba(245,158,11,.24);
+  border-radius:14px;
+  background:linear-gradient(90deg, rgba(245,158,11,.08), rgba(249,115,22,.035));
+}
+.shr-quick-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.shr-quick-title{ font-size:.82rem; font-weight:900; }
+.shr-quick-note{ font-size:.74rem; color:var(--muted); font-weight:700; }
+.shr-quick-list{ display:flex; gap:7px; flex-wrap:wrap; }
+.btn.shr-quick-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:34px;
+  padding:7px 10px;
+  border-radius:11px;
+  border:1px solid rgba(245,158,11,.24);
+  background:rgba(255,255,255,.035);
+  color:var(--ink);
+  box-shadow:none;
+  font-size:.80rem;
+  font-weight:850;
+}
+.btn.shr-quick-btn:hover{
+  border-color:rgba(249,115,22,.48);
+  background:rgba(249,115,22,.09);
+  box-shadow:none;
+}
+.shr-quick-rate{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:42px;
+  padding:2px 6px;
+  border-radius:999px;
+  background:rgba(239,68,68,.13);
+  color:var(--bad);
+  font-size:.75rem;
+  font-weight:900;
+}
+.shr-quick-empty{ font-size:.80rem; color:var(--muted); }
+.shr-student-meta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:11px 12px;
+  border:var(--stroke);
+  border-radius:14px;
+  background:linear-gradient(90deg, rgba(249,115,22,.10), transparent 75%);
+}
+.shr-student-name{ font-weight:900; font-size:1.02rem; }
+.shr-kpis{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+.shr-kpi{
+  padding:10px 12px;
+  border:var(--stroke);
+  border-radius:13px;
+  background:rgba(255,255,255,.025);
+}
+.shr-kpi .v{ display:block; margin-top:3px; font-size:1.18rem; font-weight:900; }
+.shr-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+.shr-actions .btn{ box-shadow:none; }
+.shr-actions .btn img{ width:17px; height:17px; display:block; }
+.shr-wa-btn{ display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+.shr-report-list{ display:grid; gap:9px; }
+.shr-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(145px,180px);
+  gap:12px;
+  align-items:center;
+  padding:11px 12px;
+  border:var(--stroke);
+  border-radius:14px;
+  background:rgba(255,255,255,.025);
+}
+.shr-row-title{ font-weight:900; line-height:1.3; }
+.shr-row-meta{ margin-top:4px; color:var(--muted); font-size:.82rem; font-weight:700; line-height:1.35; }
+.shr-status-wrap{ display:grid; gap:5px; }
+.shr-status-wrap .input{ min-height:40px; padding:8px 10px; }
+.shr-save-state{ min-height:17px; font-size:.76rem; color:var(--muted); text-align:right; font-weight:800; }
+.shr-empty{
+  padding:18px 14px;
+  border:1px dashed rgba(148,163,184,.30);
+  border-radius:14px;
+  text-align:center;
+  color:var(--muted);
+  line-height:1.45;
+}
+.wa-recipient{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:.80rem;
+  font-weight:800;
+}
+@media (max-width:720px){
+  .shr-picker{ grid-template-columns:1fr; }
+  .shr-kpis{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media (max-width:520px){
+  #homeworkCard .homework-titlebar{ align-items:stretch; }
+  .btn.hw-student-report-btn{ width:100%; min-height:40px; }
+  .shr-row{ grid-template-columns:1fr; gap:8px; }
+  .shr-save-state{ text-align:left; }
+  .shr-actions{ display:grid; grid-template-columns:1fr; }
+  .shr-actions .btn{ width:100%; }
+  .shr-quick-list{ display:grid; grid-template-columns:1fr; }
+  .btn.shr-quick-btn{ width:100%; justify-content:space-between; }
+  .shr-kpi{ padding:9px; }
+  .shr-kpi .v{ font-size:1.05rem; }
+}
+
 /* ===== v1.7 🔥 — Öğretmen haftalık Derslerim görünümü ===== */
 #teacherView .teacher-titlebar{
   display:flex;
@@ -2139,8 +2317,9 @@ div.admin-filters .button-row {
       <div id="teacherHomeworkPanel" class="teacher-main-panel hidden" role="tabpanel" aria-labelledby="teacherTabHomework">
       <!-- ÖDEV YÖNETİMİ -->
       <div id="homeworkCard" class="card hidden" role="region" aria-label="Ödev Yönetimi">
-        <h3>
+        <h3 class="homework-titlebar">
           <span>📘 Ödev Yönetimi</span>
+          <button class="btn ghost hw-student-report-btn" id="hwStudentReportBtn" type="button" title="Tek öğrenci için ödev geçmişini aç">👤 Öğrenci Raporu</button>
         </h3>
         <div class="body stack" id="hwBody">
           <div id="hwForm" class="stack">
@@ -2477,7 +2656,7 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, set, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '2.0';
+    const APP_VERSION = '2.1';
     const APP_RELEASE_PATH = 'config/appRelease';
     const APP_VERSION_CHECK_INTERVAL_MS = 60 * 1000;
     const APP_VERSION_RELOAD_GUARD_KEY = 'fenomen_version_reload_guard_v1';
@@ -2625,6 +2804,29 @@ function enableDragScroll(container, opts){
   }
 }
 
+// Veli telefonu: farklı sütun adlarını tek noktada karşıla.
+function getStudentParentPhone(student){
+  if(!student) return '';
+  const candidates = [
+    student.VeliTel, student.VELITEL, student.velitel,
+    student.VELI_TEL, student.VELİ_TEL, student.VELI_TELEFON, student.VELİ_TELEFON,
+    student.VeliTelefon, student.VELITELEFON, student.veliTelefon,
+    student.TELEFON, student.TEL, student.PHONE
+  ];
+  return safe(candidates.find(v => safe(v)) || '');
+}
+
+// WhatsApp phone parametresi ülke kodlu ve sadece rakam olmalı.
+function normalizeWhatsAppPhone(raw){
+  let d = String(raw ?? '').replace(/\D/g,'');
+  if(!d) return '';
+  if(d.startsWith('00')) d = d.slice(2);
+  if(d.length === 10 && d.startsWith('5')) return '90' + d;
+  if(d.length === 11 && d.startsWith('05')) return '9' + d;
+  if(d.length === 12 && d.startsWith('90')) return d;
+  return d;
+}
+
 // Not:
 // location.href ile sayfadan çıkmak yerine yeni sekmede açar; böylece aktif ekran korunur.
 function openWhatsAppComposer(opts){
@@ -2633,6 +2835,8 @@ function openWhatsAppComposer(opts){
     const modalTitle = cfg.modalTitle || 'Veli Bilgilendirme Mesajı';
     const msgTitle   = cfg.messageTitle || 'Mesaj Önizleme (Düzenlenebilir)';
     const initialText = (cfg.text ?? '').toString();
+    const phone = normalizeWhatsAppPhone(cfg.phone || '');
+    const recipientLabel = (cfg.recipientLabel || '').toString().trim();
     const after = (typeof cfg.onAfterClose === 'function') ? cfg.onAfterClose : null;
 
     // Basit escape (Swal html içinde güvenli başlık)
@@ -2645,6 +2849,7 @@ function openWhatsAppComposer(opts){
         <div class="wa-modal">
           <div class="wa-section wa-header">
             <div class="wa-kicker">${esc(msgTitle)}</div>
+            ${phone ? `<div class="wa-recipient">📱 ${esc(recipientLabel || 'Veli')} • +${esc(phone)}</div>` : ''}
           </div>
 
           <div class="wa-section">
@@ -2712,8 +2917,11 @@ function openWhatsAppComposer(opts){
           try{
             persistTeacherPanels();
             const v = (ta ? ta.value : initialText) || '';
-            const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(v);
-            window.open(url, '_blank', 'noopener,noreferrer');
+            const baseUrl = 'https://api.whatsapp.com/send';
+            const query = phone
+              ? ('?phone=' + encodeURIComponent(phone) + '&text=' + encodeURIComponent(v))
+              : ('?text=' + encodeURIComponent(v));
+            window.open(baseUrl + query, '_blank', 'noopener,noreferrer');
             Swal.close();
           }catch(e){
             console.error('send err', e);
@@ -2890,6 +3098,7 @@ function openWhatsAppComposer(opts){
       hwDueDate: document.getElementById('hwDueDate'),
       hwClassSelect: document.getElementById('hwClassSelect'),
       hwCreateBtn: document.getElementById('hwCreateBtn'),
+      hwStudentReportBtn: document.getElementById('hwStudentReportBtn'),
       hwList: document.getElementById('hwList'),
       // Öğretmen ödev liste filtreleri
       hwFilterBar: document.getElementById('hwFilterBar'),
@@ -5086,6 +5295,7 @@ try{
       UI.teacherTabLessons?.addEventListener('click', ()=> setTeacherMainTab('lessons'));
       UI.teacherTabHomework?.addEventListener('click', ()=> setTeacherMainTab('homework'));
       UI.hwCreateBtn?.addEventListener('click', createHomework);
+      UI.hwStudentReportBtn?.addEventListener('click', ()=> openStudentHomeworkReport());
 
       // Öğretmen: Ödev filtreleri (sınıf + sekmeler)
       UI.hwFilterClass?.addEventListener('change', ()=>{
@@ -8692,11 +8902,8 @@ function renderTeacherHomeworks(items, gidMap, opts={}){
     // Özet: yalnız bu sınıfa ait öğrenciler
     const classSet = new Set(students.filter(s=> safe(s.SINIF)===safe(hw.class)).map(s=>safe(s.NO)));
 
-    const statuses = (() => {
-      const gid = hw.groupId ?? (String(hw.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(hw.id).split('-')[0]) : null);
-      const g = gid ? (gidMap.get(gid)||{}) : null;
-      return g || (hw.statuses || {});
-    })();
+    const gid = getHomeworkGroupId(hw);
+    const statuses = gid ? (gidMap.get(gid) || {}) : (hw.statuses || {});
 
     const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
     Object.entries(statuses).forEach(([sid,rec])=>{
@@ -8908,6 +9115,415 @@ function renderTeacherHomeworks(items, gidMap, opts={}){
       }
     });
   });
+}
+
+// Ödev kimliği / statü erişimi: rapor ve mevcut kontrol ekranı aynı kaynağı kullanır.
+function getHomeworkGroupId(hwOrId){
+  const hw = (hwOrId && typeof hwOrId === 'object') ? hwOrId : null;
+  const direct = hw?.groupId;
+  if(direct !== undefined && direct !== null && direct !== '') return direct;
+  const id = hw ? hw.id : hwOrId;
+  const m = String(id || '').match(/^(\d+)-\d+$/);
+  return m ? Number(m[1]) : null;
+}
+
+function getHomeworkStatusesFromCache(hw){
+  if(!hw) return {};
+  const gid = getHomeworkGroupId(hw);
+  if(gid) return teacherHwGidMap.get(gid) || {};
+  return hw.statuses || {};
+}
+
+function homeworkBelongsToCurrentTeacher(hw){
+  if(!hw || !session || session.role !== 'ogretmen') return false;
+  const ownerId = safe(hw.teacherId);
+  if(ownerId) return ownerId === safe(session.ogretmenId);
+  const ownerName = safe(hw.teacherName);
+  if(ownerName && safe(session.teacherName)) return normTR(ownerName) === normTR(session.teacherName);
+  // Eski kayıtlarda öğretmen alanı bulunmayabilir; mevcut ödev liste davranışıyla uyumluluk korunur.
+  return true;
+}
+
+function getTeacherHomeworkReportClasses(){
+  const fromHomework = (teacherHwAll || [])
+    .filter(homeworkBelongsToCurrentTeacher)
+    .map(hw => safe(hw.class))
+    .filter(Boolean);
+  const fromUi = Array.from(UI.hwClassSelect?.querySelectorAll('input[type="checkbox"]') || [])
+    .map(el => safe(el.value)).filter(Boolean);
+  return Array.from(new Set([...fromUi, ...fromHomework]))
+    .sort((a,b)=>a.localeCompare(b,'tr',{numeric:true,sensitivity:'base'}));
+}
+
+function getStudentHomeworkReportRows(cls, studentId){
+  return (teacherHwAll || [])
+    .filter(hw => safe(hw.class) === safe(cls) && homeworkBelongsToCurrentTeacher(hw))
+    .map(hw => {
+      const rec = getHomeworkStatusesFromCache(hw)?.[safe(studentId)] || null;
+      const status = safe(rec?.status);
+      if(!status) return null; // v2.1: “—” / belirsiz kayıt rapora kesinlikle girmez.
+      return {
+        hw,
+        status,
+        ts: Number(rec?.ts || 0),
+        dueDate: safe(hw.dueDate),
+        title: safe(hw.title) || 'Ödev',
+        subject: safe(hw.subject) || safe(session?.teacherBranch) || 'Ders'
+      };
+    })
+    .filter(Boolean)
+    .sort((a,b)=>{
+      const ad = a.dueDate || '0000-00-00';
+      const bd = b.dueDate || '0000-00-00';
+      return bd.localeCompare(ad) || b.ts - a.ts || a.title.localeCompare(b.title,'tr',{sensitivity:'base'});
+    });
+}
+
+function getStudentHomeworkCompletionRanking(cls, limit=5){
+  return (students || [])
+    .filter(st => safe(st.SINIF) === safe(cls) && safe(st.NO))
+    .map(st => {
+      const rows = getStudentHomeworkReportRows(cls, safe(st.NO));
+      if(!rows.length) return null; // “—” ve kayıtsız öğrenciler sıralamaya girmez.
+      const done = rows.filter(r => r.status === 'yapti').length;
+      const total = rows.length;
+      const rate = Math.round((done / total) * 100);
+      const follow = rows.filter(r => r.status !== 'yapti').length;
+      return { student:st, id:safe(st.NO), name:safe(st.ADSOYAD), done, total, follow, rate };
+    })
+    .filter(Boolean)
+    .sort((a,b) =>
+      a.rate - b.rate ||
+      b.total - a.total ||
+      b.follow - a.follow ||
+      a.name.localeCompare(b.name,'tr',{sensitivity:'base'})
+    )
+    .slice(0, Math.max(1, Number(limit) || 5));
+}
+
+function hwReportStatusOptions(selected){
+  return Object.entries(HW_STATUSES).map(([key,label]) =>
+    `<option value="${key}"${key===selected?' selected':''}>${label}</option>`
+  ).join('');
+}
+
+function hwReportStatusIcon(status){
+  return ({ yapti:'✅', yapmadi:'❌', eksik:'⚠️', kitap:'📕', gelmedi:'🚫' })[status] || 'ℹ️';
+}
+
+function formatHomeworkReportDate(dateStr){
+  if(!dateStr) return 'Tarih yok';
+  try{ return dayjs(dateStr).locale('tr').format('D MMMM YYYY'); }
+  catch(_){ return dateStr; }
+}
+
+async function updateStudentHomeworkStatusFromReport(hw, studentId, nextStatus){
+  if(!hw || !studentId || !HW_STATUSES[nextStatus]) throw new Error('Geçersiz ödev durumu.');
+  const gid = getHomeworkGroupId(hw);
+  const record = { status: nextStatus, ts: Date.now() };
+  const base = gid ? `hwStatus/${gid}` : `homeworks/${hw.class}/${hw.id}/statuses`;
+  const patch = { [`${base}/${studentId}`]: record };
+  const queued = !canUseFirebase();
+
+  if(queued) queueOfflineWrite('/', patch);
+  else await update(ref(db), patch);
+
+  // Bellek kaydını aynı anda güncelle; ödev kartlarındaki özet de beklemeden değişsin.
+  if(gid){
+    const current = { ...(teacherHwGidMap.get(gid) || {}) };
+    current[studentId] = record;
+    teacherHwGidMap.set(gid, current);
+  }else{
+    const target = (teacherHwAll || []).find(x => safe(x.class)===safe(hw.class) && safe(x.id)===safe(hw.id));
+    if(target){
+      target.statuses = { ...(target.statuses || {}), [studentId]: record };
+    }
+  }
+
+  // Açık Ödev Kontrol paneli aynı ödevi (veya aynı groupId'yi) gösteriyorsa seçimi anında eşitle.
+  if(openHwCtx && UI.hwStudentList){
+    const openItem = (teacherHwAll || []).find(x => safe(x.class)===safe(openHwCtx.cls) && safe(x.id)===safe(openHwCtx.id));
+    const sameHomework = safe(openHwCtx.cls)===safe(hw.class) && safe(openHwCtx.id)===safe(hw.id);
+    const sameGroup = !!gid && !!openItem && String(getHomeworkGroupId(openItem)) === String(gid);
+    if(sameHomework || sameGroup){
+      const li = Array.from(UI.hwStudentList.querySelectorAll('li.student')).find(x => safe(x.getAttribute('data-id'))===safe(studentId));
+      const sel = li?.querySelector('select.statusSelect');
+      if(sel){
+        sel.value = nextStatus;
+        sel.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+    }
+  }
+
+  applyTeacherHwFiltersAndRender();
+  return { queued };
+}
+
+function buildStudentHomeworkWhatsAppMessage(student, rows, mode){
+  const studentName = safe(student?.ADSOYAD) || 'Öğrencimiz';
+  const teacherName = safe(session?.teacherName) || 'Öğretmeniniz';
+  const lessonName = safe(session?.teacherBranch) || safe(rows?.[0]?.subject) || 'Ders';
+
+  if(mode === 'done'){
+    const doneRows = rows.filter(r => r.status === 'yapti').slice().reverse();
+    const lines = doneRows.map((r,i)=> `${i+1}. ✅ *${r.title}* — ${formatHomeworkReportDate(r.dueDate)}`).join('\n');
+    return `✅ *Ödev Takip Bilgilendirmesi*\n\n` +
+      `Merhaba, iyi günler dilerim.\n\n` +
+      `Öğrencimiz *${studentName}* için şimdiye kadar tarafımdan kontrol edilip sistemde *Yaptı* olarak kaydedilen çalışmalar aşağıdadır: 📚\n\n` +
+      `${lines}\n\n` +
+      `Ödevlerini düzenli takip etmesi, konuların pekişmesi açısından oldukça önemli. Bu düzenli takibi için öğrencimizi tebrik ediyor, evdeki desteğiniz için teşekkür ediyorum. 🎯\n\n` +
+      `*${teacherName}*\n_${lessonName} Öğretmeni_`;
+  }
+
+  const issueRows = rows.filter(r => ['yapmadi','eksik','kitap'].includes(r.status)).slice().reverse();
+  const lines = issueRows.map((r,i)=> `${i+1}. ${hwReportStatusIcon(r.status)} *${r.title}* — ${HW_STATUSES[r.status]} — ${formatHomeworkReportDate(r.dueDate)}`).join('\n');
+  return `⚠️ *Ödev Takip Bilgilendirmesi*\n\n` +
+    `Merhaba, iyi günler dilerim.\n\n` +
+    `Öğrencimiz *${studentName}* için yaptığımız ödev kontrollerinde aşağıdaki çalışmaların henüz tamamlanmadığını, eksik kaldığını veya kitabın getirilmediğini görüyoruz: 📚\n\n` +
+    `${lines}\n\n` +
+    `Ders içindeki hatırlatmalarımıza rağmen bu eksiklerin devam etmesi, kullandığımız kaynak kitabın bazı bölümlerinin boş kalmasına ve konuların yeterince pekişmemesine neden olabilir. ⚠️\n\n` +
+    `Evde kısa bir kontrol yaparak ilgili çalışmaların tamamlanmasına destek olmanızı rica ederim. Amacımız öğrencimizin konuları düzenli takip ederek eksik bırakmadan ilerlemesini sağlamak. 🎯\n\n` +
+    `İlginiz ve iş birliğiniz için teşekkür ederim.\n\n` +
+    `*${teacherName}*\n_${lessonName} Öğretmeni_`;
+}
+
+async function openStudentHomeworkReport(initialState={}){
+  if(!session || session.role !== 'ogretmen') return;
+  try{
+    if(!initialState.skipReload) await loadTeacherHomeworks();
+    const classes = getTeacherHomeworkReportClasses();
+    if(!classes.length){
+      await Swal.fire('Bilgi','Rapor oluşturulabilecek sınıf bulunamadı.','info');
+      return;
+    }
+
+    const esc = (v)=> String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const initialClass = classes.includes(safe(initialState.className)) ? safe(initialState.className) : classes[0];
+
+    const html = `
+      <div class="shr-shell">
+        <div class="shr-picker">
+          <label class="shr-field">
+            <span>Sınıf</span>
+            <select id="shrClass" class="input">${classes.map(c=>`<option value="${esc(c)}"${c===initialClass?' selected':''}>${esc(c)}</option>`).join('')}</select>
+          </label>
+          <label class="shr-field">
+            <span>Öğrenci ara</span>
+            <input id="shrSearch" class="input" type="search" autocomplete="off" placeholder="Ad veya öğrenci no" />
+          </label>
+          <label class="shr-field">
+            <span>Öğrenci</span>
+            <select id="shrStudent" class="input" aria-label="Öğrenci seçimi"></select>
+          </label>
+        </div>
+        <div class="shr-quick" id="shrQuickPick" aria-live="polite"></div>
+        <div class="shr-help">Yalnızca kaydedilmiş ödev durumları gösterilir. <strong>—</strong> olan belirsiz/eski kayıtlar rapora alınmaz.</div>
+        <div id="shrReport"></div>
+      </div>`;
+
+    await Swal.fire({
+      title:'👤 Öğrenci Ödev Raporu',
+      html,
+      customClass:{ popup:'student-hw-report-popup' },
+      showConfirmButton:false,
+      showCloseButton:true,
+      allowOutsideClick:true,
+      didOpen:()=>{
+        const root = Swal.getHtmlContainer();
+        const classEl = root?.querySelector('#shrClass');
+        const searchEl = root?.querySelector('#shrSearch');
+        const studentEl = root?.querySelector('#shrStudent');
+        const quickEl = root?.querySelector('#shrQuickPick');
+        const reportEl = root?.querySelector('#shrReport');
+        if(!classEl || !searchEl || !studentEl || !quickEl || !reportEl) return;
+
+        let selectedStudentId = safe(initialState.studentId);
+
+        const renderQuickPick = ()=>{
+          const ranking = getStudentHomeworkCompletionRanking(classEl.value, 5);
+          if(!ranking.length){
+            quickEl.innerHTML = `
+              <div class="shr-quick-head">
+                <div class="shr-quick-title">📉 Hızlı Seçim — Ödev yapma oranı en düşük öğrenciler</div>
+              </div>
+              <div class="shr-quick-empty">Bu sınıfta oran hesaplamak için kayıtlı ödev durumu bulunmuyor.</div>`;
+            return;
+          }
+          quickEl.innerHTML = `
+            <div class="shr-quick-head">
+              <div class="shr-quick-title">📉 Hızlı Seçim — Ödev yapma oranı en düşük öğrenciler</div>
+              <div class="shr-quick-note">Yaptı / kayıtlı ödev • İlk ${ranking.length}</div>
+            </div>
+            <div class="shr-quick-list">
+              ${ranking.map(item => `
+                <button class="btn ghost shr-quick-btn" type="button" data-student-id="${esc(item.id)}" title="${esc(item.done)} / ${esc(item.total)} kayıtlı ödev yaptı">
+                  <span>${esc(item.name)}</span>
+                  <span class="shr-quick-rate">%${item.rate}</span>
+                </button>`).join('')}
+            </div>`;
+
+          Array.from(quickEl.querySelectorAll('.shr-quick-btn')).forEach(btn=>{
+            btn.addEventListener('click', ()=>{
+              const sid = safe(btn.getAttribute('data-student-id'));
+              if(!sid) return;
+              searchEl.value = '';
+              selectedStudentId = sid;
+              refreshStudentOptions();
+              studentEl.value = sid;
+              selectedStudentId = sid;
+              renderReport();
+            });
+          });
+        };
+
+        const classStudents = ()=> (students || [])
+          .filter(st => safe(st.SINIF) === safe(classEl.value))
+          .filter(st => safe(st.NO))
+          .sort((a,b)=> safe(a.ADSOYAD).localeCompare(safe(b.ADSOYAD),'tr',{sensitivity:'base'}));
+
+        const refreshStudentOptions = ()=>{
+          const q = normTR(searchEl.value || '');
+          const all = classStudents();
+          const filtered = q
+            ? all.filter(st => normTR(`${safe(st.ADSOYAD)} ${safe(st.NO)}`).includes(q))
+            : all;
+          if(!filtered.length){
+            studentEl.innerHTML = '<option value="">Öğrenci bulunamadı</option>';
+            studentEl.disabled = true;
+            selectedStudentId = '';
+            reportEl.innerHTML = '<div class="shr-empty">Bu aramaya uygun öğrenci bulunamadı.</div>';
+            return;
+          }
+          studentEl.disabled = false;
+          const wanted = filtered.some(st => safe(st.NO)===safe(selectedStudentId)) ? safe(selectedStudentId) : safe(filtered[0].NO);
+          studentEl.innerHTML = filtered.map(st => `<option value="${esc(safe(st.NO))}"${safe(st.NO)===wanted?' selected':''}>${esc(safe(st.ADSOYAD))} • No: ${esc(safe(st.NO))}</option>`).join('');
+          selectedStudentId = wanted;
+          renderReport();
+          renderQuickPick();
+        };
+
+        const renderReport = ()=>{
+          const sid = safe(studentEl.value || selectedStudentId);
+          selectedStudentId = sid;
+          const student = (students || []).find(st => safe(st.NO)===sid && safe(st.SINIF)===safe(classEl.value));
+          if(!student){
+            reportEl.innerHTML = '<div class="shr-empty">Öğrenci seçiniz.</div>';
+            return;
+          }
+          const rows = getStudentHomeworkReportRows(classEl.value, sid);
+          const doneCount = rows.filter(r=>r.status==='yapti').length;
+          const issueCount = rows.filter(r=>['yapmadi','eksik','kitap'].includes(r.status)).length;
+          const phone = getStudentParentPhone(student);
+
+          const rowsHtml = rows.length ? rows.map((r,idx)=>`
+            <div class="shr-row" data-hw-id="${esc(r.hw.id)}" data-hw-class="${esc(r.hw.class)}" data-row-index="${idx}">
+              <div>
+                <div class="shr-row-title">${hwReportStatusIcon(r.status)} ${esc(r.title)}</div>
+                <div class="shr-row-meta">${esc(r.subject)} • ${esc(formatHomeworkReportDate(r.dueDate))}</div>
+              </div>
+              <div class="shr-status-wrap">
+                <select class="input shr-status" aria-label="${esc(r.title)} durumu">${hwReportStatusOptions(r.status)}</select>
+                <div class="shr-save-state" aria-live="polite"></div>
+              </div>
+            </div>`).join('') : '<div class="shr-empty">Bu öğrenci için kaydedilmiş ödev durumu bulunmuyor.<br><strong>—</strong> durumundaki belirsiz kayıtlar özellikle gösterilmez.</div>';
+
+          reportEl.innerHTML = `
+            <div class="shr-student-meta">
+              <div>
+                <div class="shr-student-name">${esc(safe(student.ADSOYAD))}</div>
+                <div class="muted">${esc(safe(student.SINIF))} • No: ${esc(sid)}${phone ? ` • Veli tel. kayıtlı` : ' • Veli telefonu bulunamadı'}</div>
+              </div>
+              <div class="shr-actions">
+                <button class="btn ghost shr-wa-btn" id="shrMsgMissing" type="button" ${issueCount ? '' : 'disabled'}>
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt=""> Yapılmayanlar
+                </button>
+                <button class="btn ghost shr-wa-btn" id="shrMsgDone" type="button" ${doneCount ? '' : 'disabled'}>
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt=""> Yapılanlar
+                </button>
+              </div>
+            </div>
+            <div class="shr-kpis">
+              <div class="shr-kpi"><span class="muted">Kayıtlı</span><span class="v">${rows.length}</span></div>
+              <div class="shr-kpi"><span class="muted">Yaptı</span><span class="v">${doneCount}</span></div>
+              <div class="shr-kpi"><span class="muted">Takip</span><span class="v">${issueCount}</span></div>
+            </div>
+            <div class="shr-report-list">${rowsHtml}</div>`;
+
+          Array.from(reportEl.querySelectorAll('.shr-row')).forEach(rowEl=>{
+            const idx = Number(rowEl.getAttribute('data-row-index'));
+            const row = rows[idx];
+            const select = rowEl.querySelector('.shr-status');
+            const state = rowEl.querySelector('.shr-save-state');
+            if(!row || !select || !state) return;
+            select.addEventListener('change', async ()=>{
+              const oldStatus = row.status;
+              const nextStatus = select.value;
+              if(nextStatus === oldStatus) return;
+              select.disabled = true;
+              state.textContent = 'Kaydediliyor…';
+              try{
+                const result = await updateStudentHomeworkStatusFromReport(row.hw, sid, nextStatus);
+                row.status = nextStatus;
+                state.textContent = result.queued ? 'Kuyruğa alındı' : 'Kaydedildi ✓';
+                state.style.color = result.queued ? 'var(--warn)' : 'var(--ok)';
+                renderQuickPick();
+                setTimeout(()=>renderReport(), 450);
+              }catch(err){
+                console.error('student homework report update error', err);
+                select.value = oldStatus;
+                select.disabled = false;
+                state.textContent = 'Kaydedilemedi';
+                state.style.color = 'var(--bad)';
+                showToast('Ödev durumu kaydedilemedi.','bad',2400);
+              }
+            });
+          });
+
+          const openMessage = (mode)=>{
+            const currentRows = getStudentHomeworkReportRows(classEl.value, sid);
+            const relevant = mode==='done'
+              ? currentRows.filter(r=>r.status==='yapti')
+              : currentRows.filter(r=>['yapmadi','eksik','kitap'].includes(r.status));
+            if(!relevant.length){
+              showToast(mode==='done' ? 'Yapıldı olarak kayıtlı ödev yok.' : 'Takip mesajına eklenecek eksik ödev yok.','warn',2200);
+              return;
+            }
+            const parentPhone = getStudentParentPhone(student);
+            if(!normalizeWhatsAppPhone(parentPhone)){
+              showToast('Bu öğrenci için veli telefonu bulunamadı.','warn',2600);
+              return;
+            }
+            const msg = buildStudentHomeworkWhatsAppMessage(student, currentRows, mode);
+            openWhatsAppComposer({
+              text:msg,
+              phone:parentPhone,
+              recipientLabel:`${safe(student.ADSOYAD)} velisi`,
+              modalTitle: mode==='done' ? 'Yapılan Ödevler — Veli Mesajı' : 'Eksik Ödevler — Veli Mesajı',
+              messageTitle:'WhatsApp Önizleme (Düzenlenebilir)'
+            });
+          };
+
+          reportEl.querySelector('#shrMsgMissing')?.addEventListener('click', ()=>openMessage('missing'));
+          reportEl.querySelector('#shrMsgDone')?.addEventListener('click', ()=>openMessage('done'));
+        };
+
+        classEl.addEventListener('change', ()=>{
+          searchEl.value = '';
+          selectedStudentId = '';
+          refreshStudentOptions();
+        });
+        searchEl.addEventListener('input', refreshStudentOptions);
+        studentEl.addEventListener('change', ()=>{
+          selectedStudentId = safe(studentEl.value);
+          renderReport();
+        });
+        refreshStudentOptions();
+      }
+    });
+  }catch(err){
+    console.error('openStudentHomeworkReport error', err);
+    Swal.fire('Hata','Öğrenci ödev raporu açılamadı.','error');
+  }
 }
 
 // Öğretmen: ödev sınıf listesini yükle
@@ -9330,7 +9946,15 @@ if(filterEl){
 `Öğrencimizin öğrenme sürecini aksatmamak adına, ilgili ödevin en geç *${deadlineStr}* tarihine kadar tamamlanması konusunda desteğinizi rica ediyorum. 🎯\n\n` +
 `İlginiz ve iş birliğiniz için çok teşekkür ederim. \n\n` +
 `_${companyName}_`;
-          openWhatsAppComposer({ text: msg, modalTitle: 'Veli Bilgilendirme Mesajı', messageTitle: 'Mesaj Önizleme (Düzenlenebilir)' });
+          const studentObj = students.find(x => safe(x.NO) === safe(sid));
+          const parentPhone = getStudentParentPhone(studentObj);
+          openWhatsAppComposer({
+            text: msg,
+            phone: parentPhone,
+            recipientLabel: `${studentName} velisi`,
+            modalTitle: 'Veli Bilgilendirme Mesajı',
+            messageTitle: 'Mesaj Önizleme (Düzenlenebilir)'
+          });
         });
       
       // Filtreyi ilk render'da uygula
@@ -10199,7 +10823,7 @@ function printParentHomeworks(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.0</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.1</span></p>
   </footer>
  <style>
 .site-footer{
