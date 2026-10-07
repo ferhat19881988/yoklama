@@ -10199,7 +10199,7 @@ function printParentHomeworks(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.0🔥</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.0</span></p>
   </footer>
  <style>
 .site-footer{
@@ -10225,6 +10225,12 @@ function printParentHomeworks(){
   font-size:.78rem;
   color:var(--brand-2);
   background:var(--glass);
+}
+.version-badge::after{
+  content:"🔥";
+  margin-left:2px;
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  font-style:normal;
 }
 
 </style>
