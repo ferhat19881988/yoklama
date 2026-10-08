@@ -2846,7 +2846,7 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, set, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '2.1';
+    const APP_VERSION = '2.2';
     const APP_RELEASE_PATH = 'config/appRelease';
     const APP_VERSION_CHECK_INTERVAL_MS = 60 * 1000;
     const APP_VERSION_RELOAD_GUARD_KEY = 'fenomen_version_reload_guard_v1';
@@ -9385,7 +9385,7 @@ function getStudentHomeworkReportRows(cls, studentId){
     });
 }
 
-function getStudentHomeworkCompletionRanking(cls, limit=5, maxRate=70){
+function getStudentHomeworkCompletionRanking(cls, maxRate=75){
   return (students || [])
     .filter(st => safe(st.SINIF) === safe(cls) && safe(st.NO))
     .map(st => {
@@ -9394,18 +9394,17 @@ function getStudentHomeworkCompletionRanking(cls, limit=5, maxRate=70){
       const done = rows.filter(r => r.status === 'yapti').length;
       const total = rows.length;
       const rateValue = (done / total) * 100;
-      const rate = Math.round(rateValue);
+      const rate = Math.floor((done * 10000) / total) / 100; // Yüzdeyi 2 ondalıkla, yukarı yuvarlamadan göster
       const follow = rows.filter(r => r.status !== 'yapti').length;
       return { student:st, id:safe(st.NO), name:safe(st.ADSOYAD), done, total, follow, rate, rateValue };
     })
-    .filter(item => item && item.rateValue <= Number(maxRate))
+    .filter(item => item && item.rateValue < Number(maxRate))
     .sort((a,b) =>
-      a.rate - b.rate ||
+      a.rateValue - b.rateValue ||
       b.total - a.total ||
       b.follow - a.follow ||
       a.name.localeCompare(b.name,'tr',{sensitivity:'base'})
-    )
-    .slice(0, Math.max(1, Number(limit) || 5));
+    );
 }
 
 function hwReportStatusOptions(selected){
@@ -9566,12 +9565,12 @@ async function openStudentHomeworkReport(initialState={}){
 
         const renderQuickPick = ()=>{
           quickEl.classList.remove('is-search');
-          const ranking = getStudentHomeworkCompletionRanking(classEl.value, 5, 70);
+          const ranking = getStudentHomeworkCompletionRanking(classEl.value, 75);
           if(!ranking.length){
             quickEl.innerHTML = `
               <div class="shr-quick-head">
                 <div class="shr-quick-title">📉 Hızlı Seçim — Ödev yapma oranı en düşük öğrenciler</div>
-                <div class="shr-quick-note">Yalnızca %70 ve altı</div>
+                <div class="shr-quick-note">Yalnızca %75 altı</div>
               </div>
               <div class="shr-quick-empty">Bu ölçüte uygun öğrenci bulunmuyor.</div>`;
             return;
@@ -9579,13 +9578,13 @@ async function openStudentHomeworkReport(initialState={}){
           quickEl.innerHTML = `
             <div class="shr-quick-head">
               <div class="shr-quick-title">📉 Hızlı Seçim — Ödev yapma oranı en düşük öğrenciler</div>
-              <div class="shr-quick-note">Yaptı / kayıtlı ödev • İlk ${ranking.length} • %70 ve altı</div>
+              <div class="shr-quick-note">Yaptı / kayıtlı ödev • ${ranking.length} öğrenci • %75 altı</div>
             </div>
             <div class="shr-quick-list">
               ${ranking.map(item => `
                 <button class="btn ghost shr-quick-btn" type="button" data-student-id="${esc(item.id)}" title="${esc(item.done)} / ${esc(item.total)} kayıtlı ödev yaptı">
                   <span>${esc(item.name)}</span>
-                  <span class="shr-quick-rate">%${item.rate}</span>
+                  <span class="shr-quick-rate">%${String(item.rate).replace('.', ',')}</span>
                 </button>`).join('')}
             </div>`;
 
@@ -11144,7 +11143,7 @@ function printParentHomeworks(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.1</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.2</span></p>
   </footer>
  <style>
 .site-footer{
