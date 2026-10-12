@@ -443,6 +443,29 @@
   #adminView .btn.whatsBtn{ flex:1 1 140px; }
 }
 
+
+/* v2.3 — Yönetim paneli: sınıf seviyesine göre haftalık SMS izinleri */
+.sms-settings-popup{width:min(660px,96vw)!important;border-radius:18px!important;}
+.sms-settings-popup .swal2-html-container{margin:0!important;padding:0 2px!important;max-height:64dvh!important;overflow-y:auto!important;}
+.sms-schedule-list{display:grid;gap:9px;text-align:left;padding:5px 2px;}
+.sms-grade{border:1px solid rgba(148,163,184,.26);border-radius:13px;background:rgba(148,163,184,.06);overflow:hidden;}
+.sms-grade > summary{padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:800;list-style:none;}
+.sms-grade > summary::-webkit-details-marker{display:none;}
+.sms-grade > summary::after{content:'⌄';font-size:18px;transition:transform .15s;}
+.sms-grade[open] > summary::after{transform:rotate(180deg);}
+.sms-grade .sms-branches{font-size:.76rem;color:var(--muted);font-weight:600;margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:56%;}
+.sms-day-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;border-top:1px solid rgba(148,163,184,.18);padding:12px;}
+.sms-day-label{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 10px;border:1px solid rgba(148,163,184,.25);border-radius:10px;cursor:pointer;font-size:.86rem;font-weight:650;}
+.sms-day-label:has(input:checked){border-color:rgba(34,197,94,.42);background:rgba(34,197,94,.08);}
+.sms-day-label input{width:18px;height:18px;accent-color:#22c55e;flex-shrink:0;}
+.sms-settings-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 2px 4px;justify-content:center;}
+.sms-settings-actions .btn{padding:9px 11px;font-size:.79rem;}
+@media (max-width:480px){
+  .sms-day-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:9px;}
+  .sms-day-label{font-size:.78rem;padding:8px 7px;}
+  .sms-settings-actions{display:grid;grid-template-columns:1fr 1fr;}
+  .sms-settings-actions .btn:last-child{grid-column:1/-1;}
+}
 /* WhatsApp ikon butonu — öğretmen satırları + admin */
     .btn.whatsBtn{
       padding:6px;
@@ -2724,6 +2747,7 @@ div.admin-filters .button-row {
           <div class="action-group" role="group" aria-label="Sistem">
             <div class="group-title">Sistem</div>
             <div class="group-buttons">
+              <button class="btn tool-btn" id="admSmsSettings" type="button">📱 SMS Ayarı</button>
               <button class="btn ghost tool-btn" id="admRefresh" type="button">Yenile</button>
               <button class="btn tool-btn" id="admPrint" type="button">Yazdır</button>
             </div>
@@ -2846,7 +2870,7 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, set, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '2.2';
+    const APP_VERSION = '2.3';
     const APP_RELEASE_PATH = 'config/appRelease';
     const APP_VERSION_CHECK_INTERVAL_MS = 60 * 1000;
     const APP_VERSION_RELOAD_GUARD_KEY = 'fenomen_version_reload_guard_v1';
@@ -3262,6 +3286,7 @@ function openWhatsAppComposer(opts){
       adminView: document.getElementById('adminView'),
       admDate: document.getElementById('admDate'),
       admRefresh: document.getElementById('admRefresh'),
+      admSmsSettings: document.getElementById('admSmsSettings'),
       admPrint: document.getElementById('admPrint'),
       admClass: document.getElementById('admClass'),
       admStatus: document.getElementById('admStatus'),
@@ -3992,6 +4017,168 @@ async function setAttendanceEnabledRemote(enabled){
   }else{
     queueOfflineWrite('/', updates);
   }
+}
+
+// v2.3 — SMS haftalık izinleri (yalnızca SMS listesi filtrelenir; mevcut SMS gönderici değişmez).
+const PARENT_SMS_SCHEDULE_PATH = 'config/parentSmsSchedule';
+const PARENT_SMS_WEEKDAYS = [
+  { key:'mon', label:'Pazartesi' },
+  { key:'tue', label:'Salı' },
+  { key:'wed', label:'Çarşamba' },
+  { key:'thu', label:'Perşembe' },
+  { key:'fri', label:'Cuma' },
+  { key:'sat', label:'Cumartesi' },
+  { key:'sun', label:'Pazar' }
+];
+const PARENT_SMS_JS_DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
+let parentSmsSchedule = null;
+let parentSmsScheduleReady = false;
+
+function parentSmsGradeOf(className){
+  // 5A, 5/A, 5-B ve 5. Sınıf biçimlerini aynı sınıf seviyesinde topla.
+  const m = safe(className).match(/^([1-9]|1[0-2])(?=\D|$)/);
+  return m ? String(Number(m[1])) : '';
+}
+
+function availableParentSmsGrades(){
+  const groups = new Map();
+  for(const student of (students || [])){
+    const cls = safe(student?.SINIF);
+    const grade = parentSmsGradeOf(cls);
+    if(!grade) continue;
+    if(!groups.has(grade)) groups.set(grade, new Set());
+    groups.get(grade).add(cls);
+  }
+  return Array.from(groups, ([grade, branches]) => ({
+    grade, branches: Array.from(branches).sort((a,b)=>a.localeCompare(b,'tr',{numeric:true}))
+  })).sort((a,b)=>Number(a.grade)-Number(b.grade));
+}
+
+function parentSmsDayAllowed(className, dayNumber = nowTR().day()){
+  // Firebase ayarı henüz okunmadıysa izin varsayımı yapıp SMS göndermeyiz.
+  if(!parentSmsScheduleReady) return false;
+  const grade = parentSmsGradeOf(className);
+  if(!grade) return true; // Seviyesi belirlenemeyen eski sınıf tanımlarının davranışı değişmez.
+  const key = PARENT_SMS_JS_DAYS[dayNumber];
+  if(!key) return false;
+  // Firebase yolu yoksa veya bu seviye henüz kayıtlı değilse başlangıç: tüm günler açık.
+  return parentSmsSchedule?.grades?.[grade]?.[key] !== false;
+}
+
+function initParentSmsScheduleListener(){
+  try{
+    onValue(ref(db, PARENT_SMS_SCHEDULE_PATH), snapshot=>{
+      parentSmsSchedule = snapshot.val();
+      parentSmsScheduleReady = true;
+    }, error=>{
+      parentSmsScheduleReady = false;
+      console.error('SMS günlük izinleri okunamadı', error);
+    });
+  }catch(error){
+    parentSmsScheduleReady = false;
+    console.error('SMS günlük izin dinleyicisi başlatılamadı', error);
+  }
+}
+
+function escapeSmsSettingsText(value){
+  return String(value ?? '').replace(/[&<>"']/g, ch=>({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+
+async function openParentSmsScheduleModal(){
+  if(session?.role !== 'admin') return;
+  const groups = availableParentSmsGrades();
+  if(!groups.length){
+    await Swal.fire('SMS Ayarı','Sistemde sınıf seviyesi belirlenebilen öğrenci bulunamadı.','info');
+    return;
+  }
+  if(!canUseFirebase()){
+    await Swal.fire('SMS Ayarı','Firebase bağlantısı olmadığı için ayarlar açılamıyor.','warning');
+    return;
+  }
+
+  let remoteSchedule;
+  try{
+    const snapshot = await get(ref(db, PARENT_SMS_SCHEDULE_PATH));
+    remoteSchedule = snapshot.val();
+  }catch(error){
+    console.error('SMS ayarı okuma hatası', error);
+    await Swal.fire('Hata','SMS ayarları Firebase üzerinden okunamadı.','error');
+    return;
+  }
+
+  const gradeHtml = groups.map(({grade, branches})=>{
+    const days = PARENT_SMS_WEEKDAYS.map(({key, label})=>{
+      const checked = remoteSchedule?.grades?.[grade]?.[key] !== false;
+      return `<label class="sms-day-label"><span>${label}</span><input type="checkbox" data-sms-grade="${grade}" data-sms-day="${key}" ${checked?'checked':''} aria-label="${grade}. sınıf ${label} SMS izni"></label>`;
+    }).join('');
+    return `<details class="sms-grade"><summary><span>${grade}. Sınıf</span><span class="sms-branches">${escapeSmsSettingsText(branches.join(', '))}</span></summary><div class="sms-day-grid">${days}</div></details>`;
+  }).join('');
+
+  const result = await Swal.fire({
+    title:'SMS Ayarı',
+    html:`<div class="sms-schedule-list">${gradeHtml}</div><div class="sms-settings-actions"><button type="button" id="smsDaysReset" class="btn ghost">Sıfırla</button><button type="button" id="smsDaysDefault" class="btn ghost">Varsayılana Dön</button><button type="button" id="smsFirebaseRemove" class="btn ghost danger">Firebase'den Sil</button></div>`,
+    customClass:{popup:'sms-settings-popup'},
+    showCancelButton:true,
+    confirmButtonText:'Tümünü Kaydet',
+    cancelButtonText:'Kapat',
+    showLoaderOnConfirm:true,
+    allowOutsideClick:()=>!Swal.isLoading(),
+    didOpen:popup=>{
+      const checks = ()=>Array.from(popup.querySelectorAll('input[data-sms-grade][data-sms-day]'));
+      popup.querySelector('#smsDaysReset')?.addEventListener('click',()=>{
+        checks().forEach(c=>{c.checked=false;});
+      });
+      popup.querySelector('#smsDaysDefault')?.addEventListener('click',()=>{
+        checks().forEach(c=>{c.checked=true;});
+      });
+      popup.querySelector('#smsFirebaseRemove')?.addEventListener('click',async e=>{
+        if(!window.confirm('Firebase üzerindeki SMS ayarları tamamen silinsin mi?')) return;
+        const button = e.currentTarget;
+        button.disabled = true;
+        try{
+          if(!canUseFirebase()) throw new Error('Firebase bağlantısı yok.');
+          await set(ref(db, PARENT_SMS_SCHEDULE_PATH), null);
+          parentSmsSchedule = null;
+          parentSmsScheduleReady = true;
+          Swal.close();
+          await Swal.fire('Silindi','SMS ayarları Firebase üzerinden kaldırıldı.','success');
+        }catch(error){
+          console.error('SMS ayarı silme hatası', error);
+          Swal.showValidationMessage('Firebase ayarı silinemedi: '+(error?.message || 'Bilinmeyen hata'));
+          button.disabled = false;
+        }
+      });
+    },
+    preConfirm:async()=>{
+      if(session?.role !== 'admin' || !canUseFirebase()){
+        Swal.showValidationMessage('Firebase bağlantısı veya yönetici oturumu bulunamadı.');
+        return false;
+      }
+      const grades = {};
+      for(const {grade} of groups){
+        grades[grade] = {};
+        for(const {key} of PARENT_SMS_WEEKDAYS){
+          const checkbox = Swal.getPopup()?.querySelector(`input[data-sms-grade="${grade}"][data-sms-day="${key}"]`);
+          grades[grade][key] = !!checkbox?.checked;
+        }
+      }
+      const next = {schemaVersion:1, grades, updatedAt:Date.now(), updatedBy:'admin'};
+      try{
+        // Tüm ayar düğümünü tek işlemde değiştir; eski sınıf seviyeleri kalmaz.
+        await set(ref(db, PARENT_SMS_SCHEDULE_PATH), next);
+        parentSmsSchedule = next;
+        parentSmsScheduleReady = true;
+        return true;
+      }catch(error){
+        console.error('SMS ayarı kaydetme hatası', error);
+        Swal.showValidationMessage('Ayarlar kaydedilemedi: '+(error?.message || 'Bilinmeyen hata'));
+        return false;
+      }
+    }
+  });
+  if(result.isConfirmed) await Swal.fire('Kaydedildi','Tüm sınıf seviyelerinin SMS günleri kaydedildi.','success');
 }
     // Parent homework filter and displayed list
     // Possible values: 'current' (güncel/yaklaşan) veya 'past' (geçmiş).
@@ -5347,6 +5534,7 @@ async function refreshVisibleView(reason='resume'){
       
       // Yoklama aktif/pasif durumunu dinle (Admin -> Firebase)
       initAttendanceConfigListener();
+      initParentSmsScheduleListener();
 await loadSheets(); buildSlotOrder();
 
       let bridgeHandled = false;
@@ -5438,6 +5626,7 @@ await loadSheets(); buildSlotOrder();
 
       // Admin controls
       UI.admRefresh?.addEventListener('click', refreshAdminAllData);
+      UI.admSmsSettings?.addEventListener('click', openParentSmsScheduleModal);
       UI.admWhatsApp?.addEventListener('click', sendWhatsAppReport);
       // v1.5 🔥 — Tarih ve sınıf değişince bağımlı Program/Saat filtrelerini aynı kapsamda yeniden kur.
       UI.admClass?.addEventListener('change', () => { syncAdminScheduleFilters(); refreshAdmin(); });
@@ -6425,6 +6614,8 @@ function collectParentAttendanceSmsBatch(){
     if(!rec) return;
     const st = map.get(safe(id));
     if(!st) return;
+    // v2.3: Gün ve sınıf seviyesine göre SMS izni. Yoklama kaydı bu filtreden etkilenmez.
+    if(!parentSmsDayAllowed(st.sinif)) return;
 
     const status = safe(rec.status);
     const isLate = !!rec.late;
@@ -6451,13 +6642,16 @@ async function handleAttendanceSaveClick(){
 
   const smsHourNo = getSmsLessonHourNo(currentLesson);
   const shouldSendParentSms = isParentSmsLesson(currentLesson);
+  // Gösterilen onay metni de güncel sınıf/gün izinlerini yansıtsın.
+  const smsPreview = shouldSendParentSms ? collectParentAttendanceSmsBatch() : null;
+  const smsEnabledToday = shouldSendParentSms && !!smsPreview?.total;
 
   const title = shouldSendParentSms ? `${smsHourNo}. Saat Yoklaması` : 'Yoklama Onayı';
-  const text  = shouldSendParentSms
+  const text  = smsEnabledToday
     ? `Sayın öğretmenimiz, ${smsHourNo}. saat yoklamasında dikkatli yoklama almanızı rica ederiz. Çünkü 1. ve 2. saat yoklamalarında gelmeyen ve geç gelen öğrencilerin velilerine SMS gönderilmektedir.\n\nYoklama kaydedilsin mi?`
     : 'Sayın öğretmenimiz, yoklamayı doğru aldınız mı?\n\nYoklama kaydedilsin mi?';
 
-  const confirmButtonText = shouldSendParentSms ? 'Evet, Kaydet ve SMS Gönder' : 'Evet, Kaydet';
+  const confirmButtonText = smsEnabledToday ? 'Evet, Kaydet ve SMS Gönder' : 'Evet, Kaydet';
 
   const res = await Swal.fire({
     title,
@@ -11143,7 +11337,7 @@ function printParentHomeworks(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.2</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.3</span></p>
   </footer>
  <style>
 .site-footer{
