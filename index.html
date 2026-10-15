@@ -2611,6 +2611,7 @@ div.admin-filters .button-row {
             <!-- İptal düğmesi: paneli kapatır -->
             <button class="btn danger" id="hwCancelBtn" type="button">İptal</button>
           </div>
+          <div id="hwTransferInfo" class="muted hidden" role="status" style="font-size:.85rem;"></div>
           <div class="hw-status-filter" aria-label="Ödev durum filtresi">
   <span class="muted">Filtre:</span>
   <select id="hwStatusFilter" class="input" aria-label="Ödev durum filtresi seçimi">
@@ -8362,52 +8363,27 @@ async function openWeeklyAbsenceModal(){
    bağlanmış durum kayıtları gösterilir. Geçmiş sınıf bilgisi yoksa atanmış ama
    hiç kontrol edilmemiş eski ödevlerin öğrenciye ait olduğu varsayılmaz. */
 async function loadStudentHomeworksAcrossClasses(studentId, currentClass){
-  const id = safe(studentId), cls = safe(currentClass);
-  if(!id || !cls) return [];
-  let allByClass = {};
-  try{
-    const snap = await get(ref(db,'homeworks'));
-    allByClass = snap.exists() ? (snap.val() || {}) : {};
-  }catch(err){
-    // Kök okuma izni yoksa mevcut sınıf için önceki davranışı koru.
-    console.warn('Ödev arşivi okunamadı; mevcut sınıf okunuyor.',err);
-    const snap = await get(ref(db,`homeworks/${cls}`));
-    allByClass = { [cls]: snap.exists() ? (snap.val() || {}) : {} };
+  const sid=safe(studentId), cls=safe(currentClass);
+  if(!sid || !cls) return [];
+  let ctx=await buildHomeworkLiveContext();
+  // Kök arşive erişim engellenmişse öğrencinin güncel sınıfını ayrıca ekle.
+  if(!ctx.sourceComplete){
+    try{
+      const snap=await get(ref(db,`homeworks/${cls}`));
+      const current=Object.entries(snap.exists() ? (snap.val() || {}) : {})
+        .map(([id,hw])=>({...hw,id,class:cls}));
+      ctx=await buildHomeworkLiveContext([...ctx.all,...current]);
+    }catch(err){ console.warn('Öğrencinin güncel sınıf ödevleri okunamadı.',err); }
   }
-  const all = [];
-  Object.entries(allByClass).forEach(([hwCls, group])=>{
-    Object.entries(group || {}).forEach(([hwId, hw])=>{
-      if(hw && typeof hw === 'object') all.push({...hw,id:hwId,class:hwCls});
-    });
-  });
-  const gids = [...new Set(all.map(getHomeworkGroupId).filter(Boolean))];
-  const statuses = new Map();
-  try{
-    const snap = await get(ref(db,'hwStatus'));
-    const data = snap.exists() ? (snap.val() || {}) : {};
-    gids.forEach(gid=>statuses.set(String(gid),data[String(gid)] || {}));
-  }catch(_){
-    for(let i=0;i<gids.length;i+=12){
-      await Promise.all(gids.slice(i,i+12).map(async gid=>{
-        try{
-          const snap = await get(ref(db,`hwStatus/${gid}`));
-          statuses.set(String(gid),snap.exists() ? (snap.val() || {}) : {});
-        }catch(err){ console.warn('Ödev durum kaydına erişilemedi:',gid,err); }
-      }));
-    }
-  }
-  const unique = new Map();
-  all.forEach(hw=>{
-    const gid = getHomeworkGroupId(hw);
-    const record = gid ? (statuses.get(String(gid))?.[id] || hw.statuses?.[id]) : hw.statuses?.[id];
-    const status = safe(record?.status);
-    const belongsToCurrent = safe(hw.class) === cls;
-    if(!belongsToCurrent && !status) return;
-    const key = gid ? `grup:${gid}` : `tek:${safe(hw.class)}:${safe(hw.id)}`;
-    const candidate = { ...hw, studentStatus:status, studentStatusTime:Number(record?.ts || 0) };
-    const prev = unique.get(key);
-    // Ortak ödev mevcut sınıfa atanmışsa güncel sınıftaki kopyasını tercih et.
-    if(!prev || (belongsToCurrent && safe(prev.class)!==cls)) unique.set(key,candidate);
+  const unique=new Map();
+  ctx.all.forEach(hw=>{
+    const rec=resolveHomeworkStudentRecord(ctx,hw,sid);
+    const belongs=normTR(hw.class)===normTR(cls);
+    if(!belongs && !HW_STATUSES[safe(rec?.status)]) return;
+    const key=getHomeworkResolvedUniqueKey(ctx,hw);
+    const candidate={...hw,studentStatus:safe(rec?.status),studentStatusTime:Number(rec?.ts||0)};
+    const prev=unique.get(key);
+    if(!prev || (belongs && normTR(prev.class)!==normTR(cls))) unique.set(key,candidate);
   });
   return [...unique.values()].sort((a,b)=>
     safe(a.dueDate).localeCompare(safe(b.dueDate)) ||
@@ -9418,7 +9394,7 @@ function renderTeacherHomeworks(items, gidMap, opts={}){
     const classSet = new Set(students.filter(s=> safe(s.SINIF)===safe(hw.class)).map(s=>safe(s.NO)));
 
     const gid = getHomeworkGroupId(hw);
-    const statuses = gid ? (gidMap.get(gid) || {}) : (hw.statuses || {});
+    const statuses = teacherHwResolvedStatuses.get(homeworkLiveKey(hw)) || (gid ? (gidMap.get(String(gid)) || gidMap.get(gid) || {}) : (hw.statuses || {}));
 
     const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
     Object.entries(statuses).forEach(([sid,rec])=>{
@@ -9632,7 +9608,13 @@ function renderTeacherHomeworks(items, gidMap, opts={}){
   });
 }
 
-// Ödev kimliği / statü erişimi: rapor ve mevcut kontrol ekranı aynı kaynağı kullanır.
+// Tek öğrenci / tek çalışma ilkesi: sınıf öğrencinin güncel listesini belirler,
+// ödevin durumunu ise öğrencinin numarası + ödevin güvenilir kimliği belirler.
+// Eski global ve yerel kayıtlar silinmez. Ayrı groupId'li kopyalar yalnızca
+// öğretmen, ders, başlık ve teslim tarihi tam eşleşirse ilişkilendirilir.
+let teacherHwLiveContext = null;
+let teacherHwResolvedStatuses = new Map();
+
 function getHomeworkGroupId(hwOrId){
   const hw = (hwOrId && typeof hwOrId === 'object') ? hwOrId : null;
   const direct = hw?.groupId;
@@ -9642,13 +9624,220 @@ function getHomeworkGroupId(hwOrId){
   return m ? Number(m[1]) : null;
 }
 
+function homeworkLiveKey(hw){ return `${safe(hw?.class)}|${safe(hw?.id)}`; }
+function homeworkTransferSignature(hw){
+  const owner = safe(hw?.teacherId)
+    ? `id:${safe(hw.teacherId)}`
+    : (safe(hw?.teacherName) ? `ad:${normHwSearch(hw.teacherName)}` : '');
+  const title = normHwSearch(hw?.title).trim();
+  const date = safe(hw?.dueDate);
+  if(!owner || !title || !date) return '';
+  return JSON.stringify([owner,title,date,normHwSearch(hw?.subject).trim()]);
+}
+
+async function buildHomeworkLiveContext(additional=[]){
+  let all = [], sourceComplete = false;
+  try{
+    const snap = await get(ref(db, 'homeworks'));
+    const byClass = snap.exists() ? (snap.val() || {}) : {};
+    Object.entries(byClass).forEach(([cls, nodes])=>{
+      Object.entries(nodes || {}).forEach(([id,hw])=>{
+        if(hw && typeof hw === 'object') all.push({...hw,id,class:cls});
+      });
+    });
+    sourceComplete = true;
+  }catch(err){
+    // Yetkilendirme kök okumayı engellerse yalnız erişilebilir kayıtlar kullanılır.
+    console.warn('Sınıflar arası ödev arşivi okunamadı.',err);
+    all = [...(teacherHwAll || []),...(teacherHwReportHistory || [])];
+  }
+  const byKey = new Map();
+  [...all,...additional].forEach(hw=>{
+    if(hw && hw.id !== undefined && hw.class !== undefined)
+      byKey.set(homeworkLiveKey(hw),hw);
+  });
+  all = [...byKey.values()];
+
+  const byGroup = new Map(), bySignature = new Map();
+  all.forEach(hw=>{
+    const gid = getHomeworkGroupId(hw);
+    if(gid != null){
+      const key = String(gid);
+      if(!byGroup.has(key)) byGroup.set(key,[]);
+      byGroup.get(key).push(hw);
+    }
+    const sign = homeworkTransferSignature(hw);
+    if(sign){
+      if(!bySignature.has(sign)) bySignature.set(sign,[]);
+      bySignature.get(sign).push(hw);
+    }
+  });
+
+  const statusByGroup = new Map();
+  try{
+    const snap = await get(ref(db,'hwStatus'));
+    const node = snap.exists() ? (snap.val() || {}) : {};
+    byGroup.forEach((_,gid)=>statusByGroup.set(gid,node[gid] || {}));
+  }catch(err){
+    // Kök hwStatus izni yoksa gid başına okuma; erişilemeyen kayıtlar uydurulmaz.
+    const gids = [...byGroup.keys()];
+    for(let i=0;i<gids.length;i+=12){
+      await Promise.all(gids.slice(i,i+12).map(async gid=>{
+        try{
+          const snap = await get(ref(db,`hwStatus/${gid}`));
+          statusByGroup.set(gid,snap.exists() ? (snap.val() || {}) : {});
+        }catch(e){ console.warn('Ödev durumuna erişilemedi:',gid,e); }
+      }));
+    }
+  }
+  return {all,byGroup,bySignature,statusByGroup,sourceComplete};
+}
+
+function getEquivalentHomeworkCopies(ctx,hw){
+  if(!ctx || !hw) return [hw];
+  const copies = new Map();
+  const append = row=>copies.set(homeworkLiveKey(row),row);
+  append(hw);
+  const gid = getHomeworkGroupId(hw);
+  if(gid != null) (ctx.byGroup.get(String(gid)) || []).forEach(append);
+  const sign = homeworkTransferSignature(hw);
+  const sameSignature = sign ? (ctx.bySignature.get(sign) || []) : [];
+  // Aynı sınıfta aynı imza ile farklı ödevlerin varlığı eşleştirmeyi belirsiz yapar.
+  // Bu durumda yalnız aynı groupId paylaşan kopyalar kullanılabilir.
+  const byClass = new Map();
+  sameSignature.forEach(item=>{
+    const cls = normTR(item.class);
+    if(!byClass.has(cls)) byClass.set(cls,new Set());
+    byClass.get(cls).add(String(getHomeworkGroupId(item) ?? homeworkLiveKey(item)));
+  });
+  const ambiguous = [...byClass.values()].some(groups=>groups.size>1);
+  if(!ambiguous) sameSignature.forEach(append);
+  return [...copies.values()];
+}
+
+function validHomeworkStatusRecord(rec){
+  return rec && typeof rec === 'object' &&
+    (rec.status === '' || Object.prototype.hasOwnProperty.call(HW_STATUSES,safe(rec.status)));
+}
+
+function getHomeworkDirectRecord(ctx,hw,studentId){
+  const sid=safe(studentId), gid=getHomeworkGroupId(hw);
+  const central= gid == null ? null : ctx?.statusByGroup?.get(String(gid));
+  if(central && Object.prototype.hasOwnProperty.call(central,sid)){
+    return validHomeworkStatusRecord(central[sid]) ? central[sid] : null;
+  }
+  return validHomeworkStatusRecord(hw?.statuses?.[sid]) ? hw.statuses[sid] : null;
+}
+
+function resolveHomeworkStudentRecord(ctx,hw,studentId){
+  const copies = getEquivalentHomeworkCopies(ctx,hw);
+  const records = copies.map(copy=>({
+    hw:copy,rec:getHomeworkDirectRecord(ctx,copy,studentId),
+    direct:homeworkLiveKey(copy)===homeworkLiveKey(hw)
+  })).filter(row=>row.rec);
+  if(!records.length) return null;
+  records.sort((a,b)=>
+    (Number(b.rec.ts)||0)-(Number(a.rec.ts)||0) || Number(b.direct)-Number(a.direct)
+  );
+  // İki farklı grup aynı zaman damgasında farklı statü taşıyorsa karar verme.
+  const latest = Number(records[0].rec.ts)||0;
+  const equallyRecent = records.filter(row=>(Number(row.rec.ts)||0)===latest);
+  const distinct = new Set(equallyRecent.map(row=>safe(row.rec.status)));
+  if(distinct.size>1){
+    const direct = equallyRecent.find(row=>row.direct);
+    return direct ? direct.rec : null;
+  }
+  return records[0].rec;
+}
+
+function resolvedHomeworkStatuses(ctx,hw,studentIds){
+  const out = {};
+  (studentIds||[]).forEach(id=>{
+    const record = resolveHomeworkStudentRecord(ctx,hw,id);
+    if(record) out[safe(id)] = record;
+  });
+  return out;
+}
+
+function getHomeworkResolvedUniqueKey(ctx,hw){
+  const sign=homeworkTransferSignature(hw);
+  if(sign && ctx){
+    const copies=getEquivalentHomeworkCopies(ctx,hw);
+    if(copies.length>1 && copies.some(copy=>getHomeworkGroupId(copy)!==getHomeworkGroupId(hw)))
+      return `esdeger:${sign}`;
+  }
+  const gid=getHomeworkGroupId(hw);
+  return gid == null ? `tek:${homeworkLiveKey(hw)}` : `grup:${gid}`;
+}
+
+function homeworkStatusWritePath(hw,studentId){
+  // Geçmiş sınıfın orijinal kaydını hiçbir zaman değiştirme.
+  // En son değişiklik yalnızca kullanıcının işlem yaptığı ödev grubuna yazılır;
+  // diğer sınıf ekranları yeni durumu aynı çözücü aracılığıyla okur.
+  const gid=getHomeworkGroupId(hw);
+  return gid != null
+    ? `hwStatus/${gid}/${safe(studentId)}`
+    : `homeworks/${hw.class}/${hw.id}/statuses/${safe(studentId)}`;
+}
+
+function putHomeworkRecordInContext(ctx,hw,studentId,record){
+  if(!ctx) return;
+  const gid=getHomeworkGroupId(hw);
+  if(gid != null){
+    const key=String(gid), values={...(ctx.statusByGroup.get(key)||{})};
+    values[safe(studentId)]=record;
+    ctx.statusByGroup.set(key,values);
+    const teacherValues={...(teacherHwGidMap.get(key)||{})};
+    teacherValues[safe(studentId)]=record;
+    teacherHwGidMap.set(key,teacherValues);
+  }else{
+    const copy=ctx.all.find(item=>homeworkLiveKey(item)===homeworkLiveKey(hw));
+    const target=copy||hw;
+    target.statuses={...(target.statuses||{}),[safe(studentId)]:record};
+  }
+}
+
+// Bağlantı varsa yalnız boş hedef kaydı güvenli işlemle tamamla. Var olan
+// hedef durumunu (ve diğer sınıflardaki geçmiş kayıtları) asla ezme.
+async function repairInheritedHomeworkStatuses(ctx,hw,studentIds){
+  if(!ctx?.sourceComplete || !canUseFirebase()) return;
+  const gid=getHomeworkGroupId(hw);
+  const target=gid != null ? `hwStatus/${gid}` : `homeworks/${hw.class}/${hw.id}/statuses`;
+  const repairs=[];
+  for(const sid of studentIds){
+    const direct=getHomeworkDirectRecord(ctx,hw,sid);
+    const inherited=resolveHomeworkStudentRecord(ctx,hw,sid);
+    if(direct || !inherited || !HW_STATUSES[safe(inherited.status)]) continue;
+    repairs.push({sid,record:inherited});
+  }
+  for(let i=0;i<repairs.length;i+=8){
+    await Promise.all(repairs.slice(i,i+8).map(async({sid,record})=>{
+      try{
+        const result=await runTransaction(ref(db,`${target}/${sid}`),current=>{
+          return current == null ? record : undefined;
+        },{applyLocally:false});
+        // Eşzamanlı başka bir öğretmen kayıt yaptıysa işlemi iptal et;
+        // kendi ekranda da sunucunun gerçek sonucunu esas al.
+        const actual=result.committed ? record : result.snapshot?.val?.();
+        if(validHomeworkStatusRecord(actual)){
+          if(gid != null){
+            const map={...(ctx.statusByGroup.get(String(gid))||{})};
+            map[sid]=actual;ctx.statusByGroup.set(String(gid),map);
+          }else{
+            hw.statuses={...(hw.statuses||{}),[sid]:actual};
+          }
+        }
+      }catch(err){ console.warn('Devralınan ödev durumu otomatik kaydedilemedi.',err); }
+    }));
+  }
+}
+
 function getHomeworkStatusesFromCache(hw){
   if(!hw) return {};
-  const legacy = hw.statuses || {};
-  const gid = getHomeworkGroupId(hw);
-  // Eski sınıf bazlı kayıtlar ile yeni ortak grup kayıtlarını birlikte oku;
-  // aynı öğrencide varsa merkezi durum her zaman güncel/doğru kabul edilir.
-  return gid ? { ...legacy, ...(teacherHwGidMap.get(gid) || {}) } : legacy;
+  return teacherHwResolvedStatuses.get(homeworkLiveKey(hw)) || (()=>{
+    const gid=getHomeworkGroupId(hw);
+    return gid == null ? (hw.statuses || {}) : {...(hw.statuses || {}),...(teacherHwGidMap.get(String(gid))||teacherHwGidMap.get(gid)||{})};
+  })();
 }
 
 function homeworkBelongsToCurrentTeacher(hw){
@@ -9673,23 +9862,27 @@ function getTeacherHomeworkReportClasses(){
 }
 
 // Sınıf değiştiren öğrencinin geçmiş kayıtları öğrenci numarasıyla bulunur.
-// Aynı grup ödevi birden çok sınıfa verilmişse raporda yalnızca bir kez yer alır.
+// Aynı çalışma birden çok sınıfa verilmişse raporda yalnızca bir kez yer alır.
 function getStudentHomeworkReportRows(cls, studentId){
   const unique = new Map();
+  const context = teacherHwLiveContext;
   const homeworks = [...(teacherHwAll || []), ...(teacherHwReportHistory || [])];
   homeworks.filter(homeworkBelongsToCurrentTeacher).forEach(hw=>{
-    const rec = getHomeworkStatusesFromCache(hw)?.[safe(studentId)] || null;
+    const rec = context
+      ? resolveHomeworkStudentRecord(context,hw,studentId)
+      : getHomeworkStatusesFromCache(hw)?.[safe(studentId)];
     const status = safe(rec?.status);
-    if(!status || !Object.prototype.hasOwnProperty.call(HW_STATUSES,status)) return;
-    const gid = getHomeworkGroupId(hw);
-    const key = gid ? `grup:${gid}` : `tek:${safe(hw.class)}:${safe(hw.id)}`;
+    if(!Object.prototype.hasOwnProperty.call(HW_STATUSES,status)) return;
+    const key=getHomeworkResolvedUniqueKey(context,hw);
     const row = {
       hw, status, ts:Number(rec?.ts || 0), dueDate:safe(hw.dueDate),
       title:safe(hw.title) || 'Ödev',
       subject:safe(hw.subject) || safe(session?.teacherBranch) || 'Ders'
     };
     const previous = unique.get(key);
-    if(!previous || (safe(hw.class)===safe(cls) && safe(previous.hw.class)!==safe(cls))) unique.set(key,row);
+    if(!previous ||
+      (safe(hw.class)===safe(cls) && safe(previous.hw.class)!==safe(cls)) ||
+      (previous.ts < row.ts && safe(previous.hw.class)!==safe(cls))) unique.set(key,row);
   });
   return [...unique.values()].sort((a,b)=>
     (b.dueDate || '0000-00-00').localeCompare(a.dueDate || '0000-00-00') ||
@@ -9715,24 +9908,16 @@ async function loadTeacherHomeworkReportHistory(){
       if(homeworkBelongsToCurrentTeacher(item)) history.push(item);
     });
   });
-  const gids = [...new Set(history.map(getHomeworkGroupId).filter(Boolean))];
-  // İlk tercih tek okuma; güvenlik kuralları kök erişimini engellerse mevcut grup bazlı okuma.
-  try{
-    const statusSnap = await get(ref(db, 'hwStatus'));
-    const allStatuses = statusSnap.exists() ? (statusSnap.val() || {}) : {};
-    gids.forEach(gid=>teacherHwGidMap.set(gid, allStatuses[String(gid)] || {}));
-  }catch(err){
-    console.warn('Toplu ödev durumu okunamadı; grup bazlı erişim kullanılıyor.',err);
-    for(let i=0;i<gids.length;i+=12){
-      await Promise.all(gids.slice(i,i+12).map(async gid=>{
-        try{
-          const snap = await get(ref(db, `hwStatus/${gid}`));
-          teacherHwGidMap.set(gid,snap.exists() ? (snap.val() || {}) : {});
-        }catch(e){ console.warn('Ödev grubu okunamadı:', gid, e); }
-      }));
-    }
-  }
   teacherHwReportHistory = history;
+  try{
+    teacherHwLiveContext = await buildHomeworkLiveContext([...teacherHwAll,...history]);
+    teacherHwLiveContext.statusByGroup.forEach((records,gid)=>teacherHwGidMap.set(gid,records));
+    teacherHwResolvedStatuses = new Map();
+    (teacherHwAll||[]).forEach(hw=>{
+      const ids=students.filter(st=>normTR(st.SINIF)===normTR(hw.class)).map(st=>safe(st.NO));
+      teacherHwResolvedStatuses.set(homeworkLiveKey(hw),resolvedHomeworkStatuses(teacherHwLiveContext,hw,ids));
+    });
+  }catch(err){ console.warn('Ödev canlı kayıtları yüklenemedi.',err); }
 }
 
 function getStudentHomeworkCompletionRanking(cls, maxRate=75){
@@ -9777,23 +9962,18 @@ async function updateStudentHomeworkStatusFromReport(hw, studentId, nextStatus){
   if(!hw || !studentId || !HW_STATUSES[nextStatus]) throw new Error('Geçersiz ödev durumu.');
   const gid = getHomeworkGroupId(hw);
   const record = { status: nextStatus, ts: Date.now() };
-  const base = gid ? `hwStatus/${gid}` : `homeworks/${hw.class}/${hw.id}/statuses`;
-  const patch = { [`${base}/${studentId}`]: record };
+  const liveCtx=teacherHwLiveContext || await buildHomeworkLiveContext([hw]);
+  const patch = {};
+  patch[homeworkStatusWritePath(hw,studentId)] = record;
   const queued = !canUseFirebase();
 
   if(queued) queueOfflineWrite('/', patch);
   else await update(ref(db), patch);
 
-  // Bellek kaydını aynı anda güncelle; ödev kartlarındaki özet de beklemeden değişsin.
-  if(gid){
-    const current = { ...(teacherHwGidMap.get(gid) || {}) };
-    current[studentId] = record;
-    teacherHwGidMap.set(gid, current);
-  }else{
-    const target = [...(teacherHwAll || []), ...(teacherHwReportHistory || [])]
-      .find(x => safe(x.class)===safe(hw.class) && safe(x.id)===safe(hw.id));
-    if(target) target.statuses = { ...(target.statuses || {}), [studentId]:record };
-  }
+  // Tek kaynağı güncelle; eski sınıftaki orijinal kayıt tarihsel haliyle kalır.
+  putHomeworkRecordInContext(liveCtx,hw,studentId,record);
+  teacherHwLiveContext=liveCtx;
+  teacherHwResolvedStatuses.clear();
 
   // Açık Ödev Kontrol paneli aynı ödevi (veya aynı groupId'yi) gösteriyorsa seçimi anında eşitle.
   if(openHwCtx && UI.hwStudentList){
@@ -10047,7 +10227,7 @@ async function openStudentHomeworkReport(initialState={}){
             <div class="shr-row" data-hw-id="${esc(r.hw.id)}" data-hw-class="${esc(r.hw.class)}" data-row-index="${idx}">
               <div>
                 <div class="shr-row-title">${hwReportStatusIcon(r.status)} ${esc(r.title)}</div>
-                <div class="shr-row-meta">${esc(r.subject)} • ${esc(formatHomeworkReportDate(r.dueDate))}${safe(r.hw.class)!==safe(classEl.value) ? ` • Önceki sınıf: ${esc(r.hw.class)}` : ''}</div>
+                <div class="shr-row-meta">${esc(r.subject)} • ${esc(formatHomeworkReportDate(r.dueDate))}</div>
               </div>
               <div class="shr-status-wrap">
                 <select class="input shr-status" aria-label="${esc(r.title)} durumu">${hwReportStatusOptions(r.status)}</select>
@@ -10381,19 +10561,21 @@ async function loadTeacherHomeworks(){
     return (a.dueDate||'').localeCompare(b.dueDate||'','tr');
   });
 
-  // Global statüleri (varsa) önceden çek
-  const gidSet = new Set(items.map(h => h.groupId ?? (String(h.id||'').match(/^(\d+)-\d+$/)?.[1] ? Number(String(h.id).split('-')[0]) : null)).filter(Boolean));
-  const gidMap = new Map();
-  for(const gid of gidSet){
-    try{
-      const sSnap = await get(ref(db, `hwStatus/${gid}`));
-      gidMap.set(gid, sSnap.exists() ? (sSnap.val()||{}) : {});
-    }catch{ gidMap.set(gid, {}); }
-  }
-
-  // Ödevleri belleğe al + filtreli listeyi bas
+  // Tek arşiv okuması: önceki sürümdeki tüm groupId kayıtlarını tek tek
+  // yükleyen ikinci döngü kaldırıldı. Kart, kontrol ve rapor aynı veriyi görür.
   teacherHwAll = items;
-  teacherHwGidMap = gidMap;
+  try{ teacherHwLiveContext = await buildHomeworkLiveContext(items); }
+  catch(err){ console.warn('Ödev arşivi yüklenemedi; mevcut sınıflar korunuyor.',err); }
+  if(!teacherHwLiveContext) return;
+  teacherHwGidMap = new Map();
+  teacherHwLiveContext.statusByGroup.forEach((records,gid)=>{
+    teacherHwGidMap.set(gid,records);
+  });
+  teacherHwResolvedStatuses = new Map();
+  items.forEach(hw=>{
+    const ids=students.filter(st=>normTR(st.SINIF)===normTR(hw.class)).map(st=>safe(st.NO));
+    teacherHwResolvedStatuses.set(homeworkLiveKey(hw),resolvedHomeworkStatuses(teacherHwLiveContext,hw,ids));
+  });
 
   // Varsayılan: Güncel(Bugün)
   if(!teacherHwTab) teacherHwTab = 'current';
@@ -10430,15 +10612,9 @@ async function sendHomeworkBulkMessage(cls,id){
     const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
     const groupId = hw.groupId ?? legacyGid ?? null;
 
-    let statuses = {};
-    if(groupId){
-      try{
-        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
-        statuses = sSnap.exists() ? (sSnap.val() || {}) : {};
-      }catch{ statuses = {}; }
-    }else{
-      statuses = hw.statuses || {};
-    }
+    const liveHw={...hw,id,class:cls};
+    const ctx=await buildHomeworkLiveContext([liveHw]);
+    const statuses=resolvedHomeworkStatuses(ctx,liveHw,list.map(st=>st.id));
     const delivery = list
       .map(s => ({ ...s, status: statuses?.[s.id]?.status || '' }))
       .filter(s => s.ad && (s.status === 'yapti' || s.status === 'eksik'))
@@ -10493,7 +10669,7 @@ async function openHomeworkControl(cls,id){
 
     // Sınıf listesini hazırla
     const list = students
-      .filter(s => safe(s.SINIF) === safe(cls))
+      .filter(s => normTR(s.SINIF) === normTR(cls))
       .map(s => ({ id: safe(s.NO), ad: s.ADSOYAD || '', no: safe(s.NO) }))
       .sort((a,b)=> a.ad.localeCompare(b.ad,'tr',{sensitivity:'base'}));
 
@@ -10501,15 +10677,20 @@ async function openHomeworkControl(cls,id){
     const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
     const groupId = hw.groupId ?? legacyGid ?? null;
 
-    // Statüleri yükle: önce global, yoksa eski local
-    let statuses = {};
-    if(groupId){
-      try{
-        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
-        statuses = sSnap.exists() ? (sSnap.val()||{}) : {};
-      }catch{ statuses = {}; }
-    }else{
-      statuses = hw.statuses || {};
+    // Her açılışta güncel sınıf listesini ve eski sınıflardaki aynı ödevi birlikte çöz.
+    const activeHw={...hw,id,class:cls};
+    const liveCtx=await buildHomeworkLiveContext([activeHw]);
+    const rosterIds=list.map(st=>st.id);
+    // Arşivden devralınan bir statü varsa, yalnız boş hedef kayda otomatik yaz.
+    await repairInheritedHomeworkStatuses(liveCtx,activeHw,rosterIds);
+    const statuses=resolvedHomeworkStatuses(liveCtx,activeHw,rosterIds);
+    const initialStatuses=new Map(rosterIds.map(sid=>[sid,safe(statuses[sid]?.status)]));
+    if(openHwCtx?.cls!==cls || openHwCtx?.id!==id) return;
+    const statusNote=document.getElementById('hwTransferInfo');
+    if(statusNote){
+      statusNote.textContent=liveCtx.sourceComplete ? '' :
+        'Ödev arşivinin tamamı okunamadı; eski sınıflardan durum aktarımı eksik olabilir.';
+      statusNote.classList.toggle('hidden',liveCtx.sourceComplete);
     }
 
     const STATUS_EMOJI = { yapti:'✅', yapmadi:'❌', eksik:'⚠️', kitap:'📕', gelmedi:'🚫' }; // neden: platform uyumlu ikonlar
@@ -10687,19 +10868,31 @@ if(UI.hwSaveBtn){
     }
 
     // 3) Evet => kaydet
-    const base = groupId ? `hwStatus/${groupId}` : `homeworks/${cls}/${id}/statuses`;
     const updates2 = {};
+    const changed=[];
     Array.from(UI.hwStudentList.querySelectorAll('li')).forEach(li=>{
       const sid = li.getAttribute('data-id');
       const val = li.querySelector('select.statusSelect').value;
-      if(val){ updates2[`${base}/${sid}`] = { status: val, ts: Date.now() }; }
-      else   { updates2[`${base}/${sid}`] = null; }
+      if(val === (initialStatuses.get(sid)||'')) return;
+      // Boşaltma işlemi silme yerine tarihli bir temizleme kaydıdır.
+      // Eski sınıftan bir statünün yanlışlıkla tekrar görünmesini engeller.
+      const record={status:val,ts:Date.now()};
+      updates2[homeworkStatusWritePath(activeHw,sid)] = record;
+      changed.push({sid,record});
     });
 
     try{
+      if(!changed.length){
+        await Swal.fire('Bilgi','Ödev durumlarında değişiklik yapılmadı.','info');
+        return;
+      }
       const queued = !canUseFirebase();
       if(!queued) await update(ref(db), updates2);
       else queueOfflineWrite('/', updates2);
+      changed.forEach(({sid,record})=>putHomeworkRecordInContext(liveCtx,activeHw,sid,record));
+      // Bellek raporunu değiştir; başka sınıfın ödev kartı da eski statüyü göstermesin.
+      teacherHwLiveContext=null;
+      teacherHwResolvedStatuses.clear();
 
       if(queued){
         await Swal.fire('Kuyruğa Alındı','Ödev durumları server bağlantısı geldiğinde otomatik kaydedilecek.','warning');
@@ -10927,15 +11120,11 @@ async function showAdminHomeworkDetail(cls,id, reportState = null){
     const legacyGid = (()=>{ const m = String(id).match(/^(\d+)-\d+$/); return m ? Number(m[1]) : null; })();
     const groupId = hw.groupId ?? legacyGid ?? null;
 
-    let statuses = {};
-    if(groupId){
-      try{
-        const sSnap = await get(ref(db, `hwStatus/${groupId}`));
-        statuses = sSnap.exists() ? (sSnap.val()||{}) : {};
-      }catch{ statuses = {}; }
-    }else{
-      statuses = hw.statuses || {};
-    }
+    // Yönetici de öğretmen kontrol ekranıyla aynı canlı çözümleyiciyi kullanır.
+    const liveHw={...hw,id,class:cls};
+    const liveCtx=await buildHomeworkLiveContext([liveHw]);
+    const classIds=students.filter(st=>normTR(st.SINIF)===normTR(cls)).map(st=>safe(st.NO));
+    const statuses=resolvedHomeworkStatuses(liveCtx,liveHw,classIds);
 
     // Sadece bu sınıfın öğrencilerini listele
     const list = students
@@ -11269,6 +11458,12 @@ function openAdminHomeworks(state = null){
             }
           }));
 
+          // Sınıf değiştiren öğrencilerin kayıtları, kart ve kontrol ekranıyla
+          // aynı eşdeğer-ödev çözücüsünden alınır.
+          let adminHwLiveContext=null;
+          try{ adminHwLiveContext=await buildHomeworkLiveContext(); }
+          catch(err){ console.warn('Yönetici ödev eşleştirmesi okunamadı.',err); }
+
           // 3) satırları üret
           // NOT: hwStatus/{groupId} aynı ödevin farklı sınıfları için ortak tutulabiliyor.
           // Bu yüzden raporda sınıfa göre sayım yaparken yalnızca ilgili sınıfın öğrencilerini say.
@@ -11287,10 +11482,11 @@ function openAdminHomeworks(state = null){
 
           const rows = items.map(({classKey, id, hw})=>{
             const gid = hw.groupId ?? legacyGidOf(id) ?? null;
-            const statuses = (gid ? (gidMap.get(String(gid))||{}) : (hw.statuses||{})) || {};
-            const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
-
             const clsIds = getIdsForClass(classKey);
+            const statuses = (adminHwLiveContext && clsIds.length)
+              ? resolvedHomeworkStatuses(adminHwLiveContext,{...hw,id,class:classKey},clsIds)
+              : ((gid ? (gidMap.get(String(gid))||{}) : (hw.statuses||{})) || {});
+            const counts = { yapti:0,yapmadi:0,eksik:0,kitap:0,gelmedi:0 };
             if(clsIds.length){
               // Sadece o sınıfın öğrencileri
               clsIds.forEach(sid=>{
