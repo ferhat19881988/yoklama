@@ -9220,12 +9220,10 @@ let teacherHwPastSort = (localStorage.getItem('teacherHwPastSort') || 'desc'); /
 let teacherHwClass = 'hepsi'; // 'hepsi' veya sınıf
 let teacherHwLatestOnly = localStorage.getItem('teacherHwLatestOnly_v24') === '1';
 let teacherHwPastSearch = '';
-// v2.4: Öğrenci numarası ve ödev kimliği temel alınır; mevcut sınıf sadece görünüm filtresidir.
+// Ödev durumları tek bir çözümleyiciden okunur; sınıf kimlik anahtarının parçası değildir.
 let teacherHwLedger = [];
-let homeworkStatusIndex = new Map();
-let homeworkStatusByGroup = new Map();
-let homeworkHistoryCache = new Map(); // studentId -> arşiv kayıtları
-let homeworkAmbiguousSignatures = new Set();
+let teacherHomeworkResolver = null;
+let homeworkHistoryCache = new Map(); // öğrenci numarası -> kalıcı durum arşivi
 
 function hwInTab(hw, tab){
   try{
@@ -9596,189 +9594,172 @@ function getHomeworkGroupId(hwOrId){
   return m ? Number(m[1]) : null;
 }
 
-/* v2.4 — Öğrenci odaklı ödev kayıtları: sınıf değişse de ödev kimliği ve durum saklanır.
- * Legacy: homeworks/{class}/{id}/statuses, hwStatus/{groupId}.
- * Yeni yazımlar aynı atomik işlemde hwStudentHistory/{no}/{assignmentId} konumuna da gider.
- * Aynı öğretmen, konu, ders ve teslim tarihine sahip farklı sınıf ödevleri ilişkilendirilebilir;
- * bir sınıfta bu imzayla birden fazla bağımsız ödev varsa belirsiz eşleştirme yapılmaz.
+/* ÖDEV DURUM EŞLEŞTİRMESİ
+ * Eşleştirme: öğrenci numarası + ödev adı + öğretmen.
+ * Sınıf, teslim tarihi ve ders bu eşleştirmenin parçası DEĞİLDİR.
+ * Kesin kayıt (aynı ödev/grup) önce gelir, ardından sınıftan bağımsız eşleşme.
+ * Aynı üçlüye ait ayrı ödevlerin çelişkili durumları varsa yanlış durum atanmaz.
+ * Mevcut Firebase kayıt yolları değiştirilmez; öğrenci arşivi korunur.
  */
+function homeworkTitleKey(hw){
+  return normTR(hw?.title || '').replace(/\s+/g,' ').trim();
+}
+function homeworkTeacherNameKey(hw){
+  return normTR(hw?.teacherName || '').replace(/\s+/g,' ').trim();
+}
 function homeworkSignature(hw){
-  const owner = safe(hw?.teacherId) || normTR(hw?.teacherName || '');
-  const title = normTR(hw?.title || '');
-  const date = safe(hw?.dueDate);
-  const subject = normTR(hw?.subject || '');
-  return owner && title && date ? JSON.stringify([owner,title,date,subject]) : '';
+  const title=homeworkTitleKey(hw);
+  const owner=safe(hw?.teacherId) || homeworkTeacherNameKey(hw);
+  return title && owner ? JSON.stringify([owner,title]) : '';
+}
+// Rapor ekranında aynı isimle başka günlerde verilmiş ödevleri ayrı satır tutar.
+// Bu tarih bilgisi, durumun eşleştirilmesinde KULLANILMAZ.
+function homeworkDisplayKey(hw, signature){
+  const sig=signature || homeworkSignature(hw);
+  const id=getHomeworkGroupId(hw);
+  return sig ? JSON.stringify([sig,safe(hw?.dueDate)]) :
+    id!=null ? `group:${id}` : `local:${safe(hw?.class)}:${safe(hw?.id)}`;
 }
 function homeworkStorageKey(hw){
-  const gid = getHomeworkGroupId(hw);
+  const gid=getHomeworkGroupId(hw);
   if(gid !== null && gid !== undefined && gid !== '') return `g${String(gid).replace(/[^a-zA-Z0-9_-]/g,'_')}`;
-  // Firebase anahtarında kullanılamayan karakterleri ve çakışmaları önlemek için çift hash.
-  const identity = `${safe(hw?.class)}/${safe(hw?.id)}`;
-  let a=2166136261, b=5381;
-  for(const char of identity){ const c=char.charCodeAt(0); a=Math.imul(a^c,16777619); b=Math.imul(b,33)^c; }
+  const identity=`${safe(hw?.class)}/${safe(hw?.id)}`;
+  let a=2166136261,b=5381;
+  for(const char of identity){
+    const c=char.charCodeAt(0); a=Math.imul(a^c,16777619); b=Math.imul(b,33)^c;
+  }
   return `l${(a>>>0).toString(16)}${(b>>>0).toString(16)}`;
 }
 function homeworkStatusValid(rec){
-  return !!rec && typeof rec === 'object' &&
-    (Object.prototype.hasOwnProperty.call(HW_STATUSES, rec.status) || rec.status === '');
+  return !!rec && typeof rec==='object' &&
+    (Object.prototype.hasOwnProperty.call(HW_STATUSES,rec.status) || rec.status==='');
 }
-function preferHomeworkRecord(oldRec,newRec){
-  if(!homeworkStatusValid(newRec)) return oldRec || null;
-  if(!homeworkStatusValid(oldRec)) return newRec;
-  return Number(newRec.ts || 0) >= Number(oldRec.ts || 0) ? newRec : oldRec;
+function preferHomeworkRecord(previous,incoming){
+  if(!homeworkStatusValid(incoming)) return homeworkStatusValid(previous) ? previous : null;
+  if(!homeworkStatusValid(previous)) return incoming;
+  return Number(incoming.ts||0)>=Number(previous.ts||0) ? incoming : previous;
 }
-/* v2.4 — Eski veritabanı kayıtlarını veri silmeden okuyan geçiş eşleştiricisi.
- * Aynı ödev kimliği (groupId) zaten kesin eşleşmedir. Ayrı eski kimliklerde
- * başlık + teslim tarihi zorunludur; mevcut öğretmen/ders bilgileri çelişemez.
- * İki bağımsız ödevin eşit görünmesi halinde yanlış durum yazmamak için eşleşmez.
- */
-function legacyHomeworkMatchKey(hw){
-  const title=normTR(hw?.title).replace(/\s+/g,' ').trim();
-  const due=safe(hw?.dueDate);
-  return title && /^\d{4}-\d{2}-\d{2}$/.test(due) ? JSON.stringify([title,due]) : '';
+function archiveHomeworkToObject(item){
+  return {id:item.homeworkId,class:item.class,groupId:item.groupId,
+    teacherId:item.teacherId,teacherName:item.teacherName,
+    title:item.title,subject:item.subject,dueDate:item.dueDate};
 }
-function homeworkMetadataCompatible(a,b){
-  const aId=safe(a?.teacherId), bId=safe(b?.teacherId);
-  if(aId && bId && aId!==bId) return false;
-  const aName=normTR(a?.teacherName),bName=normTR(b?.teacherName);
-  if(!(aId && bId) && aName && bName && aName!==bName) return false;
-  const aSubject=normTR(a?.subject),bSubject=normTR(b?.subject);
-  return !(aSubject && bSubject && aSubject!==bSubject);
-}
-function makeLegacyHomeworkLookup(items,groups={},archiveByStudent=new Map()){
-  const byKey=new Map(),byClassKey=new Map();
-  const register=(hw,records)=>{
-    const sig=legacyHomeworkMatchKey(hw);
-    if(!sig) return;
-    const instance=homeworkStorageKey(hw);
-    const cls=normTR(hw.class);
-    const cKey=JSON.stringify([sig,cls]);
-    if(!byClassKey.has(cKey)) byClassKey.set(cKey,new Set());
-    byClassKey.get(cKey).add(instance);
-    if(!byKey.has(sig)) byKey.set(sig,[]);
-    byKey.get(sig).push({hw,records:records||{},instance,cls});
-  };
-  for(const hw of items||[]){
-    const gid=getHomeworkGroupId(hw);
-    const group=gid!=null ? groups[String(gid)]||{} : {};
-    register(hw,{...(hw.statuses||{}),...group});
-  }
-  for(const [studentId,archive] of archiveByStudent){
-    for(const item of Object.values(archive||{})){
-      if(!homeworkStatusValid(item)) continue;
-      const hw={id:item.homeworkId,class:item.class,groupId:item.groupId,
-        teacherId:item.teacherId,teacherName:item.teacherName,
-        title:item.title,dueDate:item.dueDate,subject:item.subject};
-      register(hw,{[safe(studentId)]:item});
-    }
-  }
-  return (target,studentId)=>{
-    const sig=legacyHomeworkMatchKey(target);
-    if(!sig) return null;
-    const targetClass=normTR(target.class);
-    const targetKey=homeworkStorageKey(target);
-    const sameClass=byClassKey.get(JSON.stringify([sig,targetClass]));
-    // Hedef sınıfta aynı başlık ve tarihte birden fazla BAĞIMSIZ ödev varsa belirsiz.
-    if(sameClass && (sameClass.size>1 || (sameClass.size===1 && !sameClass.has(targetKey)))) return null;
-    const candidates=(byKey.get(sig)||[]).filter(entry=>
-      entry.cls!==targetClass && homeworkMetadataCompatible(target,entry.hw));
-    // Eski sınıfta birden fazla farklı ödev aynı başlık/tarihle verilmişse otomatik aktarım yapma.
-    for(const candidate of candidates){
-      if((byClassKey.get(JSON.stringify([sig,candidate.cls]))?.size||0)>1) return null;
-    }
-    const matched=new Map();
-    for(const candidate of candidates){
-      const rec=candidate.records[safe(studentId)];
-      if(!homeworkStatusValid(rec)) continue;
-      matched.set(candidate.instance,preferHomeworkRecord(matched.get(candidate.instance),rec));
-    }
-    // Bağımsız birden fazla eski ödevden hangisi olduğu bilinemez.
-    return matched.size===1 ? [...matched.values()][0] : null;
-  };
-}
-let homeworkLegacyLookup=()=>null;
-function rebuildHomeworkStatusIndex(){
-  homeworkStatusIndex = new Map();
-  homeworkStatusByGroup = new Map();
-  homeworkAmbiguousSignatures = new Set();
-  const classSignatureGroups = new Map();
-  for(const hw of teacherHwLedger){
-    const sig = homeworkSignature(hw);
-    if(!sig) continue;
-    const key = JSON.stringify([sig,normTR(hw.class || '')]);
-    if(!classSignatureGroups.has(key)) classSignatureGroups.set(key,new Set());
-    classSignatureGroups.get(key).add(homeworkStorageKey(hw));
-  }
-  for(const [key,ids] of classSignatureGroups){
-    if(ids.size>1) homeworkAmbiguousSignatures.add(JSON.parse(key)[0]);
-  }
-  const add = (hw,sid,rec)=>{
-    const id=safe(sid);
-    if(!id || !homeworkStatusValid(rec)) return;
-    const key=homeworkStorageKey(hw);
-    if(!homeworkStatusByGroup.has(key)) homeworkStatusByGroup.set(key,new Map());
-    const grp=homeworkStatusByGroup.get(key);
-    grp.set(id,preferHomeworkRecord(grp.get(id),rec));
-    const sig=homeworkSignature(hw);
-    if(!sig || homeworkAmbiguousSignatures.has(sig)) return;
-    if(!homeworkStatusIndex.has(sig)) homeworkStatusIndex.set(sig,new Map());
-    const index=homeworkStatusIndex.get(sig);
-    index.set(id,preferHomeworkRecord(index.get(id),rec));
-  };
-  for(const hw of teacherHwLedger){
-    Object.entries(hw.statuses || {}).forEach(([sid,rec])=>add(hw,sid,rec));
-    const gid=getHomeworkGroupId(hw);
-    if(gid !== null && gid !== undefined && gid !== ''){
-      Object.entries(teacherHwGidMap.get(String(gid)) || {}).forEach(([sid,rec])=>add(hw,sid,rec));
-    }
-  }
-  for(const [sid,records] of homeworkHistoryCache){
-    Object.values(records || {}).forEach(item=>{
-      if(!item || !homeworkStatusValid(item)) return;
-      const hw={ id:item.homeworkId, class:item.class, groupId:item.groupId,
-        teacherId:item.teacherId, teacherName:item.teacherName,
-        title:item.title, dueDate:item.dueDate, subject:item.subject };
-      add(hw,sid,item);
+
+/** Aynı algoritma: öğretmen kontrolü, veli geçmişi, öğrenci raporu, yönetici özeti. */
+function createHomeworkStatusResolver(items=[],groups={},archiveByStudent=new Map()){
+  const assignments=(items||[]).filter(hw=>hw && typeof hw==='object');
+  const archives=archiveByStudent instanceof Map ? archiveByStudent : new Map(Object.entries(archiveByStudent||{}));
+  const teacherIdsByName=new Map();
+  const owners=new Map();
+  const allHomework=[...assignments];
+  for(const [,archive] of archives){
+    Object.values(archive||{}).forEach(item=>{
+      if(homeworkStatusValid(item)) allHomework.push(archiveHomeworkToObject(item));
     });
   }
-  homeworkLegacyLookup=makeLegacyHomeworkLookup(teacherHwLedger,Object.fromEntries(teacherHwGidMap),homeworkHistoryCache);
+  for(const hw of allHomework){
+    const name=homeworkTeacherNameKey(hw),tid=safe(hw.teacherId);
+    if(name && tid){
+      if(!teacherIdsByName.has(name)) teacherIdsByName.set(name,new Set());
+      teacherIdsByName.get(name).add(tid);
+    }
+  }
+  // Öğretmenin eski kayıtta yalnızca adı yazıyorsa, tekil ad-ID eşlemesi kullanılır.
+  // Aynı ada sahip farklı öğretmenler varsa ID tahmini yapılmaz.
+  const teacherKey=hw=>{
+    const tid=safe(hw?.teacherId);
+    if(tid) return `id:${tid}`;
+    const name=homeworkTeacherNameKey(hw);
+    if(!name) return '';
+    const ids=teacherIdsByName.get(name);
+    return ids && ids.size===1 ? `id:${[...ids][0]}` : `name:${name}`;
+  };
+  const signature=hw=>{
+    const title=homeworkTitleKey(hw),teacher=teacherKey(hw);
+    return title && teacher ? JSON.stringify([teacher,title]) : '';
+  };
+  // Her öğrenci ve ödev-grup için kesin kayıt; imza için sınıftan bağımsız adaylar.
+  const byInstance=new Map(), bySignature=new Map();
+  function register(hw,studentId,record){
+    const sid=safe(studentId);
+    if(!sid || !homeworkStatusValid(record)) return;
+    const instance=homeworkStorageKey(hw);
+    if(!byInstance.has(instance)) byInstance.set(instance,new Map());
+    const direct=byInstance.get(instance);
+    direct.set(sid,preferHomeworkRecord(direct.get(sid),record));
+    const sig=signature(hw);
+    if(!sig) return;
+    if(!bySignature.has(sig)) bySignature.set(sig,new Map());
+    const studentsBySig=bySignature.get(sig);
+    if(!studentsBySig.has(sid)) studentsBySig.set(sid,new Map());
+    const records=studentsBySig.get(sid);
+    records.set(instance,preferHomeworkRecord(records.get(instance),record));
+  }
+  for(const hw of assignments){
+    const gid=getHomeworkGroupId(hw);
+    if(gid!=null && gid!==''){
+      const key=String(gid);
+      if(!owners.has(key)) owners.set(key,new Set());
+      owners.get(key).add(safe(hw.class));
+    }
+    for(const [sid,record] of Object.entries(hw.statuses||{})) register(hw,sid,record);
+    if(gid!=null && gid!==''){
+      for(const [sid,record] of Object.entries(groups[String(gid)]||{})) register(hw,sid,record);
+    }
+  }
+  for(const [sid,archive] of archives){
+    for(const item of Object.values(archive||{})){
+      if(homeworkStatusValid(item)) register(archiveHomeworkToObject(item),sid,item);
+    }
+  }
+  function resolve(hw,studentId){
+    if(!hw) return null;
+    const sid=safe(studentId);
+    if(!sid) return null;
+    const direct=byInstance.get(homeworkStorageKey(hw))?.get(sid);
+    // Kesin kaydın boş durum olması da bilinçli silme demektir; eski durumla doldurma.
+    if(homeworkStatusValid(direct)) return direct;
+    const sig=signature(hw);
+    if(!sig) return null;
+    const records=bySignature.get(sig)?.get(sid);
+    if(!records || !records.size) return null;
+    // Aynı öğretmen ve ödev adı birden fazla bağımsız kez kullanılmışsa ve
+    // durumlar farklıysa otomatik aktarım yanlış olur. Bu durumda değiştirme.
+    const values=[...records.values()].filter(homeworkStatusValid);
+    if(!values.length || new Set(values.map(r=>r.status)).size>1) return null;
+    return values.reduce(preferHomeworkRecord,null);
+  }
+  return {resolve,signature,owners};
+}
+
+function rebuildHomeworkStatusIndex(){
+  teacherHomeworkResolver=createHomeworkStatusResolver(
+    teacherHwLedger,Object.fromEntries(teacherHwGidMap),homeworkHistoryCache);
 }
 function getHomeworkStatusForStudent(hw,studentId){
-  if(!hw) return null;
-  const id=safe(studentId);
-  const gid=getHomeworkGroupId(hw);
-  const direct = (gid !== null && gid !== undefined && gid !== '')
-    ? (teacherHwGidMap.get(String(gid)) || {})[id] : null;
-  const local = (hw.statuses || {})[id];
-  const group = homeworkStatusByGroup.get(homeworkStorageKey(hw))?.get(id);
-  const sig = homeworkSignature(hw);
-  const equivalent = sig && !homeworkAmbiguousSignatures.has(sig)
-    ? homeworkStatusIndex.get(sig)?.get(id) : null;
-  const legacy=homeworkLegacyLookup(hw,id);
-  return [local,direct,group,equivalent,legacy].reduce(preferHomeworkRecord,null);
+  return teacherHomeworkResolver?.resolve(hw,studentId) || null;
 }
 function getHomeworkStatusesFromCache(hw){
   if(!hw) return {};
   const gid=getHomeworkGroupId(hw);
-  const base={...(hw.statuses||{}), ...(gid !== null && gid !== undefined && gid !== '' ? teacherHwGidMap.get(String(gid))||{} : {})};
-  // Eski sınıfa ait durumlar da, sadece güncel sınıftaki öğrencilere gösterilir.
+  const base={...(hw.statuses||{}), ...(gid!=null && gid!=='' ? teacherHwGidMap.get(String(gid))||{} : {})};
   (students||[]).filter(st=>normTR(st.SINIF)===normTR(hw.class)).forEach(st=>{
-    const sid=safe(st.NO), rec=getHomeworkStatusForStudent(hw,sid);
+    const sid=safe(st.NO),rec=getHomeworkStatusForStudent(hw,sid);
     if(rec) base[sid]=rec;
   });
   return base;
 }
 function homeworkArchivePatch(hw,studentId,record){
   return { [`hwStudentHistory/${safe(studentId)}/${homeworkStorageKey(hw)}`]: {
-    status:record.status, ts:record.ts,
-    homeworkId:safe(hw.id), class:safe(hw.class),
-    groupId: getHomeworkGroupId(hw) == null ? '' : String(getHomeworkGroupId(hw)),
+    status:record.status,ts:record.ts,
+    homeworkId:safe(hw.id),class:safe(hw.class),
+    groupId:getHomeworkGroupId(hw)==null ? '' : String(getHomeworkGroupId(hw)),
     teacherId:safe(hw.teacherId),teacherName:safe(hw.teacherName),
     title:safe(hw.title),subject:safe(hw.subject),dueDate:safe(hw.dueDate)
   }};
 }
 function cacheHomeworkArchiveWrite(hw,studentId,record){
-  const sid=safe(studentId), key=homeworkStorageKey(hw);
+  const sid=safe(studentId),key=homeworkStorageKey(hw);
   const old=homeworkHistoryCache.get(sid)||{};
   homeworkHistoryCache.set(sid,{...old,[key]:Object.values(homeworkArchivePatch(hw,sid,record))[0]});
   rebuildHomeworkStatusIndex();
@@ -9792,106 +9773,28 @@ async function loadHomeworkStudentArchive(studentId){
     rebuildHomeworkStatusIndex();
   }catch(err){
     console.warn('Öğrenci ödev arşivi okunamadı:',err);
-    // Yetkisiz/başarısız isteği önbelleğe almayarak sonraki denemeye izin ver.
   }
 }
-// Yönetici/veli öğrenci raporları da aynı sınıftan bağımsız kayıt çözücüsünü kullanır.
-// Yönetici sayımlarında ve detay ekranında sınıf değişiminden bağımsız tarihli kayıt eşleştirmesi.
-function makeHomeworkStatusResolver(items,groups={}){
-  const index=new Map(),collisions=new Set(), sameClass=new Map(),owners=new Map();
-  for(const hw of items){
-    const sig=homeworkSignature(hw),gid=getHomeworkGroupId(hw);
-    if(gid!=null){
-      const gk=String(gid);
-      if(!owners.has(gk)) owners.set(gk,new Set());
-      owners.get(gk).add(safe(hw.class));
-    }
-    if(!sig) continue;
-    const key=JSON.stringify([sig,normTR(hw.class)]);
-    if(!sameClass.has(key)) sameClass.set(key,new Set());
-    sameClass.get(key).add(homeworkStorageKey(hw));
-  }
-  for(const [key,ids] of sameClass){if(ids.size>1) collisions.add(JSON.parse(key)[0]);}
-  for(const hw of items){
-    const sig=homeworkSignature(hw);
-    if(!sig || collisions.has(sig)) continue;
-    if(!index.has(sig)) index.set(sig,new Map());
-    const byStudent=index.get(sig),gid=getHomeworkGroupId(hw);
-    const legacy=hw.statuses||{}, global=gid!=null?groups[String(gid)]||{}:{};
-    for(const sid of new Set([...Object.keys(legacy),...Object.keys(global)])){
-      const rec=preferHomeworkRecord(legacy[sid],global[sid]);
-      byStudent.set(sid,preferHomeworkRecord(byStudent.get(sid),rec));
-    }
-  }
-  const legacyLookup=makeLegacyHomeworkLookup(items,groups);
-  const resolve=(hw,sid)=>{
-    const gid=getHomeworkGroupId(hw),id=safe(sid),sig=homeworkSignature(hw);
-    const direct=preferHomeworkRecord((hw.statuses||{})[id],gid!=null?(groups[String(gid)]||{})[id]:null);
-    const strict=sig&&!collisions.has(sig)?index.get(sig)?.get(id):null;
-    return [direct,strict,legacyLookup(hw,id)].reduce(preferHomeworkRecord,null);
-  };
-  return {resolve,owners};
-}
-
 function buildStudentHomeworkTimeline(studentId,currentClass,items,groups={},history={}){
-  const sid=safe(studentId), cls=normTR(currentClass);
-  const records=new Map(), groupRecords=new Map(), sigRecords=new Map();
-  const knownClasses=new Map(), collisions=new Set();
-  const addTo=(map,key,rec)=>{
-    if(!key || !homeworkStatusValid(rec)) return;
-    map.set(key,preferHomeworkRecord(map.get(key),rec));
+  const sid=safe(studentId),current=normTR(currentClass);
+  const resolver=createHomeworkStatusResolver(items,groups,new Map([[sid,history]]));
+  const rows=new Map();
+  const add=hw=>{
+    const rec=resolver.resolve(hw,sid);
+    const status=HW_STATUSES[rec?.status] ? rec.status : '';
+    const inCurrent=normTR(hw.class)===current;
+    if(!inCurrent && !status) return;
+    const key=homeworkDisplayKey(hw,resolver.signature(hw));
+    const row={hw,status,ts:Number(rec?.ts||0),inCurrent};
+    const previous=rows.get(key);
+    if(!previous || (inCurrent && !previous.inCurrent) ||
+      (inCurrent===previous.inCurrent && row.ts>previous.ts)) rows.set(key,row);
   };
-  for(const hw of items){
-    const sig=homeworkSignature(hw);
-    if(!sig) continue;
-    const key=JSON.stringify([sig,normTR(hw.class)]);
-    if(!knownClasses.has(key)) knownClasses.set(key,new Set());
-    knownClasses.get(key).add(homeworkStorageKey(hw));
-  }
-  for(const [key,set] of knownClasses){if(set.size>1) collisions.add(JSON.parse(key)[0]);}
-  const legacyLookup=makeLegacyHomeworkLookup(items,groups,new Map([[sid,history]]));
-  for(const hw of items){
-    const gid=getHomeworkGroupId(hw);
-    const group=gid!=null ? groups[String(gid)]||{} : {};
-    const rec=preferHomeworkRecord((hw.statuses||{})[sid],group[sid]);
-    if(!homeworkStatusValid(rec)) continue;
-    addTo(groupRecords,homeworkStorageKey(hw),rec);
-    const sig=homeworkSignature(hw);
-    if(sig && !collisions.has(sig)) addTo(sigRecords,sig,rec);
-  }
-  for(const item of Object.values(history||{})){
-    if(!homeworkStatusValid(item)) continue;
-    const hw={id:item.homeworkId,class:item.class,groupId:item.groupId,
-      teacherId:item.teacherId,teacherName:item.teacherName,title:item.title,
-      subject:item.subject,dueDate:item.dueDate};
-    addTo(groupRecords,homeworkStorageKey(hw),item);
-    const sig=homeworkSignature(hw);
-    if(sig && !collisions.has(sig)) addTo(sigRecords,sig,item);
-  }
-  const seen=new Map();
-  const push=(hw)=>{
-    const gid=getHomeworkGroupId(hw),sig=homeworkSignature(hw);
-    const key=sig && !collisions.has(sig) ? `s:${sig}` :
-      gid!=null ? `g:${gid}` : `l:${safe(hw.class)}/${safe(hw.id)}`;
-    const rec=[groupRecords.get(homeworkStorageKey(hw)),
-      sig && !collisions.has(sig) ? sigRecords.get(sig) : null,
-      legacyLookup(hw,sid)].reduce(preferHomeworkRecord,null);
-    const marked=!!HW_STATUSES[rec?.status];
-    const inCurrent=normTR(hw.class)===cls;
-    if(!inCurrent && !marked) return;
-    const prior=seen.get(key);
-    const row={hw,status:rec?.status||'',ts:Number(rec?.ts||0),inCurrent};
-    if(!prior || (inCurrent && !prior.inCurrent) ||
-      (inCurrent===prior.inCurrent && row.ts>prior.ts)) seen.set(key,row);
-  };
-  items.forEach(push);
-  for(const item of Object.values(history||{})){
-    if(!homeworkStatusValid(item) || !HW_STATUSES[item.status]) continue;
-    push({id:item.homeworkId,class:item.class,groupId:item.groupId,
-      teacherId:item.teacherId,teacherName:item.teacherName,title:item.title,
-      subject:item.subject,dueDate:item.dueDate});
-  }
-  return [...seen.values()].sort((a,b)=>
+  (items||[]).forEach(add);
+  Object.values(history||{}).forEach(item=>{
+    if(homeworkStatusValid(item) && HW_STATUSES[item.status]) add(archiveHomeworkToObject(item));
+  });
+  return [...rows.values()].sort((a,b)=>
     safe(b.hw.dueDate).localeCompare(safe(a.hw.dueDate)) || b.ts-a.ts);
 }
 async function loadStudentHomeworkTimeline(studentId,cls){
@@ -9995,9 +9898,8 @@ function getStudentHomeworkReportRows(cls, studentId){
     const row={ hw,status,ts:Number(rec?.ts||0),dueDate:safe(hw.dueDate),
       title:safe(hw.title)||'Ödev',subject:safe(hw.subject)||safe(session?.teacherBranch)||'Ders' };
     const gid=getHomeworkGroupId(hw);
-    const sig=homeworkSignature(hw);
-    const key=(sig && !homeworkAmbiguousSignatures.has(sig)) ? `sig:${sig}` :
-      gid!=null ? `gid:${gid}` : `local:${safe(hw.class)}:${safe(hw.id)}`;
+    const sig=teacherHomeworkResolver?.signature(hw) || homeworkSignature(hw);
+    const key=homeworkDisplayKey(hw,sig);
     const prior=dedup.get(key);
     // Eşdeğer kayıtlarda mevcut sınıfın ödevi düzenlenebilir hedef olarak önceliklidir.
     if(!prior || (safe(hw.class)===safe(cls) && safe(prior.hw.class)!==safe(cls)) ||
@@ -10011,10 +9913,9 @@ function getStudentHomeworkReportRows(cls, studentId){
       teacherId:item.teacherId,teacherName:item.teacherName,title:item.title,
       subject:item.subject,dueDate:item.dueDate};
     if(!homeworkBelongsToCurrentTeacher(hw)) return;
-    const sig=homeworkSignature(hw);
+    const sig=teacherHomeworkResolver?.signature(hw) || homeworkSignature(hw);
     const gid=getHomeworkGroupId(hw);
-    const key=(sig && !homeworkAmbiguousSignatures.has(sig)) ? `sig:${sig}` :
-      gid!=null ? `gid:${gid}` : `local:${safe(hw.class)}:${safe(hw.id)}`;
+    const key=homeworkDisplayKey(hw,sig);
     if(dedup.has(key)) return;
     dedup.set(key,{hw,status:item.status,ts:Number(item.ts||0),archivedOnly:true,
       dueDate:safe(hw.dueDate),title:safe(hw.title)||'Ödev',
@@ -10076,7 +9977,7 @@ async function updateStudentHomeworkStatusFromReport(hw, studentId, nextStatus){
 
   // Bellek kaydını aynı anda güncelle; ödev kartlarındaki özet de beklemeden değişsin.
   if(gid){
-    const current = { ...(teacherHwGidMap.get(gid) || {}) };
+    const current = { ...(teacherHwGidMap.get(String(gid)) || {}) };
     current[studentId] = record;
     teacherHwGidMap.set(String(gid), current);
   }else{
@@ -11018,17 +10919,21 @@ if(UI.hwSaveBtn){
       const sid=safe(li.getAttribute('data-id'));
       if(!sid) return;
       const val=li.querySelector('select.statusSelect').value;
-      const previous=getHomeworkStatusForStudent(currentHw,sid)?.status || '';
+      const oldRecord=getHomeworkStatusForStudent(currentHw,sid);
+      const previous=oldRecord?.status || '';
       if(val===previous){
-        // Eski 8B gibi sınıflarda hâlâ bulunan ve eşleşen işaretleri,
-        // kullanıcı Kaydet'e bastığında öğrenci arşivine ilk kez aktar.
-        // Boş/işaretsiz veya önceden arşivlenmiş kayıtlara dokunulmaz.
+        if(!val || !homeworkStatusValid(oldRecord)) return;
+        // 8B'den taşınan durum yalnızca ekranda görünmekle kalmasın:
+        // öğretmen Kaydet dediğinde 8A'nın ödev kaydına da kalıcı yazılsın.
+        const directLocal=(currentHw.statuses||{})[sid];
+        const directGroup=groupId ? (teacherHwGidMap.get(String(groupId))||{})[sid] : null;
+        const hasDirect=homeworkStatusValid(directLocal) || homeworkStatusValid(directGroup);
         const already=homeworkHistoryCache.get(sid)?.[homeworkStorageKey(currentHw)];
-        const oldRecord=getHomeworkStatusForStudent(currentHw,sid);
-        if(val && !already && homeworkStatusValid(oldRecord)){
+        if(!hasDirect || !already){
           const preserved={status:val,ts:Number(oldRecord.ts||0)};
+          if(!hasDirect) updates2[`${base}/${sid}`]=preserved;
           Object.assign(updates2,homeworkArchivePatch(currentHw,sid,preserved));
-          changed.push({sid,record:preserved,archiveOnly:true});
+          changed.push({sid,record:preserved,archiveOnly:hasDirect});
         }
         return;
       }
@@ -11309,12 +11214,13 @@ async function showAdminHomeworkDetail(cls,id, reportState = null){
       .map(s => ({ id: safe(s.NO), name: s.ADSOYAD || '', no: safe(s.NO) }))
       .sort((a,b) => a.name.localeCompare(b.name,'tr',{sensitivity:'base'}));
 
-    // Geçiş yapmış öğrencinin eski sınıfta işaretlenen eşdeğer ödevi de okunur.
+    // Yönetici detayı da öğretmen/veliyle aynı çözümleyici ve öğrenci arşivlerini kullanır.
     let resolveStatus=(item,sid)=>statuses[sid]||null;
     try{
+      await Promise.all(list.map(st=>loadHomeworkStudentArchive(st.id)));
       const snapshot=await readHomeworkLedgerForReport();
       const historicalGroups=await fillMissingHomeworkGroupStatuses(snapshot.items,snapshot.groups);
-      resolveStatus=makeHomeworkStatusResolver(snapshot.items,historicalGroups).resolve;
+      resolveStatus=createHomeworkStatusResolver(snapshot.items,historicalGroups,homeworkHistoryCache).resolve;
     }catch(err){console.warn('Yönetici ödev geçmişi genel okuma:',err);}
     const selectedHw={...hw,id,class:cls};
     const htmlList = '<ul class="list">' + list.map(st => {
@@ -11654,7 +11560,7 @@ function openAdminHomeworks(state = null){
             if(ss.exists()) allStatusGroups=ss.val()||{};
           }catch(err){console.warn('Geçmiş sınıf ödev durumları tümü okunamadı:',err);}
           allStatusGroups=await fillMissingHomeworkGroupStatuses(ledger,allStatusGroups);
-          const lookup=makeHomeworkStatusResolver(ledger,allStatusGroups);
+          const lookup=createHomeworkStatusResolver(ledger,allStatusGroups,homeworkHistoryCache);
 
           // 3) satırları üret
           // NOT: hwStatus/{groupId} aynı ödevin farklı sınıfları için ortak tutulabiliyor.
