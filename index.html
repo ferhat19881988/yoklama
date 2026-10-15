@@ -9612,13 +9612,40 @@ function homeworkSignature(hw){
   const owner=safe(hw?.teacherId) || homeworkTeacherNameKey(hw);
   return title && owner ? JSON.stringify([owner,title]) : '';
 }
-// Rapor ekranında aynı isimle başka günlerde verilmiş ödevleri ayrı satır tutar.
-// Bu tarih bilgisi, durumun eşleştirilmesinde KULLANILMAZ.
+// Öğrenciye ait raporlarda mantıksal ödev kimliği: öğretmen + normalize ödev adı.
+// Farklı sınıf/teslim/kontrol tarihleri bir ödevi ikinci kez oluşturmaz.
+// Veritabanı ödev kimliği ayrı kalır; sınıf bazlı ödev yönetimi etkilenmez.
 function homeworkDisplayKey(hw, signature){
   const sig=signature || homeworkSignature(hw);
+  if(sig) return `assignment:${sig}`;
   const id=getHomeworkGroupId(hw);
-  return sig ? JSON.stringify([sig,safe(hw?.dueDate)]) :
-    id!=null ? `group:${id}` : `local:${safe(hw?.class)}:${safe(hw?.id)}`;
+  return id!=null ? `group:${id}` : `local:${safe(hw?.class)}:${safe(hw?.id)}`;
+}
+
+// Öğrenci/veli/öğretmen raporu için tek birleştirme kuralı.
+// Gösterilecek ödevde aktif sınıf ve düzenlenebilir kayıt önceliklidir;
+// durum ise kontrolün (ts) en yeni kaydından seçilir. Teslim tarihi durumu belirlemez.
+function mergeHomeworkReportEntry(previous,incoming,preferredClass=''){
+  if(!previous) return {...incoming};
+  const isPreferred=entry=>!!preferredClass &&
+    normTR(entry.hw?.class)===normTR(preferredClass);
+  const isActive=entry=>!entry.archivedOnly;
+  const moreSuitable=()=>{
+    if(isActive(incoming)!==isActive(previous)) return isActive(incoming);
+    if(isPreferred(incoming)!==isPreferred(previous)) return isPreferred(incoming);
+    const bd=safe(incoming.hw?.dueDate),ad=safe(previous.hw?.dueDate);
+    if(bd!==ad) return bd>ad;
+    const bc=Number(incoming.hw?.created||0),ac=Number(previous.hw?.created||0);
+    return bc>ac;
+  };
+  const newerDisplay=moreSuitable();
+  const display=newerDisplay ? incoming : previous;
+  const prevValid=Object.prototype.hasOwnProperty.call(HW_STATUSES,previous.status);
+  const nextValid=Object.prototype.hasOwnProperty.call(HW_STATUSES,incoming.status);
+  const prevTs=Number(previous.ts||0),nextTs=Number(incoming.ts||0);
+  const statusRow=nextValid && (!prevValid || nextTs>prevTs ||
+    (nextTs===prevTs && newerDisplay)) ? incoming : previous;
+  return {...display,status:statusRow.status,ts:Number(statusRow.ts||0)};
 }
 function homeworkStorageKey(hw){
   const gid=getHomeworkGroupId(hw);
@@ -9717,17 +9744,17 @@ function createHomeworkStatusResolver(items=[],groups={},archiveByStudent=new Ma
     const sid=safe(studentId);
     if(!sid) return null;
     const direct=byInstance.get(homeworkStorageKey(hw))?.get(sid);
-    // Kesin kaydın boş durum olması da bilinçli silme demektir; eski durumla doldurma.
-    if(homeworkStatusValid(direct)) return direct;
     const sig=signature(hw);
-    if(!sig) return null;
+    if(!sig) return homeworkStatusValid(direct) ? direct : null;
     const records=bySignature.get(sig)?.get(sid);
-    if(!records || !records.size) return null;
-    // Aynı öğretmen ve ödev adı birden fazla bağımsız kez kullanılmışsa ve
-    // durumlar farklıysa otomatik aktarım yanlış olur. Bu durumda değiştirme.
-    const values=[...records.values()].filter(homeworkStatusValid);
-    if(!values.length || new Set(values.map(r=>r.status)).size>1) return null;
-    return values.reduce(preferHomeworkRecord,null);
+    if(!records || !records.size) return homeworkStatusValid(direct) ? direct : null;
+    // Aynı öğrencinin aynı öğretmen/ödev adına ait tüm sınıf ve tarih
+    // kayıtlarından SON kontrol geçerlidir. Çelişen eski durumla yeniyi karıştırma.
+    // Bilinçli durum temizleme ('') en yeni zaman damgasına sahipse korunur.
+    const latest=[...records.values()].reduce(preferHomeworkRecord,null);
+    if(homeworkStatusValid(direct) &&
+       Number(direct.ts||0)>=Number(latest?.ts||0)) return direct;
+    return latest || (homeworkStatusValid(direct) ? direct : null);
   }
   return {resolve,signature,owners};
 }
@@ -9786,9 +9813,7 @@ function buildStudentHomeworkTimeline(studentId,currentClass,items,groups={},his
     if(!inCurrent && !status) return;
     const key=homeworkDisplayKey(hw,resolver.signature(hw));
     const row={hw,status,ts:Number(rec?.ts||0),inCurrent};
-    const previous=rows.get(key);
-    if(!previous || (inCurrent && !previous.inCurrent) ||
-      (inCurrent===previous.inCurrent && row.ts>previous.ts)) rows.set(key,row);
+    rows.set(key,mergeHomeworkReportEntry(rows.get(key),row,currentClass));
   };
   (items||[]).forEach(add);
   Object.values(history||{}).forEach(item=>{
@@ -9889,23 +9914,25 @@ function getStudentHomeworkReportRows(cls, studentId){
   const sid=safe(studentId);
   const all=(teacherHwLedger.length ? teacherHwLedger : teacherHwAll)
     .filter(homeworkBelongsToCurrentTeacher);
-  const results=[];
   const dedup=new Map();
+  const unmarked=[];
   all.forEach(hw=>{
     const rec=getHomeworkStatusForStudent(hw,sid);
     const status=safe(rec?.status);
-    if(!Object.prototype.hasOwnProperty.call(HW_STATUSES,status)) return;
+    // İşaretsiz yeni sınıf kaydını ödev olarak sayma; yalnızca aynı ödevin
+    // geçmiş durumu varsa düzenlenebilir sınıf kaydı olarak kullan.
+    if(!Object.prototype.hasOwnProperty.call(HW_STATUSES,status)){
+      unmarked.push(hw);
+      return;
+    }
     const row={ hw,status,ts:Number(rec?.ts||0),dueDate:safe(hw.dueDate),
       title:safe(hw.title)||'Ödev',subject:safe(hw.subject)||safe(session?.teacherBranch)||'Ders' };
     const gid=getHomeworkGroupId(hw);
     const sig=teacherHomeworkResolver?.signature(hw) || homeworkSignature(hw);
     const key=homeworkDisplayKey(hw,sig);
-    const prior=dedup.get(key);
-    // Eşdeğer kayıtlarda mevcut sınıfın ödevi düzenlenebilir hedef olarak önceliklidir.
-    if(!prior || (safe(hw.class)===safe(cls) && safe(prior.hw.class)!==safe(cls)) ||
-      (safe(hw.class)===safe(prior.hw.class) && row.ts>prior.ts)) dedup.set(key,row);
+    // Tarih/sınıf değişse bile aynı mantıksal ödev yalnızca bir rapor satırıdır.
+    dedup.set(key,mergeHomeworkReportEntry(dedup.get(key),row,cls));
   });
-  results.push(...dedup.values());
   // Silinen eski ödevler için öğrenci arşivinden rapor kaydı oluştur.
   Object.values(homeworkHistoryCache.get(sid)||{}).forEach(item=>{
     if(!homeworkStatusValid(item) || !HW_STATUSES[item.status]) return;
@@ -9916,10 +9943,22 @@ function getStudentHomeworkReportRows(cls, studentId){
     const sig=teacherHomeworkResolver?.signature(hw) || homeworkSignature(hw);
     const gid=getHomeworkGroupId(hw);
     const key=homeworkDisplayKey(hw,sig);
-    if(dedup.has(key)) return;
-    dedup.set(key,{hw,status:item.status,ts:Number(item.ts||0),archivedOnly:true,
+    const archived={hw,status:item.status,ts:Number(item.ts||0),archivedOnly:true,
       dueDate:safe(hw.dueDate),title:safe(hw.title)||'Ödev',
-      subject:safe(hw.subject)||'Ders'});
+      subject:safe(hw.subject)||'Ders'};
+    // Arşivdeki daha yeni kontrol, eski bir canlı kaydın durumunu güncelleyebilir.
+    // Ancak düzenlenebilir ödev mevcutsa rapor satırı salt okunur hale gelmez.
+    dedup.set(key,mergeHomeworkReportEntry(dedup.get(key),archived,cls));
+  });
+  // Yeni sınıftaki ödev henüz kontrol edilmemiş olabilir. Eski sınıftan
+  // taşınan durum korunur; mevcut sınıfın ödevi düzenleme hedefi olur.
+  unmarked.forEach(hw=>{
+    const sig=teacherHomeworkResolver?.signature(hw) || homeworkSignature(hw);
+    const key=homeworkDisplayKey(hw,sig);
+    if(!dedup.has(key)) return;
+    const candidate={hw,status:'',ts:0,dueDate:safe(hw.dueDate),
+      title:safe(hw.title)||'Ödev',subject:safe(hw.subject)||safe(session?.teacherBranch)||'Ders'};
+    dedup.set(key,mergeHomeworkReportEntry(dedup.get(key),candidate,cls));
   });
   return [...dedup.values()].sort((a,b)=>
     (b.dueDate||'').localeCompare(a.dueDate||'') || b.ts-a.ts ||
