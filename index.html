@@ -2455,7 +2455,6 @@ div.admin-filters .button-row {
 </style>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0b1020">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -3164,8 +3163,7 @@ function openWhatsAppComposer(opts){
               document.execCommand('copy');
               document.body.removeChild(tmp);
             }
-            try{ toast('Kopyalandı ✓','ok'); }
-            catch(_){ Swal.fire({ title:'Kopyalandı', icon:'success', timer:1200, showConfirmButton:false }); }
+            showToast('Kopyalandı ✓','ok');
           }catch(e){
             console.error('copy err', e);
             Swal.fire('Hata','Kopyalanamadı.','error');
@@ -7009,46 +7007,62 @@ async function undoAttendance(){
       }
     }
 
+    // Tarih bazlı okumaları eşzamanlı fakat sınırlandırılmış gruplar halinde yap.
+    // Firebase şeması aynı kalır; hatalı gün, diğer günlerin yüklenmesini durdurmaz.
+    async function fetchAttendanceDays(dates, maxParallel = 6){
+      const results = [];
+      const limit = Math.max(1, Math.min(8, Number(maxParallel) || 6));
+      for(let i = 0; i < dates.length; i += limit){
+        const group = await Promise.all(dates.slice(i, i + limit).map(async t => {
+          try{
+            const snap = await get(ref(db, attDayRoot(t, 'hepsi')));
+            return { t, dayData: snap.exists() ? (snap.val() || {}) : {} };
+          }catch(error){
+            console.error('attendance day fetch error', t, error);
+            return { t, dayData: {} };
+          }
+        }));
+        results.push(...group);
+      }
+      return results;
+    }
+
     async function findLastAttendanceDateForParent(maxDays = 60){
       const no = safe(session?.ogrNo);
       if(!no) return null;
 
       const today = nowTR().startOf('day');
-      for(let offset = 0; offset < maxDays; offset++){
-        const d = today.subtract(offset, 'day');
-        const t = toDateStr(d);
-        try{
-          const daySnap = await get(ref(db, attDayRoot(t, 'hepsi')));
-          if(!daySnap.exists()) continue;
-          const dayData = daySnap.val() || {};
-
-          // Her sınıfı tara (loadParentRange ile benzer mantık)
-          for(const [sinif, node] of Object.entries(dayData)){
-            if(!node) continue;
-
-            const entries = Object.entries(node || {});
-            const isOld = entries.some(([, v]) => v && typeof v === 'object' && ('var' in v || 'yok' in v));
-
-            if(isOld){
-              // Eski şema: hour -> { var: {...}, yok: {...} }
-              for(const [, recs] of entries){
-                if((recs?.var && Object.prototype.hasOwnProperty.call(recs.var, no)) ||
-                   (recs?.yok && Object.prototype.hasOwnProperty.call(recs.yok, no))){
-                  return t;
+      const days = Math.max(0, Math.floor(Number(maxDays) || 0));
+      // En yeni tarih önceliğini koru; eşzamanlı grup içinde sonuçları tarih sırasıyla denetle.
+      for(let offset = 0; offset < days; ){
+        // Bugün kayıt varsa tek okumada bul; yoksa geçmişi altışarlı gruplarla tara.
+        const batchSize = offset === 0 ? 1 : Math.min(6, days - offset);
+        const dates = Array.from({length: batchSize}, (_, i) =>
+          toDateStr(today.subtract(offset + i, 'day')));
+        offset += batchSize;
+        for(const {t, dayData} of await fetchAttendanceDays(dates)){
+          try{
+            if(!Object.keys(dayData).length) continue;
+            for(const [, node] of Object.entries(dayData)){
+              if(!node) continue;
+              const entries = Object.entries(node || {});
+              const isOld = entries.some(([, v]) => v && typeof v === 'object' && ('var' in v || 'yok' in v));
+              if(isOld){
+                for(const [, recs] of entries){
+                  if((recs?.var && Object.prototype.hasOwnProperty.call(recs.var, no)) ||
+                     (recs?.yok && Object.prototype.hasOwnProperty.call(recs.yok, no))) return t;
+                }
+                continue;
+              }
+              for(const [, byTeacher] of entries){
+                for(const [, byStudent] of Object.entries(byTeacher || {})){
+                  if(byStudent?.[no]) return t;
                 }
               }
-              continue;
             }
-
-            // Yeni şema: slotStorageKey(program+saatKodu) -> ogretmenId -> ogrNo -> rec
-            for(const [, byTeacher] of Object.entries(node || {})){
-              for(const [, byStudent] of Object.entries(byTeacher || {})){
-                if(byStudent?.[no]) return t;
-              }
-            }
+          }catch(error){
+            console.error('findLastAttendanceDateForParent error', t, error);
           }
-        }catch(e){
-          console.error('findLastAttendanceDateForParent error', t, e);
         }
       }
       return null;
@@ -7075,12 +7089,9 @@ async function loadParentRange(kind){
   }
   const rows = [];
 
-  for (const t of dates) {
+  for(const {t, dayData} of await fetchAttendanceDays(dates)){
     try{
-      // Günün TÜM sınıfları
-      const daySnap = await get(ref(db, attDayRoot(t, 'hepsi')));
-      if (!daySnap.exists()) continue;
-      const dayData = daySnap.val() || {};
+      if(!Object.keys(dayData).length) continue;
 
       // Her sınıfı tara
       for (const [sinif, node] of Object.entries(dayData)) {
@@ -8246,11 +8257,8 @@ async function openWeeklyAbsenceModal(){
       st.details.push({ dStr, sinif, hourLabel });
     };
 
-    for(const dStr of dates){
+    for(const {t: dStr, dayData} of await fetchAttendanceDays(dates)){
       try{
-        const rootPath = attDayRoot(dStr, 'hepsi');
-        const snap = await get(ref(db, rootPath));
-        const dayData = snap.exists() ? (snap.val()||{}) : {};
 
         const scanClassNode = (sinif, node) => {
           if(!node) return;
@@ -8547,35 +8555,50 @@ async function showStudentReport(no, name){
 }
 
     function printDivAsA4(div, title){
-  const w = window.open('', '_blank');
-  const css = `
-    <style>
-      @page { size: A4; margin: 16mm; }
-      body{ font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#000; }
-      h2,h3{ margin:6px 0; }
-      .kpi{ border:1px solid #000; border-radius:8px; padding:8px; }
-      .grid{ display:grid; gap:8px; grid-template-columns:repeat(3,1fr); }
-      .muted{ color:#333 }
-      table{ width:100%; border-collapse:collapse; margin-top:8px; }
-      th,td{ border:1px solid #000; padding:6px 8px; text-align:left; font-size:12px; }
-      .no-print{ display:none !important; } /* Neden: yanlışlıkla yazdırılacak parçaları güvenceye al */
-    `;
-  w.document.write(`<html><head><title>${title||''}</title>${css}  <!-- PWA -->
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0b1020">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Yoklama">
-  <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <!-- /PWA -->
-</head><body>${div.outerHTML}</body></html>`);
-  w.document.close();
-  w.focus();
-  w.print();
-  // w.close();
-}
-  
+      if(!div){
+        Swal.fire('Hata','Yazdırılacak içerik bulunamadı.','error');
+        return;
+      }
+      const w = window.open('', '_blank');
+      if(!w){
+        Swal.fire('Uyarı','Tarayıcı yazdırma penceresini engelledi. Lütfen açılır pencereye izin verin.','warning');
+        return;
+      }
+      const safeTitle = String(title || 'Yazdırma')
+        .replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+      const css = `
+        <style>
+          :root{ color-scheme:light; }
+          @page{ size:A4; margin:16mm; }
+          body{ font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#000; }
+          h2,h3{ margin:6px 0; }
+          .kpi{ border:1px solid #000; border-radius:8px; padding:8px; }
+          .grid{ display:grid; gap:8px; grid-template-columns:repeat(3,1fr); }
+          .muted{ color:#333; }
+          table{ width:100%; border-collapse:collapse; margin-top:8px; }
+          th,td{ border:1px solid #000; padding:6px 8px; text-align:left; font-size:12px; }
+          .no-print{ display:none !important; }
+        </style>`;
+      // Yazdırma belgesinin bir PWA manifestine ihtiyacı yoktur.
+      w.document.open();
+      w.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${safeTitle}</title>${css}</head><body>${div.outerHTML}</body></html>`);
+      w.document.close();
+
+      // Font ve resimlerin yüklenmesi için bekle; yükleme takılırsa yazdırmayı kilitleme.
+      const images = Array.from(w.document.images).map(img => img.complete
+        ? Promise.resolve()
+        : new Promise(resolve => { img.addEventListener('load',resolve,{once:true}); img.addEventListener('error',resolve,{once:true}); }));
+      const fontReady = w.document.fonts?.ready || Promise.resolve();
+      Promise.race([
+        Promise.all([fontReady, ...images]),
+        new Promise(resolve => setTimeout(resolve, 2500))
+      ]).then(() => {
+        if(w.closed) return;
+        w.focus();
+        w.print();
+      }).catch(error => console.error('printDivAsA4 error', error));
+    }
+
     /* ---------- ADMIN: ESKİ KAYITLAR ---------- */
     async function openHistoryModal(){
   const clsOptions = Array.from(new Set(
@@ -9114,11 +9137,19 @@ async function printAttendanceForClasses(dStr, classes){
     content.appendChild(section);
   }
 
-  // DOM yerleşsin sonra yazdır
-  setTimeout(() => {
-    w.focus();
-    w.print();
-  }, 60);
+  // Sabit gecikme yerine yazdırma belgesinin fontlarını ve yerleşimini bekle.
+  try{
+    if(w.document.fonts?.ready){
+      await Promise.race([
+        w.document.fonts.ready,
+        new Promise(resolve => setTimeout(resolve, 2500))
+      ]);
+    }
+    await new Promise(resolve => setTimeout(resolve, 50));
+    if(!w.closed){ w.focus(); w.print(); }
+  }catch(error){
+    console.error('printAttendanceForClasses print error', error);
+  }
 }
 
 if (UI?.admPrint) {
