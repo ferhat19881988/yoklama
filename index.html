@@ -2907,7 +2907,7 @@ div.admin-filters .button-row {
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, get, set, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     const COMPANY_NAME = 'Fenomen Eğitim Kurumları';
-    const APP_VERSION = '2.4';
+    const APP_VERSION = '2.5';
     const APP_RELEASE_PATH = 'config/appRelease';
     const APP_VERSION_CHECK_INTERVAL_MS = 60 * 1000;
     const APP_VERSION_RELOAD_GUARD_KEY = 'fenomen_version_reload_guard_v1';
@@ -3458,6 +3458,7 @@ let firebaseInitialConnectTimer = null;
 const FIREBASE_INITIAL_CONNECT_GRACE_MS = 3500;
 const FIREBASE_MONITOR_RETRY_MS = 5000;
 let attendanceSaveInFlight = false;
+let attendanceSmsSubmissionInFlight = false; // v2.5: Onay + kayıt + SMS işlemi süresince ikinci gönderimi engeller.
 let queueFlushInFlight = null;
 
 function normalizeAppVersion(value=''){
@@ -6541,6 +6542,9 @@ function buildVeliSmsText({type, studentName, hourNo, bas, bit, classLabel}){
   if(type === 'late'){
     return `Sayın velimiz, ${studentPart} ${hour} derse geç katılmıştır (${timeRange}). FENOMEN.`;
   }
+  if(type === 'corrected'){
+    return `Sayın velimiz, ${studentPart} için ${hour} saat yoklama kaydı düzeltilmiştir. Öğrencimiz derse katılmıştır (${timeRange}). Güncel bilgi budur. FENOMEN.`;
+  }
   // absent
   return `Sayın velimiz, ${studentPart} ${hour} derse gelmemiştir (${timeRange}). FENOMEN.`;
 }
@@ -6655,81 +6659,130 @@ async function sendParentAttendanceSmsBatch(batch){
   setStatus(final, failCount ? 'bad' : 'ok');
 }
 
-function collectParentAttendanceSmsBatch(){
-  const hourNo = getSmsLessonHourNo(currentLesson) || 1;
-  const bas = currentLesson?.bas || '';
-  const bit = currentLesson?.bit || '';
-
-  const map = new Map((currentRoster||[]).map(s => [safe(s.id), s]));
-  const items = [];
-
-  Object.entries(tempAtt || {}).forEach(([id, rec])=>{
-    if(!rec) return;
-    const st = map.get(safe(id));
-    if(!st) return;
-    // v2.3: Gün ve sınıf seviyesine göre SMS izni. Yoklama kaydı bu filtreden etkilenmez.
-    if(!parentSmsDayAllowed(st.sinif)) return;
-
-    const status = safe(rec.status);
-    const isLate = !!rec.late;
-
-    if(status === 'yok'){
-      const message = buildVeliSmsText({type:'absent', studentName: st.ad, hourNo, bas, bit, classLabel: st.sinif || currentLesson?.classLabel || currentLesson?.sinif || ''});
-      items.push({ studentId: st.id, studentName: st.ad, gsm: st.veliTel, message });
-    }else if(status === 'var' && isLate){
-      const message = buildVeliSmsText({type:'late', studentName: st.ad, hourNo, bas, bit, classLabel: st.sinif || currentLesson?.classLabel || currentLesson?.sinif || ''});
-      items.push({ studentId: st.id, studentName: st.ad, gsm: st.veliTel, message });
-    }
-  });
-
-  // geçersiz/boş numaraları temizle (log için ayrı saymak istemiyorsanız burada filtreleyin)
-  const cleaned = items.filter(it => normalizeTRGsm(it.gsm));
-  const skipped = items.length - cleaned.length;
-
-  return { total: cleaned.length, items: cleaned, skipped };
+// v2.5 — Karşılaştırma için Firebase'den GÜNCEL kayıtları hatayı yutmadan okur.
+// Genel yoklama okuyucusu bağlantı hatasında boş nesne döndürebiliyor; SMS'de
+// bu davranış aynı öğrenciyi yanlışlıkla ilk kez gelmemiş gibi bildirir.
+async function readLessonAttendanceForSmsComparison(dateStr, lesson){
+  const classKeys=uniqueTokens(lessonStorageClassKeys(lesson));
+  const pairs=await Promise.all(classKeys.map(async cls=>{
+    const snap=await get(ref(db, attDayRoot(dateStr, cls)));
+    return [cls, snap.exists() ? (snap.val()||{}) : {}];
+  }));
+  return collectLessonRecordsFromNodes(Object.fromEntries(pairs), lesson);
 }
 
-// Kaydet butonu için yeni akış (1. ve 2. saat = SMS + uyarı)
-async function handleAttendanceSaveClick(){
-  if(!currentLesson) return;
+function parentAttendanceSmsState(record, savedRecord=false){
+  if(!record) return null;
+  const status=safe(savedRecord ? record.durum : record.status);
+  if(status==='yok') return 'absent';
+  if(status==='var') return record.late ? 'late' : 'present';
+  return 'unknown';
+}
 
-  const smsHourNo = getSmsLessonHourNo(currentLesson);
-  const shouldSendParentSms = isParentSmsLesson(currentLesson);
-  // Gösterilen onay metni de güncel sınıf/gün izinlerini yansıtsın.
-  const smsPreview = shouldSendParentSms ? collectParentAttendanceSmsBatch() : null;
-  const smsEnabledToday = shouldSendParentSms && !!smsPreview?.total;
+// Öğrenciyi yalnızca SON KAYDEDİLMİŞ durumundan farklıysa SMS listesine al.
+// Daha önce YOK/GEÇ olan öğrenci VAR olarak düzeltildiyse düzeltme bildirimi üret.
+function collectParentAttendanceSmsBatch(previousByStudent){
+  if(!previousByStudent || typeof previousByStudent!=='object'){
+    return { total:0, items:[], skipped:0 };
+  }
+  const hourNo=getSmsLessonHourNo(currentLesson)||1;
+  const bas=currentLesson?.bas||'';
+  const bit=currentLesson?.bit||'';
+  const map=new Map((currentRoster||[]).map(st=>[safe(st.id), st]));
+  const items=[];
 
-  const title = shouldSendParentSms ? `${smsHourNo}. Saat Yoklaması` : 'Yoklama Onayı';
-  const text  = smsEnabledToday
-    ? `Sayın öğretmenimiz, ${smsHourNo}. saat yoklamasında dikkatli yoklama almanızı rica ederiz. Çünkü 1. ve 2. saat yoklamalarında gelmeyen ve geç gelen öğrencilerin velilerine SMS gönderilmektedir.\n\nYoklama kaydedilsin mi?`
-    : 'Sayın öğretmenimiz, yoklamayı doğru aldınız mı?\n\nYoklama kaydedilsin mi?';
+  for(const [id, rec] of Object.entries(tempAtt||{})){
+    if(!rec) continue;
+    const st=map.get(safe(id));
+    if(!st) continue;
+    // Sınıf seviyesine ve haftanın gününe göre mevcut SMS izinleri korunur.
+    if(!parentSmsDayAllowed(st.sinif)) continue;
 
-  const confirmButtonText = smsEnabledToday ? 'Evet, Kaydet ve SMS Gönder' : 'Evet, Kaydet';
-
-  const res = await Swal.fire({
-    title,
-    text,
-    icon: shouldSendParentSms ? 'warning' : 'question',
-    showCancelButton: true,
-    confirmButtonText,
-    cancelButtonText: 'Hayır, Geri Dön',
-    reverseButtons: true
-  });
-
-  if(!res.isConfirmed) return;
-
-  // SMS batch'i kayıttan ÖNCE topla (saveAttendance sonunda currentLesson/tempAtt sıfırlanıyor)
-  const batch = shouldSendParentSms ? collectParentAttendanceSmsBatch() : null;
-
-  const savedOk = await saveAttendance();
-  if(!savedOk) return;
-
-  if(shouldSendParentSms){
-    if(batch && batch.total){
-      await sendParentAttendanceSmsBatch(batch);
-    }else{
-      setStatus(`${smsHourNo || ''}. saat yoklaması kaydedildi. SMS gönderilecek öğrenci yok.`, 'ok');
+    const oldState=parentAttendanceSmsState(previousByStudent[id], true);
+    const newState=parentAttendanceSmsState(rec);
+    if(oldState==='unknown' || newState==='unknown'){
+      throw new Error(`Öğrenci ${id} için yoklama durumu geçersiz; SMS karşılaştırması güvenli değil.`);
     }
+    if(oldState===newState) continue; // Tekrar Kaydet -> tekrar SMS YOK.
+    if(newState==='present' && oldState===null) continue; // İlk kayıt, öğrenci VAR: SMS YOK.
+
+    const type=newState==='absent' ? 'absent'
+      : newState==='late' ? 'late'
+      : 'corrected'; // Daha önce YOK veya GEÇ -> artık normal VAR.
+    const message=buildVeliSmsText({
+      type, studentName:st.ad, hourNo, bas, bit,
+      classLabel:st.sinif||currentLesson?.classLabel||currentLesson?.sinif||''
+    });
+    items.push({ studentId:st.id, studentName:st.ad, gsm:st.veliTel, message });
+  }
+
+  const cleaned=items.filter(it=>normalizeTRGsm(it.gsm));
+  return { total:cleaned.length, items:cleaned, skipped:items.length-cleaned.length };
+}
+
+// Kaydet: öğretmen değişiklik yaptıysa yalnızca değişen öğrenciye SMS gönder.
+async function handleAttendanceSaveClick(){
+  if(!currentLesson || attendanceSmsSubmissionInFlight || attendanceSaveInFlight) return;
+  attendanceSmsSubmissionInFlight=true;
+  if(UI.saveBtn) UI.saveBtn.disabled=true;
+  try{
+    const smsHourNo=getSmsLessonHourNo(currentLesson);
+    const shouldSendParentSms=isParentSmsLesson(currentLesson);
+    const tarih=toDateStr(nowTR());
+    let smsPreview={total:0, items:[], skipped:0};
+
+    // Kayıt öncesi canlı Firebase karşılaştırması: önceki ekran verisine güvenilmez.
+    // Bağlantı yoksa mevcut çevrimdışı kayıt kuyruğu kullanılabilir ancak SMS atılmaz.
+    if(shouldSendParentSms && canUseFirebase()){
+      const before=await readLessonAttendanceForSmsComparison(tarih, currentLesson);
+      smsPreview=collectParentAttendanceSmsBatch(before.byStudent);
+    }
+    const smsEnabledToday=shouldSendParentSms && smsPreview.total>0;
+    const title=shouldSendParentSms ? `${smsHourNo}. Saat Yoklaması` : 'Yoklama Onayı';
+    const text=smsEnabledToday
+      ? `Sayın öğretmenimiz, ${smsHourNo}. saat yoklaması kaydedildiğinde yalnızca durumu yeni değişen ${smsPreview.total} öğrencinin velisine SMS gönderilecektir.
+
+Yoklama kaydedilsin mi?`
+      : shouldSendParentSms
+        ? `Sayın öğretmenimiz, yoklamayı doğru aldınız mı?\n\nYeni SMS gerektiren öğrenci bulunmuyor. Kaydetme işlemi aynı öğrencilere tekrar SMS göndermez.\n\nYoklama kaydedilsin mi?`
+        : `Sayın öğretmenimiz, yoklamayı doğru aldınız mı?\n\nYoklama kaydedilsin mi?`;
+
+    const res=await Swal.fire({
+      title, text, icon:shouldSendParentSms?'warning':'question',
+      showCancelButton:true,
+      confirmButtonText:smsEnabledToday?'Evet, Kaydet ve SMS Gönder':'Evet, Kaydet',
+      cancelButtonText:'Hayır, Geri Dön', reverseButtons:true
+    });
+    if(!res.isConfirmed) return;
+
+    // Onay sırasında başka cihazdan yoklama değişmişse ikinci taze okuma kullan.
+    // Hatalı okumada kayıt+SMS yapmayarak mükerrer bildirim riskini önler.
+    let batch={total:0, items:[], skipped:0};
+    if(shouldSendParentSms && canUseFirebase()){
+      const beforeSave=await readLessonAttendanceForSmsComparison(tarih, currentLesson);
+      batch=collectParentAttendanceSmsBatch(beforeSave.byStudent);
+    }
+
+    const savedOk=await saveAttendance();
+    if(!savedOk) return;
+    if(shouldSendParentSms){
+      if(batch.total){
+        await sendParentAttendanceSmsBatch(batch);
+      }else{
+        setStatus(`${smsHourNo||''}. saat yoklaması kaydedildi. Yeniden SMS gönderilmedi.`, 'ok');
+      }
+    }
+  }catch(error){
+    console.error('Yoklama SMS karşılaştırması başarısız',error);
+    setStatus('Önceki yoklama güvenle okunamadığı için kayıt ve SMS durduruldu.', 'bad');
+    await Swal.fire({
+      icon:'error', title:'SMS Karşılaştırması Yapılamadı',
+      text:'Önceki yoklama kayıtları doğrulanamadı. Mükerrer SMS göndermemek için bu işlem durduruldu. Bağlantıyı kontrol ederek tekrar deneyiniz.',
+      confirmButtonText:'Tamam'
+    });
+  }finally{
+    attendanceSmsSubmissionInFlight=false;
+    if(UI.saveBtn) UI.saveBtn.disabled=false;
   }
 }
 
@@ -11842,7 +11895,7 @@ function printParentHomeworks(){
     window.addEventListener('DOMContentLoaded', init);
   </script>
     <footer class="site-footer">
-    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.4</span></p>
+    <p>Tasarım ve Kodlama: <strong>Ferhat Karagöz</strong> <span class="version-badge" id="appVersionBadge">v2.5</span></p>
   </footer>
  <style>
 .site-footer{
