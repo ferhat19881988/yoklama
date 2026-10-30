@@ -99,9 +99,9 @@
       text-overflow:ellipsis;
     }
 
-    .{ display:flex; align-items:center; gap:8px }
-    .-img{ height:40px; width:auto; border-radius:6px }
-    .-text{ font-weight:600; font-size:1.1rem; white-space:nowrap }
+    .logo{ display:flex; align-items:center; gap:8px; min-width:0 }
+    .logo-img{ width:34px; height:34px; max-width:34px; flex:0 0 34px; object-fit:contain; border-radius:6px }
+    .logo-text{ font-weight:600; font-size:1.1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
     #userChip{ color:#fff }
     .badge{ width:36px; height:36px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(135deg,#fef3c7,#fdba74); color:#7c2d12; font-size:18px; box-shadow:0 10px 25px rgba(251,146,60,.35) }
     /* YENİ — header öğeleri kaymasın */
@@ -112,8 +112,6 @@
   flex-wrap:nowrap;   /* kritik: sarma yok */
   min-width:0;        /* ellipsis çalışsın */
 }
-.{ min-width:0 }
-.-text{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 #userChip{ max-width:48vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 
 /* Çok dar ekranlarda uzun “Online/Offline” metnini gizle */
@@ -666,7 +664,7 @@
     /* Reduce heavy effects on low-end devices */
     @media (max-width:480px){
       .head-inner{ padding:10px 12px }
-      .-text{ font-size:1rem }
+      .logo-text{ font-size:1rem }
       .badge{ width:32px; height:32px; font-size:16px }
       .btn{ padding:12px 14px; border-radius:14px }
       .lesson{ padding:12px }
@@ -2466,7 +2464,7 @@ div.admin-filters .button-row {
   <!-- Header -->
   <header role="banner">
     <div class="head-inner">
-      <div class="" aria-label="Uygulama adı">
+      <div class="logo" aria-label="Uygulama adı">
         <img src="https://i.ibb.co/HLX8MkQg/1.jpg" alt="Fenomen Yoklama Logo" class="logo-img">
         <span class="logo-text">Yoklama</span>
       </div>
